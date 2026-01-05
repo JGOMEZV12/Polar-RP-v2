@@ -29,11 +29,13 @@ using System.Collections.Concurrent;
 using Polar.Database.Interfaces;
 using System.Text.RegularExpressions;
 using Polar.Communication.Interfaces;
+using log4net;
 
 namespace Polar.HabboHotel.Rooms
 {
     public class RoomUser
     {
+        private static readonly ILog log = LogManager.GetLogger("Polar.HabboHotel.Rooms.RoomUser");
         public bool AllowOverride;
         public BotAI BotAI;
         public RoleplayBotAI RPBotAI;
@@ -445,12 +447,14 @@ namespace Polar.HabboHotel.Rooms
             return false;
         }
 
-        public void OnChat(int Colour, string Message, bool Shout)
+        public async void OnChat(int Colour, string Message, bool Shout)
         {
-            if (GetClient() == null || GetClient().GetHabbo() == null || mRoom == null || Message == null)
-                return;
+            try
+            {
+                if (GetClient() == null || GetClient().GetHabbo() == null || mRoom == null || Message == null)
+                    return;
 
-            if (mRoom.GetWired().TriggerEvent(Items.Wired.WiredBoxType.TriggerUserSays, GetClient().GetHabbo(), Message))
+                if (mRoom.GetWired().TriggerEvent(Items.Wired.WiredBoxType.TriggerUserSays, GetClient().GetHabbo(), Message))
             {
                 ChatSpamCount = 0;
                 return;
@@ -487,9 +491,9 @@ namespace Polar.HabboHotel.Rooms
 
                 SendNameColourPacket();
                 if (Shout)
-                    Packet = new ShoutComposer(VirtualId, PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", PolarEnvironment.GetGame().GetChatManager().GetEmotions().GetEmotionsForText(Message), Colour);
+                    Packet = new ShoutComposer(VirtualId, await PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", PolarEnvironment.GetGame().GetChatManager().GetEmotions().GetEmotionsForText(Message), Colour);
                 else
-                    Packet = new ChatComposer(VirtualId, PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", PolarEnvironment.GetGame().GetChatManager().GetEmotions().GetEmotionsForText(Message), Colour);
+                    Packet = new ChatComposer(VirtualId, await PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", PolarEnvironment.GetGame().GetChatManager().GetEmotions().GetEmotionsForText(Message), Colour);
                 SendNamePacket();
             }
             else
@@ -619,6 +623,11 @@ namespace Polar.HabboHotel.Rooms
                 }
             }
             #endregion
+            }
+            catch (Exception ex)
+            {
+                log.Error($"An error occurred in OnChat: {ex}");
+            }
         }
 
         public bool UsingColourCode(string Message)

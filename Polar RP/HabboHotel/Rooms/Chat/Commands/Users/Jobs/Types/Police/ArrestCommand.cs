@@ -291,7 +291,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Police
                 #endregion
 
 
-                PolarEnvironment.SendMs("**__¡LiveFeed!__** `|` **" + TargetClient.GetHabbo().Username + "** Ha sido arrestad@ por **" + Session.GetHabbo().Username + "**");
+                await PolarEnvironment.SendMs("**__¡LiveFeed!__** `|` **" + TargetClient.GetHabbo().Username + "** Ha sido arrestad@ por **" + Session.GetHabbo().Username + "**");
 
                 #region Live Feed
                 foreach (GameClient client in PolarEnvironment.GetGame().GetClientManager().GetClients.ToList())

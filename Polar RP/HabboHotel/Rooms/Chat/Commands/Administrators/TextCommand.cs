@@ -39,7 +39,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Administrators
             if (Params[1] == "bot")
             {
                 PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Session, "event_feedcomposer", "alert|" + Session.GetHabbo().Username + "|Bot|" + "Asesinó a");
-                PolarEnvironment.SendMs("**__¡LiveFeed!__ ** `|` **" + Session.GetHabbo().Username + "** **Habla claro**");
+                await PolarEnvironment.SendMs("**__¡LiveFeed!__ ** `|` **" + Session.GetHabbo().Username + "** **Habla claro**");
                 return;
             }
             if (Params.Length == 1)

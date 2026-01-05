@@ -196,6 +196,8 @@ namespace Polar.HabboHotel.Users
 
         private DateTime _timeCached;
 
+        public DateTime LastAccessed { get; set; }
+
         private SearchesComponent _navigatorSearches;
         private EffectsComponent _fx;
         private ClothingComponent _clothing;

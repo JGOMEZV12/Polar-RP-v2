@@ -23,7 +23,7 @@ namespace Polar.HabboRoleplay.Combat.Types
         /// Executes this type of combat
         /// </summary>
         /// 
-        public void Execute(GameClient Client, GameClient TargetClient, bool HitClosest = false)
+        public async Task Execute(GameClient Client, GameClient TargetClient, bool HitClosest = false)
         {
             if (!CanCombat(Client, TargetClient))
                 return;
@@ -153,7 +153,7 @@ namespace Polar.HabboRoleplay.Combat.Types
 
 
             // Procedimiento de daño al objetivo
-            HandleTargetDamage(Client, TargetClient, Damage, Weapon);
+            await HandleTargetDamage(Client, TargetClient, Damage, Weapon);
 
             
         }
@@ -198,11 +198,11 @@ namespace Polar.HabboRoleplay.Combat.Types
             TargetClient.GetRoomUser().ClearMovement(true);
         }
 
-        private void HandleTargetDamage(GameClient Client, GameClient TargetClient, int Damage, Weapon Weapon)
+        private async Task HandleTargetDamage(GameClient Client, GameClient TargetClient, int Damage, Weapon Weapon)
         {
             if (TargetClient.GetRoleplay().CurHealth - Damage <= 0)
             {
-                KillTarget(Client, TargetClient, Damage, Weapon);
+                await KillTarget(Client, TargetClient, Damage, Weapon);
             }
             else
             {
@@ -247,7 +247,7 @@ namespace Polar.HabboRoleplay.Combat.Types
                 Client.GetRoleplay().WantedFor = Client.GetRoleplay().WantedFor + "intento de asalto, ";
         }
 
-        private void KillTarget(GameClient Client, GameClient TargetClient, int Damage, Weapon Weapon)
+        private async Task KillTarget(GameClient Client, GameClient TargetClient, int Damage, Weapon Weapon)
         {
             Client.GetRoleplay().ClearWebSocketDialogue();
 
@@ -414,7 +414,7 @@ namespace Polar.HabboRoleplay.Combat.Types
             TargetClient.GetRoleplay().IsDead = true;
             TargetClient.GetRoleplay().DeadTimeLeft = RoleplayManager.DeathTime;
 
-            PolarEnvironment.SendMs("**__¡LiveFeed!__** `|` **" + Client.GetHabbo().Username + "** Asesinó a **" + TargetClient.GetHabbo().Username + "**");
+            await PolarEnvironment.SendMs("**__¡LiveFeed!__** `|` **" + Client.GetHabbo().Username + "** Asesinó a **" + TargetClient.GetHabbo().Username + "**");
 
             #region Live Feed
             foreach (GameClient client in PolarEnvironment.GetGame().GetClientManager().GetClients.ToList())
@@ -427,7 +427,7 @@ namespace Polar.HabboRoleplay.Combat.Types
             #endregion
         }
 
-        public void Executex(GameClient Client, GameClient TargetClient, bool HitClosest = false)
+        public async Task Executex(GameClient Client, GameClient TargetClient, bool HitClosest = false)
         {
             if (!CanCombat(Client, TargetClient))
                 return;
@@ -767,7 +767,7 @@ namespace Polar.HabboRoleplay.Combat.Types
                     TargetClient.GetRoleplay().IsDead = true;
                     TargetClient.GetRoleplay().DeadTimeLeft = RoleplayManager.DeathTime;
 
-                    PolarEnvironment.SendMs("**__¡LiveFeed!__** `|` **" + Client.GetHabbo().Username + "** Asesinó a **" + TargetClient.GetHabbo().Username + "**");
+                    await PolarEnvironment.SendMs("**__¡LiveFeed!__** `|` **" + Client.GetHabbo().Username + "** Asesinó a **" + TargetClient.GetHabbo().Username + "**");
 
                     #region Live Feed
                     foreach (GameClient client in PolarEnvironment.GetGame().GetClientManager().GetClients.ToList())

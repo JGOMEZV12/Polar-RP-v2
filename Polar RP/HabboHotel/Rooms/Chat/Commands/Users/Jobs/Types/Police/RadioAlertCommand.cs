@@ -65,7 +65,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Police
                 string LG1 = Session.GetHabbo().FromLanguage.ToLower();
                 string LG2 = Session.GetHabbo().ToLanguage.ToLower();
 
-                PolarEnvironment.GetGame().GetClientManager().RadioAlert(PolarEnvironment.TranslateText(Message, LG1 + "|" + LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", Session);
+                PolarEnvironment.GetGame().GetClientManager().RadioAlert(await PolarEnvironment.TranslateText(Message, LG1 + "|" + LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", Session);
             }
             else
                 PolarEnvironment.GetGame().GetClientManager().RadioAlert(Message, Session);
