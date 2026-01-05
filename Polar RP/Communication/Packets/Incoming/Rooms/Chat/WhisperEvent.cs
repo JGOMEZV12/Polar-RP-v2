@@ -11,15 +11,19 @@ using Polar.Utilities;
 using Polar.HabboHotel.Rooms.Chat.Styles;
 using Polar.HabboHotel.Rooms.Chat.Commands;
 using Polar.Communication.Packets.Outgoing.Rooms.Notifications;
+using log4net;
 
 namespace Polar.Communication.Packets.Incoming.Rooms.Chat
 {
     public class WhisperEvent : IPacketEvent
     {
-        public void Parse(GameClient Session, ClientPacket Packet)
+        private static readonly ILog log = LogManager.GetLogger("Polar.Communication.Packets.Incoming.Rooms.Chat.WhisperEvent");
+        public async void Parse(GameClient Session, ClientPacket Packet)
         {
-            if (!Session.GetHabbo().InRoom)
-                return;
+            try
+            {
+                if (!Session.GetHabbo().InRoom)
+                    return;
 
             Room Room = Session.GetHabbo().CurrentRoom;
             if (Room == null)
@@ -133,7 +137,7 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Chat
                         string LG1 = User.GetClient().GetHabbo().FromLanguage.ToLower();
                         string LG2 = User.GetClient().GetHabbo().ToLanguage.ToLower();
 
-                        User.GetClient().SendMessage(new WhisperComposer(User.VirtualId, PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", 0, 37));
+                        User.GetClient().SendMessage(new WhisperComposer(User.VirtualId, await PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", 0, 37));
                     }
                     else
                         User.GetClient().SendMessage(new WhisperComposer(User.VirtualId, Message, 0, 37));
@@ -145,7 +149,7 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Chat
                         string LG1 = User.GetClient().GetHabbo().FromLanguage.ToLower();
                         string LG2 = User.GetClient().GetHabbo().ToLanguage.ToLower();
 
-                        User.GetClient().SendMessage(new WhisperComposer(User.VirtualId, PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", 0, User.LastBubble));
+                        User.GetClient().SendMessage(new WhisperComposer(User.VirtualId, await PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", 0, User.LastBubble));
                     }
                     else
                         User.GetClient().SendMessage(new WhisperComposer(User.VirtualId, Message, 0, User.LastBubble));
@@ -158,7 +162,7 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Chat
                     string LG1 = User.GetClient().GetHabbo().FromLanguage.ToLower();
                     string LG2 = User.GetClient().GetHabbo().ToLanguage.ToLower();
 
-                    User.GetClient().SendMessage(new WhisperComposer(User.VirtualId, PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", 0, User.LastBubble));
+                    User.GetClient().SendMessage(new WhisperComposer(User.VirtualId, await PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", 0, User.LastBubble));
                 }
                 else
                     User.GetClient().SendMessage(new WhisperComposer(User.VirtualId, Message, 0, User.LastBubble));
@@ -173,7 +177,7 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Chat
                         string LG1 = User.GetClient().GetHabbo().FromLanguage.ToLower();
                         string LG2 = User.GetClient().GetHabbo().ToLanguage.ToLower();
 
-                        User2.GetClient().SendMessage(new WhisperComposer(User.VirtualId, PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", 0, User.LastBubble));
+                        User2.GetClient().SendMessage(new WhisperComposer(User.VirtualId, await PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", 0, User.LastBubble));
                     }
                     else
                         User2.GetClient().SendMessage(new WhisperComposer(User.VirtualId, Message, 0, User.LastBubble));
@@ -194,7 +198,7 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Chat
                                 string LG1 = User.GetClient().GetHabbo().FromLanguage.ToLower();
                                 string LG2 = User.GetClient().GetHabbo().ToLanguage.ToLower();
 
-                                user.GetClient().SendMessage(new WhisperComposer(User.VirtualId, "[Susurra a " + ToUser + "] " + PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", 0, User.LastBubble));
+                                user.GetClient().SendMessage(new WhisperComposer(User.VirtualId, "[Susurra a " + ToUser + "] " + await PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", 0, User.LastBubble));
                             }
                             else
                                 user.GetClient().SendMessage(new WhisperComposer(User.VirtualId, "[Susurra a " + ToUser + "] " + Message, 0, User.LastBubble));
@@ -203,6 +207,11 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Chat
                 }
             }
             User.SendNamePacket();
+            }
+            catch (Exception ex)
+            {
+                log.Error($"An error occurred in WhisperEvent: {ex}");
+            }
         }
     }
 }

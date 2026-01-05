@@ -494,7 +494,7 @@ namespace Polar.HabboHotel.Users.Messenger
             Client.SendMessage(new NewConsoleMessageComposer(_userId, Message));
         }
 
-        public void SendInstantMessage(int ToId, string Message)
+        public async void SendInstantMessage(int ToId, string Message)
         {
             if (ToId == 0)
                 return;
@@ -597,10 +597,10 @@ namespace Polar.HabboHotel.Users.Messenger
                         string LG1 = GetClient().GetHabbo().FromLanguage.ToLower();
                         string LG2 = GetClient().GetHabbo().ToLanguage.ToLower();
 
-                        NotifyStaffMembers(GetClient().GetHabbo(), UserName, PolarEnvironment.TranslateText(Message, LG1 + "|" + LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", false);
+                        await NotifyStaffMembers(GetClient().GetHabbo(), UserName, await PolarEnvironment.TranslateText(Message, LG1 + "|" + LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", false);
                     }
                     else
-                        NotifyStaffMembers(GetClient().GetHabbo(), UserName, Message, false);
+                        await NotifyStaffMembers(GetClient().GetHabbo(), UserName, Message, false);
 
                     using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                     {
@@ -661,7 +661,7 @@ namespace Polar.HabboHotel.Users.Messenger
             Client.SendMessage(new NewConsoleMessageComposer(_userId, Message));
         }
 
-        public void NotifyStaffMembers(Habbo Sender, string Username, string Message, bool CheckReceiver = true)
+        public async void NotifyStaffMembers(Habbo Sender, string Username, string Message, bool CheckReceiver = true)
         {
             if (Sender.CurrentRoom != null)
             {

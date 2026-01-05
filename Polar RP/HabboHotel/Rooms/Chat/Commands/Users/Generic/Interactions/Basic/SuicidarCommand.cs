@@ -70,7 +70,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Interactions.Basic
             }
             #endregion
 
-            PolarEnvironment.SendMs("**__¡LiveFeed!__** `|` **" + Session.GetHabbo().Username + "** se ha suicidado");
+            await PolarEnvironment.SendMs("**__¡LiveFeed!__** `|` **" + Session.GetHabbo().Username + "** se ha suicidado");
 
             #region Execute
             Session.Shout(" *Presiona un botón y explota en mil pedazos [Va directo al hospital] * ", 27);

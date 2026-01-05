@@ -72,7 +72,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.VIP
                     string LG1 = Session.GetHabbo().FromLanguage.ToLower();
                     string LG2 = Session.GetHabbo().ToLanguage.ToLower();
 
-                    PolarEnvironment.GetGame().GetClientManager().VIPWhisperAlert(PolarEnvironment.TranslateText(Message, LG1 + "|" + LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", Session);
+                    PolarEnvironment.GetGame().GetClientManager().VIPWhisperAlert(await PolarEnvironment.TranslateText(Message, LG1 + "|" + LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", Session);
                 }
                 else
                     PolarEnvironment.GetGame().GetClientManager().VIPWhisperAlert(Message, Session);

@@ -179,7 +179,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Administrators
                 PolarEnvironment.GetGame().GetClientManager().JailAlert("[RADIO] " + TargetClient.GetHabbo().Username + " Acaba de ser arrestado por " + Session.GetHabbo().Username + "! Buen trabajo a todos.");
             }
 
-            PolarEnvironment.SendMs("**__¡LiveFeed!__** `|` **" + TargetClient.GetHabbo().Username + "** Ha sido arrestad@ por **" + Session.GetHabbo().Username + "**");
+            await PolarEnvironment.SendMs("**__¡LiveFeed!__** `|` **" + TargetClient.GetHabbo().Username + "** Ha sido arrestad@ por **" + Session.GetHabbo().Username + "**");
 
             Session.GetRoleplay().Arrests++;
             TargetClient.GetRoleplay().Arrested++;

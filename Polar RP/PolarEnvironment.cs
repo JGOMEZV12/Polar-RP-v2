@@ -26,12 +26,14 @@ using Polar.HabboRoleplay.Web.Util.ChatRoom;
 using ConnectionManager;
 using Newtonsoft.Json;
 using System.Web;
+using System.Timers;
 
 namespace Polar
 {
     public static class PolarEnvironment
     {
         private static readonly ILog log = LogManager.GetLogger("Polar.PolarEnvironment");
+        private static Timer _cacheCleaningTimer;
 
         public const string PrettyVersion = "Polar Server RP";
         public const string PrettyBuild = "2.1.2";
@@ -73,81 +75,91 @@ namespace Polar
                 return client2;
             }
         }
-        public static void SendMs(string message = "")
+        public static async Task SendMs(string message = "")
         {
-            var WebHookId = ExtraSettings.WEBHOOK_ID_COMBAT;
-            var WebHookToken = ExtraSettings.WEBHOOK_TOKEN_COMBAT;
-            string EndPoint = string.Format("https://discordapp.com/api/webhooks/{0}/{1}", WebHookId, WebHookToken);
-            var content = new StringContent(JsonConvert.SerializeObject(string.Empty), Encoding.UTF8, "application/json");
-            const string colorGreen = "80E61F";
-            const string colorPurple = "C61FE6";
-
-            var SuccessWebHook = new
+            try
             {
-                username = "⭐ Bot | HetosRP ⭐",
-                content = message,
-                avatar_url = "https://cdn.shopify.com/s/files/1/0185/5092/products/persons-0041_large.png?v=1369543932"
-            };
+                var WebHookId = ExtraSettings.WEBHOOK_ID_COMBAT;
+                var WebHookToken = ExtraSettings.WEBHOOK_TOKEN_COMBAT;
+                string EndPoint = string.Format("https://discordapp.com/api/webhooks/{0}/{1}", WebHookId, WebHookToken);
+                var content = new StringContent(JsonConvert.SerializeObject(string.Empty), Encoding.UTF8, "application/json");
+                const string colorGreen = "80E61F";
+                const string colorPurple = "C61FE6";
 
-            content = new StringContent(JsonConvert.SerializeObject(SuccessWebHook), Encoding.UTF8, "application/json");
-
-            //Console.WriteLine(JsonConvert.SerializeObject(SuccessWebHook));
-
-            Client2.PostAsync(EndPoint, content).Wait();
-        }
-        public static void SendMs2(string message = "", string imagex = "", string Desc = "", string oFooter = "", string Figure = "", bool isEmbeds = false)
-        {
-            var WebHookId = ExtraSettings.WEBHOOK_ID;
-            var WebHookToken = ExtraSettings.WEBHOOK_TOKEN;
-            string EndPoint = string.Format("https://discordapp.com/api/webhooks/{0}/{1}", WebHookId, WebHookToken);
-            var content = new StringContent(JsonConvert.SerializeObject(string.Empty), Encoding.UTF8, "application/json");
-            const string colorGreen = "80E61F";
-            const string colorPurple = "C61FE6";
-
-            if (isEmbeds == true)
-            {
                 var SuccessWebHook = new
                 {
-                    username = PolarEnvironment.GetConfig().data["Webhook_Username"],
-                    content = message,
-                    avatar_url = RoleplayManager.AVATARIMG + Figure,
-                    embeds = new List<object>
-                {
-                    new
-                    {
-                        title = "",
-                        url="",
-                        description=Desc,
-                        image = new
-                        {
-                            url = imagex
-                        },
-                        footer = new
-                        {
-                            text = oFooter,
-                            iconurl = "",
-                        },
-                        color= int.Parse(colorGreen, System.Globalization.NumberStyles.HexNumber)
-                    }
-                }
-                };
-
-                content = new StringContent(JsonConvert.SerializeObject(SuccessWebHook), Encoding.UTF8, "application/json");
-            }
-            else
-            {
-                var SuccessWebHook = new
-                {
-                    username = "Hetos RP",
+                    username = "⭐ Bot | HetosRP ⭐",
                     content = message,
                     avatar_url = "https://cdn.shopify.com/s/files/1/0185/5092/products/persons-0041_large.png?v=1369543932"
                 };
 
                 content = new StringContent(JsonConvert.SerializeObject(SuccessWebHook), Encoding.UTF8, "application/json");
-            }
-            //Console.WriteLine(JsonConvert.SerializeObject(SuccessWebHook));
 
-            Client2.PostAsync(EndPoint, content).Wait();
+                await Client2.PostAsync(EndPoint, content);
+            }
+            catch (Exception e)
+            {
+                log.Error("Discord webhook error (SendMs): " + e.Message);
+            }
+        }
+        public static async Task SendMs2(string message = "", string imagex = "", string Desc = "", string oFooter = "", string Figure = "", bool isEmbeds = false)
+        {
+            try
+            {
+                var WebHookId = ExtraSettings.WEBHOOK_ID;
+                var WebHookToken = ExtraSettings.WEBHOOK_TOKEN;
+                string EndPoint = string.Format("https://discordapp.com/api/webhooks/{0}/{1}", WebHookId, WebHookToken);
+                var content = new StringContent(JsonConvert.SerializeObject(string.Empty), Encoding.UTF8, "application/json");
+                const string colorGreen = "80E61F";
+                const string colorPurple = "C61FE6";
+
+                if (isEmbeds == true)
+                {
+                    var SuccessWebHook = new
+                    {
+                        username = PolarEnvironment.GetConfig().data["Webhook_Username"],
+                        content = message,
+                        avatar_url = RoleplayManager.AVATARIMG + Figure,
+                        embeds = new List<object>
+                    {
+                        new
+                        {
+                            title = "",
+                            url="",
+                            description=Desc,
+                            image = new
+                            {
+                                url = imagex
+                            },
+                            footer = new
+                            {
+                                text = oFooter,
+                                iconurl = "",
+                            },
+                            color= int.Parse(colorGreen, System.Globalization.NumberStyles.HexNumber)
+                        }
+                    }
+                    };
+
+                    content = new StringContent(JsonConvert.SerializeObject(SuccessWebHook), Encoding.UTF8, "application/json");
+                }
+                else
+                {
+                    var SuccessWebHook = new
+                    {
+                        username = "Hetos RP",
+                        content = message,
+                        avatar_url = "https://cdn.shopify.com/s/files/1/0185/5092/products/persons-0041_large.png?v=1369543932"
+                    };
+
+                    content = new StringContent(JsonConvert.SerializeObject(SuccessWebHook), Encoding.UTF8, "application/json");
+                }
+                await Client2.PostAsync(EndPoint, content);
+            }
+            catch (Exception e)
+            {
+                log.Error("Discord webhook error (SendMs2): " + e.Message);
+            }
         }
 
         public static string PatchDir;
@@ -237,6 +249,12 @@ namespace Polar
                 Console.WriteLine();
 
                 Out.WriteLine("¡POLAR EMULADOR ROLEPLAY!   TIEMPO DE ENCENDIDO: " + TimeUsed.Seconds + " segundos, " + TimeUsed.Milliseconds + " milisegundos", "Polar.Boot", ConsoleColor.Cyan);
+
+                _cacheCleaningTimer = new Timer(3600000); // 1 hour
+                _cacheCleaningTimer.Elapsed += CleanUserCache;
+                _cacheCleaningTimer.AutoReset = true;
+                _cacheCleaningTimer.Enabled = true;
+
                 IsLive = true;
             }
             catch (KeyNotFoundException e)
@@ -402,10 +420,18 @@ namespace Polar
         }
         public static string GetUserInfoBy(string info, string by, string data)
         {
+            var allowedColumns = new List<string> { "id", "username", "real_name", "sso_ticket", "password", "mail", "rank", "motto", "look", "gender", "last_online", "account_created", "online", "machine_id", "secret_code", "secret_key", "pincode", "extra_rp", "photo_url", "block_newfriends", "hide_online", "hide_inroom", "vip", "account_day_of_birth", "credits", "vip_points", "activity_points", "home_room", "last_change", "refeer_new", "quest_id", "quest_progress", "volume", "chat_preference", "focus_preference", "pets_muted", "bots_muted", "advertising_report_blocked", "last_name_change", "gotw_points", "ignore_invites", "time_muted", "allow_gifts", "friend_bar_state", "disable_forced_effects", "allow_mimic", "rank_vip" };
+            if (!allowedColumns.Contains(info) || !allowedColumns.Contains(by))
+            {
+                log.Error($"Potential SQL injection attempt in GetUserInfoBy. Columns not allowed: info='{info}', by='{by}'");
+                return null;
+            }
+
             string get = null;
             using (IQueryAdapter dbClient = GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("SELECT `" + info + "` FROM `users` WHERE  `" + by + "` =  '" + data + "' LIMIT 1");
+                dbClient.SetQuery($"SELECT `{info}` FROM `users` WHERE `{by}` = @data LIMIT 1");
+                dbClient.AddParameter("data", data);
                 get = dbClient.getString();
             }
 
@@ -417,49 +443,78 @@ namespace Polar
             string get = null;
             using (IQueryAdapter dbClient = GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("SELECT `user_id` FROM `rp_phones_owned` WHERE  `phone_number` =  '" + phonenumber + "' LIMIT 1");
+                dbClient.SetQuery("SELECT `user_id` FROM `rp_phones_owned` WHERE `phone_number` = @phonenumber LIMIT 1");
+                dbClient.AddParameter("phonenumber", phonenumber);
                 get = dbClient.getString();
             }
 
             return get;
         }
+        private static void CleanUserCache(object sender, ElapsedEventArgs e)
+        {
+            try
+            {
+                var usersToRemove = _usersCached.Values.Where(user => (DateTime.UtcNow - user.LastAccessed).TotalHours > 24).ToList();
+                int removedCount = 0;
+
+                foreach (var user in usersToRemove)
+                {
+                    if (_usersCached.TryRemove(user.Id, out _))
+                    {
+                        removedCount++;
+                    }
+                }
+
+                if (removedCount > 0)
+                {
+                    log.Info($"Cleaned {removedCount} users from the cache.");
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Error("Error during user cache cleaning: " + ex.Message);
+            }
+        }
+
         public static Habbo GetHabboById(int UserId)
         {
             try
             {
+                // First, try to get the user from the online clients.
                 GameClient Client = GetGame()?.GetClientManager()?.GetClientByUserID(UserId);
                 if (Client != null)
                 {
                     Habbo User = Client.GetHabbo();
                     if (User != null && User.Id > 0)
                     {
+                        // If the user is online, they should not be in the cache.
+                        // Remove them just in case to ensure data consistency.
                         if (_usersCached.ContainsKey(UserId))
-                            _usersCached.TryRemove(UserId, out User);
+                            _usersCached.TryRemove(UserId, out _);
                         return User;
                     }
                 }
+
+                // If the user is not online, try to get them from the cache.
+                if (_usersCached.TryGetValue(UserId, out Habbo CachedUser))
+                {
+                    CachedUser.LastAccessed = DateTime.UtcNow;
+                    return CachedUser;
+                }
                 else
                 {
-                    try
+                    UserData data = UserDataFactory.GetUserData(UserId);
+                    if (data != null)
                     {
-                        if (_usersCached.ContainsKey(UserId))
-                            return _usersCached[UserId];
-                        else
+                        Habbo Generated = data.user;
+                        if (Generated != null)
                         {
-                            UserData data = UserDataFactory.GetUserData(UserId);
-                            if (data != null)
-                            {
-                                Habbo Generated = data.user;
-                                if (Generated != null)
-                                {
-                                    Generated.InitInformation(data);
-                                    _usersCached.TryAdd(UserId, Generated);
-                                    return Generated;
-                                }
-                            }
+                            Generated.InitInformation(data);
+                            Generated.LastAccessed = DateTime.UtcNow;
+                            _usersCached.TryAdd(UserId, Generated);
+                            return Generated;
                         }
                     }
-                    catch { return null; }
                 }
                 return null;
             }
@@ -540,7 +595,7 @@ namespace Polar
 
             if (restart)
             {
-                Task.Run(async () =>
+                await Task.Run(async () =>
                 {
                     Console.Clear();
                     Console.WriteLine();
@@ -554,27 +609,16 @@ namespace Polar
                     {
                         try
                         {
-                            // Obtener el nombre del archivo ejecutable actual
                             string executable = Assembly.GetEntryAssembly().Location;
-
-                            // Asegurarse de que el proceso se cierre antes de reiniciar
-                            Process.Start(new ProcessStartInfo
-                            {
-                                FileName = executable,
-                                CreateNoWindow = true,
-                                UseShellExecute = false // Ejecutar sin usar el shell
-                            });
-
-                            // Terminar el proceso actual
-                            Environment.Exit(0); // Esto cerrará el proceso actual
+                            Process.Start(executable);
+                            Environment.Exit(0);
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine("Error al reiniciar el proceso: " + ex.Message);
+                            log.Error("Failed to restart the application: " + ex.Message);
                         }
                     }
-
-                }).Wait();
+                });
             }
 
 
@@ -637,64 +681,51 @@ namespace Polar
             return Convert.ToInt64((target - d).TotalSeconds);
         }
 
-        public static string translate(String input, string from, string to)
+        public static async Task<string> translate(String input, string from, string to)
         {
-            var fromLanguage = from;
-            var toLanguage = to;
-            var url = $"https://translate.googleapis.com/translate_a/single?client=gtx&sl={fromLanguage}&tl={toLanguage}&dt=t&q={HttpUtility.UrlEncode(input)}";
-            var webclient = new WebClient
-            {
-                Encoding = System.Text.Encoding.UTF8
-            };
-            var result = webclient.DownloadString(url);
             try
             {
-                result = result.Substring(4, result.IndexOf("\"", 4
-                    , StringComparison.Ordinal) - 4);
+                var fromLanguage = from;
+                var toLanguage = to;
+                var url = $"https://translate.googleapis.com/translate_a/single?client=gtx&sl={fromLanguage}&tl={toLanguage}&dt=t&q={HttpUtility.UrlEncode(input)}";
+
+                var result = await Client2.GetStringAsync(url);
+
+                result = result.Substring(4, result.IndexOf("\"", 4, StringComparison.Ordinal) - 4);
                 return result;
             }
-            catch (Exception e1)
+            catch (Exception e)
             {
+                log.Error("Translation error (translate): " + e.Message);
                 return "error";
             }
-
-
         }
-        /// <summary>
-        /// Translate Text using Google Translate API’s
-        /// Google URL – http://www.google.com/translate_t?hl=en&ie=UTF8&text={0}&langpair={1}
-        /// </summary>
-        /// <param name=”input”>Input string</param>
-        /// <param name=”languagePair”>2 letter Language Pair, delimited by “|”.
-        /// E.g. “ar|en” language pair means to translate from Arabic to English</param>
-        /// <returns>Translated to String</returns>
-        public static string TranslateText(string input, string languagePair)
+
+        public static async Task<string> TranslateText(string input, string languagePair)
         {
             try
             {
-                input = input.Replace(".", ",").Replace("!", ",") /*.Replace("/", ",").Replace("\\", ",").Replace("<", ",").Replace(">", ",").Replace(")", ",").Replace("(", ",").Replace("*", ",")*/;
+                input = input.Replace(".", ",").Replace("!", ",");
 
-                // Decode from UTF-8
-                byte[] bytes = Encoding.Default.GetBytes(input);
-                input = Encoding.GetEncoding(1252).GetString(bytes);
+                // It's better to let HttpClient handle encoding, but if you must use 1252:
+                // byte[] bytes = Encoding.GetEncoding(1252).GetBytes(input);
+                // var encodedInput = Encoding.GetEncoding(1252).GetString(bytes);
 
-                string URL = String.Format("http://www.google.com/translate_t?hl=en&ie=UTF8&text={0}&langpair={1}", input, languagePair);
-                string Result;
+                string url = $"http://www.google.com/translate_t?hl=en&ie=UTF8&text={HttpUtility.UrlEncode(input)}&langpair={languagePair}";
 
-                using (WebClient webClient = new WebClient())
+                var result = await Client2.GetStringAsync(url);
+
+                var match = Regex.Match(result, "<span id=result_box.*?>(.*?)</span>");
+                if (match.Success)
                 {
-                    webClient.Encoding = Encoding.GetEncoding(1252);
-
-                    Result = webClient.DownloadString(URL);
-                    Result = Regex.Split(Result, "<span id=result_box")[1];
-                    Result = Regex.Split(Result, "</span>")[0];
-                    Result = Regex.Split(Result, "#fff'\">")[1];
+                    return HttpUtility.HtmlDecode(match.Groups[1].Value).Trim();
                 }
 
-                return Result.Trim();
+                return input;
             }
-            catch
+            catch (Exception e)
             {
+                log.Error("Translation error (TranslateText): " + e.Message);
                 return input;
             }
         }
