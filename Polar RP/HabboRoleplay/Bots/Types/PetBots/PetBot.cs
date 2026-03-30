@@ -65,9 +65,9 @@ namespace Polar.HabboRoleplay.Bots.PetBots
             {
                 GetBotRoleplay().UserAttacking = Client;
 
-                if (!GetBotRoleplay().ActiveTimers.ContainsKey("attack"))
+                if (!GetBotRoleplay().ActiveHandlers.ContainsKey(Handlers.ATTACK))
                 {
-                    GetBotRoleplay().ActiveTimers.TryAdd("attack", GetBotRoleplay().TimerManager.CreateTimer("attack", GetBotRoleplay(), 10, true, Client.GetHabbo().Id));
+                    GetBotRoleplay().StartHandler(Handlers.ATTACK, out _, Client);
                     GetRoomUser().Chat("*Gruñe agresivamente hacia " + Client.GetHabbo().Username + "*", true, 4);
                 }
             }
