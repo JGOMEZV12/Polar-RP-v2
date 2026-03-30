@@ -5,6 +5,7 @@ using System.Collections.Generic;
 
 using Polar.HabboHotel.Rooms;
 using Polar.Communication.Packets.Outgoing.Rooms.AI.Pets;
+using Polar.HabboRoleplay.Combat;
 
 namespace Polar.Communication.Packets.Incoming.Rooms.AI.Pets
 {
@@ -26,7 +27,21 @@ namespace Polar.Communication.Packets.Incoming.Rooms.AI.Pets
 
                 if (Session.GetHabbo().CurrentRoom.GetRoomUserManager().TryGetBot(LookupId, out Pet))
                 {
-                    if (Pet.IsBot && Pet.PetData != null)
+                    if (Pet.IsBot && Pet.GetBotRoleplay() != null && Pet.GetBotRoleplay().IsPet)
+                    {
+                        if (Session.GetRoleplay().EquippedWeapon != null)
+                        {
+                            Session.GetRoleplay().LastCommand = ":disparar " + Pet.GetBotRoleplay().Name;
+                            CombatManager.GetCombatType("gun").ExecuteBot(Session, Pet.GetBotRoleplay());
+                        }
+                        else
+                        {
+                            Session.GetRoleplay().LastCommand = ":golpe " + Pet.GetBotRoleplay().Name;
+                            CombatManager.GetCombatType("fist").ExecuteBot(Session, Pet.GetBotRoleplay());
+                        }
+                        return;
+                    }
+                    else if (Pet.IsBot && Pet.PetData != null)
                     {
                         Session.SendMessage(new PetInformationComposer(Pet.PetData, Pet.PetData.Type == 15 ? Pet.RidingHorse : false));
                         return;
