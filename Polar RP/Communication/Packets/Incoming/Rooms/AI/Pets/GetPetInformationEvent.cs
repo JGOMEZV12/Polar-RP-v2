@@ -21,7 +21,10 @@ namespace Polar.Communication.Packets.Incoming.Rooms.AI.Pets
             if (!Session.GetHabbo().CurrentRoom.GetRoomUserManager().TryGetPet(PetId, out Pet))
             {
                 // Is it a roleplay bot acting as a pet?
-                if (Session.GetHabbo().CurrentRoom.GetRoomUserManager().TryGetBot(PetId, out Pet))
+                int LookupId = PetId;
+                if (LookupId > 1000000) LookupId -= 1000000;
+
+                if (Session.GetHabbo().CurrentRoom.GetRoomUserManager().TryGetBot(LookupId, out Pet))
                 {
                     if (Pet.IsBot && Pet.PetData != null)
                     {

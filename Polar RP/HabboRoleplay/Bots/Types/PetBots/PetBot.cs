@@ -37,7 +37,7 @@ namespace Polar.HabboRoleplay.Bots.PetBots
 
         public override void OnDeath(GameClient Client)
         {
-            if (this.GetBotRoleplay().Motto.Contains("[CAZA]") || this.GetBotRoleplay().Name.Contains("MascotaSalvaje"))
+            if (this.GetBotRoleplay().IsPet)
             {
                 CryptoRandom Random = new CryptoRandom();
                 int Puntos = Random.Next(1, 5);
@@ -61,7 +61,7 @@ namespace Polar.HabboRoleplay.Bots.PetBots
 
         public override void OnAttacked(GameClient Client)
         {
-            if (this.GetBotRoleplay().Motto.Contains("[CAZA]") || this.GetBotRoleplay().Name.Contains("MascotaSalvaje"))
+            if (this.GetBotRoleplay().IsPet)
             {
                 GetBotRoleplay().UserAttacking = Client;
 
@@ -115,7 +115,7 @@ namespace Polar.HabboRoleplay.Bots.PetBots
             if (this.GetBotRoleplay().Dead || this.GetBotRoleplay().Attacking)
                 return;
 
-            if (this.GetBotRoleplay().Motto.Contains("[CAZA]") || this.GetBotRoleplay().Name.Contains("MascotaSalvaje"))
+            if (this.GetBotRoleplay().IsPet)
             {
                 RoomUser target = FindNearbyTarget();
                 if (target != null && target.GetClient() != null)
