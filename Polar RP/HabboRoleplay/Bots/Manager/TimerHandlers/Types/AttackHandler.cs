@@ -39,6 +39,9 @@ namespace Polar.HabboRoleplay.Bots.Manager.TimerHandlers.Types
 
             if (!this.Active) return false;
 
+            if (this.InteractingBot == null)
+                return this.AbortHandler();
+
             if (this.InteractingBot.Dead)
                 return this.AbortHandler();
 
@@ -79,11 +82,16 @@ namespace Polar.HabboRoleplay.Bots.Manager.TimerHandlers.Types
             Point AttackSpot;
 
             if (!this.InteractingBot.TryGetCooldown("fist"))
+            {
                 if (this.GetAttackingPosition(out AttackSpot))
-                    this.GetRoomUser().MoveTo(AttackSpot);
+                {
+                    if (this.GetRoomUser().Coordinate != AttackSpot)
+                        this.GetRoomUser().MoveTo(AttackSpot);
+                }
                 else
                     this.AbortHandler();
-            else
+            }
+            else if (!this.GetRoomUser().IsWalking)
                 this.GetRoomUser().MoveTo(GetRoomUser().GetRoom().GetGameMap().GetRandomWalkableSquare());
 
             return true;
@@ -129,10 +137,9 @@ namespace Polar.HabboRoleplay.Bots.Manager.TimerHandlers.Types
           
             Point = new Point(0, 0);
 
-            if (!this.Values.ContainsKey("attack_pos"))
-                return false;
-
-            int AttackPosition = Convert.ToInt32(this.Values["attack_pos"]);
+            int AttackPosition = this.InteractingBot.DefaultAttackPosition;
+            if (this.Values.ContainsKey("attack_pos"))
+                AttackPosition = Convert.ToInt32(this.Values["attack_pos"]);
 
             if (this.InteractingUser == null)
                 return false;

@@ -42,7 +42,7 @@ namespace Polar.HabboRoleplay.Misc
 
         private static void ProcessHuntRoom(Room room)
         {
-            int currentHuntPets = room.GetRoomUserManager().GetRoleplayBots().Count(b => b.GetBotRoleplay() != null && b.GetBotRoleplay().Motto.Contains("[CAZA]"));
+            int currentHuntPets = room.GetRoomUserManager().GetRoleplayBots().Count(b => b.GetBotRoleplay() != null && (b.GetBotRoleplay().Motto.Contains("[CAZA]") || b.GetBotRoleplay().Name.Contains("MascotaSalvaje")));
 
             if (currentHuntPets < 5) // Limit per room
             {
@@ -57,7 +57,7 @@ namespace Polar.HabboRoleplay.Misc
             // Randomly choose a pet type from 0 to 42 (based on provided types)
             int petType = random.Next(0, 43);
             string look = PetFigureForType(petType);
-            string name = "Mascota Salvaje";
+            string name = "MascotaSalvaje";
 
             var WalkableSquare = room.GetGameMap().GetRandomWalkableSquare();
 
@@ -69,7 +69,7 @@ namespace Polar.HabboRoleplay.Misc
             string petData = lookParts[0] + "|1|FFFFFF";
 
             RoleplayBot huntBot = new RoleplayBot(
-                botId, 1, "[CAZA] " + name, "M", look, "Mascota Salvaje", 100, 100, 10, 1, room.Id, WalkableSquare.X, WalkableSquare.Y, 0, 0,
+                botId, 1, name, "M", look, "[CAZA] Mascota Salvaje", 100, 100, 10, 1, room.Id, WalkableSquare.X, WalkableSquare.Y, 0, 0,
                 "pet", RoleplayBotAIType.PET, 5, 0, 0, 0, true, false, false, 0, "none", "none", true, 0, "1,5", 0, petData
             );
 

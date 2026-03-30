@@ -20,6 +20,16 @@ namespace Polar.Communication.Packets.Incoming.Rooms.AI.Pets
             RoomUser Pet = null;
             if (!Session.GetHabbo().CurrentRoom.GetRoomUserManager().TryGetPet(PetId, out Pet))
             {
+                // Is it a roleplay bot acting as a pet?
+                if (Session.GetHabbo().CurrentRoom.GetRoomUserManager().TryGetBot(PetId, out Pet))
+                {
+                    if (Pet.IsBot && Pet.PetData != null)
+                    {
+                        Session.SendMessage(new PetInformationComposer(Pet.PetData, Pet.PetData.Type == 15 ? Pet.RidingHorse : false));
+                        return;
+                    }
+                }
+
                 //Okay so, we've established we have no pets in this room by this virtual Id, let us check out users, maybe they're creeping as a pet?!
                 RoomUser User = Session.GetHabbo().CurrentRoom.GetRoomUserManager().GetRoomUserByHabbo(PetId);
                 if (User == null)
