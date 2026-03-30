@@ -1,16 +1,16 @@
-﻿using System;
+﻿using Polar.Communication.Packets.Outgoing.Inventory.Weapons;
+using Polar.Communication.Packets.Outgoing.Rooms.Chat;
+using Polar.HabboHotel.GameClients;
+using Polar.HabboHotel.Groups;
+using Polar.HabboHotel.Rooms;
+using Polar.HabboHotel.Rooms.Chat.Styles;
+using Polar.HabboRoleplay.Misc;
+using Polar.HabboRoleplay.RoleplayUsers;
+using System;
+using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
-using System.Drawing;
-using System.Collections.Generic;
-
-using Polar.HabboHotel.Rooms;
-using Polar.HabboHotel.GameClients;
-using Polar.HabboHotel.Rooms.Chat.Styles;
-using Polar.HabboRoleplay.RoleplayUsers;
-using Polar.HabboHotel.Groups;
-using Polar.HabboRoleplay.Misc;
-using Polar.Communication.Packets.Outgoing.Rooms.Chat;
 
 namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Hospital
 {
@@ -87,7 +87,8 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Hospital
             Session.GetRoleplay().RefreshStatDialogue();
             //Session.GetHabbo().UpdateCreditsBalance();
             //Session.GetRoleplay().CurHealth = 300 * Cantidad;
-            HabboRoleplay.Misc.RoleplayManager.GetLookAndMotto(Session, "poof");
+            //Session.SendMessage(new WeaponsComposer(Session));
+            HabboRoleplay.Misc.RoleplayManager.GetLookAndMotto(Session);
             #endregion
         }
     }

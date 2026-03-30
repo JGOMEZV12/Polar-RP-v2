@@ -1,9 +1,9 @@
-﻿using System;
+using ConnectionManager;
+using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Polar.HabboHotel.Rooms;
-using Fleck;
 using Polar.Database.Interfaces;
 using Polar.Database.Adapter;
 using System.Collections.Generic;
@@ -26,7 +26,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
                 return;

@@ -16,7 +16,6 @@ namespace Polar.HabboHotel.Items
 {
     static class ItemBehaviourUtility
     {
-        
         public static void GenerateExtradata(Item Item, ServerPacket Message)
         {
             if (Item == null)
@@ -29,7 +28,6 @@ namespace Polar.HabboHotel.Items
             if (Message == null)
                 throw new ArgumentNullException(nameof(Message), "El objeto Message es null.");
 
-
             switch (Item.GetBaseItem().InteractionType)
             {
                 default:
@@ -37,6 +35,7 @@ namespace Polar.HabboHotel.Items
                     Message.WriteInteger(0);
                     Message.WriteString(Item.GetBaseItem().InteractionType != InteractionType.FOOTBALL_GATE ? Item.ExtraData : string.Empty);
                     break;
+
                 case InteractionType.WIRED_HIGHSCORE:
                     string username;
                     string name = Item.GetBaseItem().ItemName;
@@ -48,6 +47,7 @@ namespace Polar.HabboHotel.Items
                         Message.WriteInteger(0);
                         Message.WriteInteger(6);
                         Message.WriteString(Item.ExtraData ?? string.Empty);
+
                         if (Item.GetBaseItem().ItemName.StartsWith("highscore_classic"))
                             Message.WriteInteger(2);
                         else if (Item.GetBaseItem().ItemName.StartsWith("highscore_mostwin"))
@@ -71,7 +71,6 @@ namespace Polar.HabboHotel.Items
                                     Message.WriteInteger(room.WiredScoreBordWeek?.Count ?? 0);
                                     ScoreBordata = room.WiredScoreBordWeek ?? new Dictionary<int, KeyValuePair<int, string>>();
                                     break;
-
 
                                 case "4":
                                     Message.WriteInteger(3);
@@ -107,12 +106,7 @@ namespace Polar.HabboHotel.Items
                         }
                     }
                     break;
-                /*case InteractionType.CAMERA_PICTURE:
-                    var str = (Item.Interactor as InteractorCameraPicture).GetJsonData(Item);
-                    Message.WriteInteger(0);
-                    Message.WriteInteger(0);
-                    Message.WriteString(str);
-                    break;*/
+
                 case InteractionType.MUSIC_DISC:
                     if (!int.TryParse(Item.ExtraData, out int issx))
                         issx = 0;
@@ -121,6 +115,7 @@ namespace Polar.HabboHotel.Items
                     Message.WriteInteger(0);
                     Message.WriteString(Item.ExtraData ?? string.Empty);
                     break;
+
                 case InteractionType.GNOME_BOX:
                     Message.WriteInteger(0);
                     Message.WriteInteger(0);
@@ -144,8 +139,8 @@ namespace Polar.HabboHotel.Items
                     Message.WriteInteger(2);
                     Message.WriteInteger(0);
                     Message.WriteString(Item.ExtraData ?? string.Empty);
-
                     break;
+
                 case InteractionType.FLOOR:
                     Message.WriteInteger(3);
                     Message.WriteInteger(0);
@@ -157,6 +152,7 @@ namespace Polar.HabboHotel.Items
                     Message.WriteInteger(0);
                     Message.WriteString(Item.ExtraData ?? string.Empty);
                     break;
+
                 case InteractionType.GUILD_ITEM:
                 case InteractionType.GUILD_GATE:
                 case InteractionType.GUILD_FORUM:
@@ -165,7 +161,6 @@ namespace Polar.HabboHotel.Items
                         group = GroupManager.GetGang(Item.GroupId);
                     else
                         group = GroupManager.GetJob(Item.GroupId);
-
 
                     if (group == null)
                     {
@@ -183,8 +178,6 @@ namespace Polar.HabboHotel.Items
                         Message.WriteString(group.Badge ?? string.Empty);
                         Message.WriteString(group.Colour1 ?? string.Empty);
                         Message.WriteString(group.Colour2 ?? string.Empty);
-                        //Message.WriteString(PolarEnvironment.GetGame().GetGroupManager().GetGroupColour(Group.Colour1, true)); // Group Colour 1
-                        //Message.WriteString(PolarEnvironment.GetGame().GetGroupManager().GetGroupColour(Group.Colour2, false)); // Group Colour 2
                     }
                     break;
 
@@ -192,7 +185,7 @@ namespace Polar.HabboHotel.Items
                 case InteractionType.INFORMATION_TERMINAL:
                     Message.WriteInteger(0);
                     Message.WriteInteger(1);
-                    if (!String.IsNullOrEmpty(Item.ExtraData))
+                    if (!string.IsNullOrEmpty(Item.ExtraData))
                     {
                         Message.WriteInteger(Item.ExtraData.Split(Convert.ToChar(9)).Length / 2);
 
@@ -217,7 +210,10 @@ namespace Polar.HabboHotel.Items
                     }
                     else
                     {
-                        int style = int.Parse(extraData[6]) * 1000 + int.Parse(extraData[6]);
+                        // FIX: int.Parse reemplazado por TryParse para evitar FormatException
+                        if (!int.TryParse(extraData[6], out int giftStyle))
+                            giftStyle = 0;
+                        int style = giftStyle * 1000 + giftStyle;
 
                         using (UserCache purchaser = PolarEnvironment.GetGame().GetCacheManager().GenerateUser(Convert.ToInt32(extraData[2])))
                         {
@@ -268,8 +264,8 @@ namespace Polar.HabboHotel.Items
                         state = "2";
 
                     Message.WriteInteger(7);
-                    Message.WriteString(state); 
-                    Message.WriteInteger(cracks); 
+                    Message.WriteString(state);
+                    Message.WriteInteger(cracks);
                     Message.WriteInteger(cracks_max);
                     break;
 
@@ -277,15 +273,16 @@ namespace Polar.HabboHotel.Items
                     Message.WriteInteger(0);
                     Message.WriteInteger(7);
                     Message.WriteString("8");
-                    Message.WriteInteger(9); 
-                    Message.WriteInteger(12); 
+                    Message.WriteInteger(9);
+                    Message.WriteInteger(12);
                     break;
 
                 case InteractionType.MANNEQUIN:
                     Message.WriteInteger(0);
                     Message.WriteInteger(1);
                     Message.WriteInteger(3);
-                    if (Item.ExtraData.Contains(Convert.ToChar(5).ToString()))
+                    // FIX: null-check antes de .Contains()
+                    if (!string.IsNullOrEmpty(Item.ExtraData) && Item.ExtraData.Contains(Convert.ToChar(5).ToString()))
                     {
                         string[] Stuff = Item.ExtraData.Split(Convert.ToChar(5));
                         Message.WriteString("GENDER");
@@ -333,20 +330,24 @@ namespace Polar.HabboHotel.Items
                     Message.WriteInteger(2);
                     Message.WriteInteger(4);
 
-                    string[] BadgeData = Item.ExtraData.Split(Convert.ToChar(9));
-                    if (Item.ExtraData.Contains(Convert.ToChar(9).ToString()))
+                    // FIX: null-check antes de Split y Contains
+                    string[] BadgeData = string.IsNullOrEmpty(Item.ExtraData)
+                        ? Array.Empty<string>()
+                        : Item.ExtraData.Split(Convert.ToChar(9));
+
+                    if (!string.IsNullOrEmpty(Item.ExtraData) && Item.ExtraData.Contains(Convert.ToChar(9).ToString()) && BadgeData.Length >= 3)
                     {
-                        Message.WriteString("0");//No idea
-                        Message.WriteString(BadgeData[0]);//Badge name
-                        Message.WriteString(BadgeData[1]);//Owner
-                        Message.WriteString(BadgeData[2]);//Date
+                        Message.WriteString("0");
+                        Message.WriteString(BadgeData[0]);
+                        Message.WriteString(BadgeData[1]);
+                        Message.WriteString(BadgeData[2]);
                     }
                     else
                     {
-                        Message.WriteString("0");//No idea
-                        Message.WriteString("DEV");//Badge name
-                        Message.WriteString("Sledmore");//Owner
-                        Message.WriteString("13-13-1337");//Date
+                        Message.WriteString("0");
+                        Message.WriteString("DEV");
+                        Message.WriteString("Sledmore");
+                        Message.WriteString("13-13-1337");
                     }
                     break;
 
@@ -354,13 +355,17 @@ namespace Polar.HabboHotel.Items
                     Message.WriteInteger(0);
                     Message.WriteInteger(1);
                     Message.WriteInteger(1);
-
                     Message.WriteString("THUMBNAIL_URL");
-                    Message.WriteString("/youtubethumbnail.php?img=" + PolarEnvironment.GetGame().GetTelevisionManager().TelevisionList.OrderBy(x => Guid.NewGuid()).FirstOrDefault().YouTubeId);
+
+                    // FIX: FirstOrDefault() puede ser null si la lista está vacía
+                    var tv = PolarEnvironment.GetGame().GetTelevisionManager().TelevisionList
+                        .OrderBy(x => Guid.NewGuid()).FirstOrDefault();
+                    Message.WriteString("/youtubethumbnail.php?img=" + (tv?.YouTubeId ?? string.Empty));
                     break;
 
                 case InteractionType.LOVELOCK:
-                    if (Item.ExtraData.Contains(Convert.ToChar(5).ToString()))
+                    // FIX: null-check antes de .Contains()
+                    if (!string.IsNullOrEmpty(Item.ExtraData) && Item.ExtraData.Contains(Convert.ToChar(5).ToString()))
                     {
                         var EData = Item.ExtraData.Split((char)5);
                         int I = 0;
@@ -385,9 +390,8 @@ namespace Polar.HabboHotel.Items
                     Message.WriteInteger(0);
                     Message.WriteInteger(1);
                     Message.WriteInteger(1);
-
                     Message.WriteString("rarity");
-                    Message.WriteString("1");// Should really be a random generated rarity.
+                    Message.WriteString("1");
                     break;
             }
         }
@@ -399,11 +403,10 @@ namespace Polar.HabboHotel.Items
                 default:
                     Message.WriteString(Item.ExtraData);
                     break;
-                /*case InteractionType.CAMERA_PICTURE:
-                    Message.WriteString((Item.Interactor as InteractorCameraPicture).GetJsonData(Item));
-                    break;*/
+
                 case InteractionType.POSTIT:
-                    Message.WriteString(Item.ExtraData.Split(' ')[0]);
+                    // FIX: null-check antes de Split
+                    Message.WriteString(string.IsNullOrEmpty(Item.ExtraData) ? string.Empty : Item.ExtraData.Split(' ')[0]);
                     break;
             }
         }

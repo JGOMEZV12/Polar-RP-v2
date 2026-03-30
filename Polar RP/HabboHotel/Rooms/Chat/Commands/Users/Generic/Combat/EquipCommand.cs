@@ -1,15 +1,16 @@
-﻿using System;
-using System.Threading;
-using System.Linq;
-using System.Text;
-using System.Collections.Generic;
-
+﻿using Polar.Communication.Packets.Outgoing.Inventory.Weapons;
+using Polar.HabboHotel.Items;
 using Polar.HabboHotel.Rooms;
 using Polar.HabboHotel.Rooms.Chat.Styles;
-using Polar.HabboRoleplay.RoleplayUsers;
-using Polar.HabboRoleplay.Misc;
 using Polar.HabboRoleplay.Combat;
+using Polar.HabboRoleplay.Misc;
+using Polar.HabboRoleplay.RoleplayUsers;
 using Polar.HabboRoleplay.Weapons;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading;
 
 namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Combat
 {
@@ -33,6 +34,10 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Combat
         public async Task Execute(GameClients.GameClient Session, Rooms.Room Room, string[] Params)
         {
             #region Conditions
+            // ✅ FIX: GetRoomUser() puede ser null si el usuario se desconectó o salió de la sala
+            if (Session.GetRoomUser() == null)
+                return;
+
             if (Params.Length == 1)
             {
                 Session.SendWhisper("¡Vaya, olvidó ingresar un nombre de arma!", 1);
@@ -120,8 +125,8 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Combat
                 return;
             }
 
-            if (Session.GetRoleplay().TryGetCooldown("equip", true))
-                return;
+            //if (Session.GetRoleplay().TryGetCooldown("equip", true))
+            //    return;
             #endregion
 
             #region Execute
@@ -143,7 +148,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Combat
             Session.GetRoleplay().EquippedWeapon = Weapon;
             Session.GetRoleplay().Bullets = Weapon.TotalBullets;
             Session.GetRoleplay().WLife = Weapon.WLife;
-            Session.GetRoleplay().CooldownManager.CreateCooldown("equip", 1000, 3);
+            //Session.GetRoleplay().CooldownManager.CreateCooldown("equip", 1000, 3);
 
             if (Session.GetRoomUser().CurrentEffect != Weapon.EffectID)
                 Session.GetRoomUser().ApplyEffect(Weapon.EffectID);
@@ -160,7 +165,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Combat
                 PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(RoomUsers.GetClient(), "event_feedcomposer", "sound|reload|" + Session.GetRoleplay().EquippedWeapon.Name);
             }
             #endregion
-
+            Session.SendMessage(new WeaponsComposer(Session));
             Session.GetRoleplay().UpdateInteractingUserDialogues();
             Session.GetRoleplay().RefreshStatDialogue();
             return;

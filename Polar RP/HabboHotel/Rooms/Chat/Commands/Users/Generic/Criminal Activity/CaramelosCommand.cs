@@ -1,17 +1,17 @@
-﻿using System;
+﻿using Polar.Communication.Packets.Outgoing.Inventory.Weapons;
+using Polar.Communication.Packets.Outgoing.Rooms.Chat;
+using Polar.HabboHotel.GameClients;
+using Polar.HabboHotel.Groups;
+using Polar.HabboHotel.Rooms;
+using Polar.HabboHotel.Rooms.Chat.Styles;
+using Polar.HabboRoleplay.Misc;
+using Polar.HabboRoleplay.RoleplayUsers;
+using Polar.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
-using System.Drawing;
-using Polar.Utilities;
-using System.Collections.Generic;
-
-using Polar.HabboHotel.Rooms;
-using Polar.HabboHotel.GameClients;
-using Polar.HabboHotel.Rooms.Chat.Styles;
-using Polar.HabboRoleplay.RoleplayUsers;
-using Polar.HabboHotel.Groups;
-using Polar.HabboRoleplay.Misc;
-using Polar.Communication.Packets.Outgoing.Rooms.Chat;
 using System.Threading;
 
 namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Criminal
@@ -71,6 +71,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Criminal
             Session.GetRoleplay().Caramelos -= 1;
             Session.GetRoleplay().CurEnergy = Session.GetRoleplay().MaxEnergy;
             Session.GetRoleplay().CooldownManager.CreateCooldown("caramelos", 1000, 60);
+            Session.SendMessage(new WeaponsComposer(Session));
             Session.Shout("*Saca un caramelo de su bolsillo y se lo come [Máximo energía]*", 4);
             return;
             #endregion

@@ -1,10 +1,5 @@
-﻿using System;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Fleck;
-
+using ConnectionManager;
+using Polar.Net;
 using Polar.HabboHotel.GameClients;
 using System.IO;
 using Polar.HabboRoleplay.Misc;
@@ -24,7 +19,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -73,7 +68,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         SendData += House.Level + ";";
                         SendData += House.ForSale + ";";
                         SendData += (Client.GetHabbo().Username == Client.GetRoleplay().HouseOwner) ? "true;" : "false;";
-                        Socket.Send("compose_house|open|" + SendData);
+                        Socket.SendWS( "compose_house|open|" + SendData);
                         
                         Client.GetRoleplay().CooldownManager.CreateCooldown("viewhouse", 1000, 5);
                     }
@@ -86,7 +81,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         Client.GetRoleplay().HouseOwner = "";
                         Client.GetRoleplay().HouseSignId = 0;
                         Client.GetRoleplay().ViewHouse = false;
-                        Socket.Send("compose_house|close|");
+                        Socket.SendWS( "compose_house|close|");
                         break;
                     }
                 #endregion
@@ -118,12 +113,12 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             if (MyHouses >= 1 && Client.GetHabbo().VIPRank != 1)
                             {
-                                Socket.Send("compose_house|error|¡Ya tienes " + MyHouses + " Casa(s)! Usuarios VIP pueden tener más hasta dos propiedades.");
+                                Socket.SendWS( "compose_house|error|¡Ya tienes " + MyHouses + " Casa(s)! Usuarios VIP pueden tener más hasta dos propiedades.");
                                 return;
                             }
                             else if (MyHouses >= 2)
                             {
-                                Socket.Send("compose_house|error|¡Ya tienes " + MyHouses + " Casa(s)! Solo es posible tener hasta 2 propiedades.");
+                                Socket.SendWS( "compose_house|error|¡Ya tienes " + MyHouses + " Casa(s)! Solo es posible tener hasta 2 propiedades.");
                                 return;
                             }
                             #endregion
@@ -136,7 +131,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             {
                                 if (Client.GetHabbo().Credits < House.Cost)
                                 {
-                                    Socket.Send("compose_house|error|No cuentas con dinero suficiente.");
+                                    Socket.SendWS( "compose_house|error|No cuentas con dinero suficiente.");
                                     return;
                                 }
                             }
@@ -144,14 +139,14 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             {
                                 if (Client.GetHabbo().Diamonds < House.Cost)
                                 {
-                                    Socket.Send("compose_house|error|No cuentas con los Platinos suficientes.");
+                                    Socket.SendWS( "compose_house|error|No cuentas con los Platinos suficientes.");
                                     return;
                                 }
                                 pl = true;
                             }
                             if (Client.GetRoleplay().Level < House.Level)
                             {
-                                Socket.Send("compose_house|error|No cuentas con el nivel suficiente para comprar la casa.");
+                                Socket.SendWS( "compose_house|error|No cuentas con el nivel suficiente para comprar la casa.");
                                 return;
                             }
 
@@ -196,7 +191,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                                 if (Client.GetHabbo().Credits < Pay)
                                 {
-                                    Socket.Send("compose_house|error|Necesitas $ " + Pay + " para cubrir los gastos del embargo.");
+                                    Socket.SendWS( "compose_house|error|Necesitas $ " + Pay + " para cubrir los gastos del embargo.");
                                     return;
                                 }
 
@@ -226,11 +221,19 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         Client.GetRoleplay().HouseOwner = "";
                         Client.GetRoleplay().HouseSignId = 0;
                         Client.GetRoleplay().ViewHouse = false;
-                        Socket.Send("compose_house|close|");
+                        Socket.SendWS( "compose_house|close|");
                     }
                     break;
                     #endregion
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

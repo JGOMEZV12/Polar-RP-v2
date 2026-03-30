@@ -39,6 +39,7 @@
         public const int GiveHandItemMessageEvent = 2941; // PRODUCTION-201611291003-338511768
         public const int GetHabboGroupBadgesMessageEvent = 21; // PRODUCTION-201611291003-338511768
         public const int UpdateFigureDataMessageEvent = 2730; // PRODUCTION-201611291003-338511768
+        public const int UpdateBackgroundDataMessageEvent = 1031; // PRODUCTION-201611291003-338511768
         public const int TradingRemoveItemMessageEvent = 3845; // PRODUCTION-201611291003-338511768
         public const int RemoveGroupMemberMessageEvent = 3593; // PRODUCTION-201611291003-338511768
         public const int EventLogMessageEvent = 3457; // PRODUCTION-201611291003-338511768
@@ -369,5 +370,13 @@
         public const int FurniMaticPageEvent = 1342; // PRODUCTION-201611291003-338511768
         public const int FurniMaticRecycleEvent = 2771; // PRODUCTION-201611291003-338511768
         public const int FurniMaticRewardsEvent = 398; // PRODUCTION-201611291003-338511768
+
+        public const int RequestFurniDeleteItem = 10018;
+        public const int UpdateFurniturePositionEvent = 10019;
+
+        // RP Inventory
+        public const int RequestInventoryRP = 5300;
+        public const int EquipRPInventory = 5301;
+        public const int DesequipRPInventory = 5302;
     }
 }

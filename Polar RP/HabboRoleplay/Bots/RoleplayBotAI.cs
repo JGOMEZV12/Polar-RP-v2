@@ -30,14 +30,6 @@ namespace Polar.HabboRoleplay.Bots
         public int ArmUserTo = 0;
         #endregion
 
-        /// <summary>
-        /// Initializes bots AI
-        /// </summary>
-        /// <param name="BaseId"></param>
-        /// <param name="RoomUserId"></param>
-        /// <param name="RoomId"></param>
-        /// <param name="RoomUser"></param>
-        /// <param name="Room"></param>
         public void Init(int BaseId, RoleplayBot Bot, int RoomUserId, int RoomId, RoomUser RoomUser, Room Room)
         {
             this.BaseId = BaseId;
@@ -47,48 +39,21 @@ namespace Polar.HabboRoleplay.Bots
             this.Room = Room;
         }
 
-        /// <summary>
-        /// Gets bots room
-        /// </summary>
-        /// <returns></returns>
-        public Room GetRoom()
-        {
-            return Room;
-        }
+        public Room GetRoom() => Room;
+        public RoomUser GetRoomUser() => RoomUser;
 
-        /// <summary>
-        /// Gets bots roomuser instance
-        /// </summary>
-        /// <returns></returns>
-        public RoomUser GetRoomUser()
-        {
-            return RoomUser;
-        }
-
-        /// <summary>
-        /// Gets bots Roleplay AI
-        /// </summary>
-        /// <returns></returns>
         public RoleplayBot GetBotData()
         {
             RoomUser User = GetRoomUser();
-            if (User == null)
-                return null;
-            else
-                return GetRoomUser().RPBotData;
+            if (User == null) return null;
+            return GetRoomUser().RPBotData;
         }
 
-        /// <summary>
-        /// Gets bots Roleplay Statistics
-        /// </summary>
-        /// <returns></returns>
         public RoleplayBot GetBotRoleplay()
         {
             RoomUser User = GetRoomUser();
-            if (User == null)
-                return null;
-            else
-                return User.RPBotData;
+            if (User == null) return null;
+            return User.RPBotData;
         }
 
         public void Dispose()
@@ -102,76 +67,65 @@ namespace Polar.HabboRoleplay.Bots
 
         public bool RespondToSpeech(GameClient Client, string Message)
         {
-            if (this.GetBotRoleplay() == null)
-                return false;
-
-            if (Client == null || Client.GetRoleplay() == null || Client.GetHabbo() == null)
-                return false;
-
-            if (this.GetBotRoleplay().Responses == null)
-                return false;
-
-            if (!this.GetBotRoleplay().Responses.ContainsKey(Message.ToLower()))
-                return false;
+            if (this.GetBotRoleplay() == null) return false;
+            if (Client == null || Client.GetRoleplay() == null || Client.GetHabbo() == null) return false;
+            if (this.GetBotRoleplay().Responses == null) return false;
+            if (!this.GetBotRoleplay().Responses.ContainsKey(Message.ToLower())) return false;
 
             var Speech = this.GetBotRoleplay().Responses[Message.ToLower()];
-            string Response = Speech.Response;
-            Response = Response.Replace("%user%", Client.GetHabbo().Username);
-
+            string Response = Speech.Response.Replace("%user%", Client.GetHabbo().Username);
 
             if (Speech.Type == "whisper")
                 Client.SendMessage(new WhisperComposer(GetRoomUser().VirtualId, Response, 0, 2));
             else
-            {
-                bool Shout = Speech.Type == "shout" ? true : false;
-                GetRoomUser().Chat(Response, Shout, Speech.Bubble);
-            }
+                GetRoomUser().Chat(Response, Speech.Type == "shout", Speech.Bubble);
 
             return true;
+        }
+
+        /// <summary>
+        /// Termina un timer de forma segura sin lanzar excepcion si no existe.
+        /// </summary>
+        protected void EndTimerSafe(string key)
+        {
+            var rp = GetBotRoleplay();
+            if (rp?.TimerManager?.ActiveTimers == null) return;
+            if (rp.TimerManager.ActiveTimers.TryGetValue(key, out var timer))
+                timer.EndTimer();
         }
 
         public void RandomSpeechTick()
         {
             if (this == null || this.GetBotRoleplay() == null || this.GetBotRoleplay().RandomSpeech == null)
                 return;
-
-            if (this.GetBotRoleplay().RandomSpeech.Count == 0)
-                return;
-
-            if (this.GetBotRoleplay().Dead)
-                return;
+            if (this.GetBotRoleplay().RandomSpeech.Count == 0) return;
+            if (this.GetBotRoleplay().Dead) return;
 
             if (SpeechCount < this.GetBotRoleplay().RandomSpeechTimer)
             {
                 SpeechCount++;
                 return;
             }
-            else
+
+            SpeechCount = 0;
+            string Message = "";
+
+            if (this.GetBotRoleplay().RandomSpeech.Count > 1)
             {
-                SpeechCount = 0;
-
-                string Message = "";
-
-                if (this.GetBotRoleplay().RandomSpeech.Count > 1)
-                {
-                    Random Random = new Random();
-                    int MessageCount = Random.Next(0, this.GetBotRoleplay().RandomSpeech.Count);
-
-                    Message = this.GetBotRoleplay().RandomSpeech[MessageCount].Message;
-                }
-                else
-                    Message = this.GetBotRoleplay().RandomSpeech[0].Message;
-
-                if (GetRoomUser() != null)
-                    GetRoomUser().Chat(Message, true, 4);
+                Random Random = new Random();
+                int MessageCount = Random.Next(0, this.GetBotRoleplay().RandomSpeech.Count);
+                Message = this.GetBotRoleplay().RandomSpeech[MessageCount].Message;
             }
+            else
+                Message = this.GetBotRoleplay().RandomSpeech[0].Message;
+
+            if (GetRoomUser() != null)
+                GetRoomUser().Chat(Message, true, 4);
         }
 
         public virtual void OnTimerTick()
         {
-
-            if (IsNull())
-                return;
+            if (IsNull()) return;
 
             #region Teleporting
             if (this.GetBotRoleplay().Teleporting)
@@ -187,32 +141,22 @@ namespace Polar.HabboRoleplay.Bots
                 }
                 else
                     this.GetBotRoleplay().Teleporting = false;
-
                 return;
             }
             #endregion
 
             #region Roaming
             if (this.GetBotRoleplay().RoamBot)
-            this.GetBotRoleplay().HandleRoaming();
+                this.GetBotRoleplay().HandleRoaming();
             #endregion
-
         }
 
         public virtual bool IsNull()
         {
-            if (this.GetBotRoleplay() == null)
-                return true;
-
-            if (this.GetBotRoleplay().DRoomUser == null)
-                return true;
-
-            if (this.GetRoomUser() == null)
-                return true;
-
-            if (this.GetRoomUser().GetRoom() == null)
-                return true;
-
+            if (this.GetBotRoleplay() == null) return true;
+            if (this.GetBotRoleplay().DRoomUser == null) return true;
+            if (this.GetRoomUser() == null) return true;
+            if (this.GetRoomUser().GetRoom() == null) return true;
             return false;
         }
 
@@ -223,10 +167,7 @@ namespace Polar.HabboRoleplay.Bots
             GetBotRoleplay().StopAllHandlers();
         }
 
-        public virtual void OnDeath(GameClient Client)
-        {
-
-        }
+        public virtual void OnDeath(GameClient Client) { }
 
         public abstract void OnDeployed(GameClient Client);
         public abstract void OnArrest(GameClient Client);

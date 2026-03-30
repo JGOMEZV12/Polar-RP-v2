@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -14,17 +14,11 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
     class ShowMessageBox : IWiredItem
     {
         public Room Instance { get; set; }
-
         public Item Item { get; set; }
-
         public WiredBoxType Type { get { return WiredBoxType.EffectShowMessage; } }
-
         public ConcurrentDictionary<int, Item> SetItems { get; set; }
-
         public string StringData { get; set; }
-
         public bool BoolData { get; set; }
-
         public string ItemsData { get; set; }
 
         public ShowMessageBox(Room Instance, Item Item)
@@ -51,6 +45,10 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
             if (Player == null || Player.GetClient() == null || string.IsNullOrWhiteSpace(StringData))
                 return false;
 
+            // FIX: Validar CurrentRoom antes de usarlo
+            if (Player.CurrentRoom == null)
+                return false;
+
             RoomUser User = Player.CurrentRoom.GetRoomUserManager().GetRoomUserByHabbo(Player.Id);
             if (User == null)
                 return false;
@@ -68,8 +66,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
 
             if (StringData.Contains("%USERSONLINE%"))
                 Message = Message.Replace("%USERSONLINE%", PolarEnvironment.GetGame().GetClientManager().Count.ToString());
-
-
 
             Player.GetClient().SendMessage(new WhisperComposer(User.VirtualId, Message, 0, 34));
             return true;

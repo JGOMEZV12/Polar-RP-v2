@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Threading;
@@ -15,21 +15,17 @@ namespace Polar.HabboHotel.Items.Interactor
 {
     public class InteractorMineria : IFurniInteractor
     {
-        public void OnPlace(GameClient Session, Item Item)
-        {
-        }
+        public void OnPlace(GameClient Session, Item Item) { }
 
-        public void OnRemove(GameClient Session, Item Item)
-        {
-        }
+        public void OnRemove(GameClient Session, Item Item) { }
 
         public void OnTrigger(GameClient Session, Item Item, int Request, bool HasRights)
         {
-            if (Session == null)
+            // FIX: Validar también GetHabbo() antes de usarlo
+            if (Session == null || Session.GetHabbo() == null)
                 return;
 
             RoomUser User = Item.GetRoom().GetRoomUserManager().GetRoomUserByHabbo(Session.GetHabbo().Id);
-
             if (User == null)
                 return;
 
@@ -40,7 +36,7 @@ namespace Polar.HabboHotel.Items.Interactor
                         User.MoveTo(Item.SquareInFront);
                 return;
             }
-       
+
             if (Session.GetHabbo().Credits < 10)
             {
                 Session.SendWhisper("¡No tiene 10$ para poder minar!", 1);
@@ -64,7 +60,6 @@ namespace Polar.HabboHotel.Items.Interactor
                     User.ClearMovement(true);
                     User.SetRot(Rotation.Calculate(User.Coordinate.X, User.Coordinate.Y, Item.GetX, Item.GetY), false);
 
-                    // 135 Cycles approximately 1 minute
                     Item.ExtraData = "1";
                     Item.UpdateState(false, true);
                     Item.RequestUpdate(120 * Minutes, true);
@@ -95,10 +90,7 @@ namespace Polar.HabboHotel.Items.Interactor
             }
         }
 
-        public void OnWiredTrigger(Item Item)
-        {
-
-        }
+        public void OnWiredTrigger(Item Item) { }
 
         public void ChooseReward(GameClient Session)
         {
@@ -110,23 +102,17 @@ namespace Polar.HabboHotel.Items.Interactor
             if (SecondChance < 4 && Chance > TotalCraftingItems)
                 Chance = Random.Next(1, TotalCraftingItems + 1);
 
-            #region Money
             else if (Chance > 1 && Chance <= 7)
             {
                 int Amount = Random.Next(10, 200);
-
                 Session.GetHabbo().Credits += Amount;
                 Session.GetHabbo().UpdateCreditsBalance();
                 Session.SendWhisper("*¡Felicidades ganaste! $" + Amount + " por encontrar minerales en esta roca*", 27);
             }
-            #endregion
-
-            #region No Reward
             else
             {
                 Session.SendWhisper("*¡La roca que minaste no contiene nada!*", 4);
             }
-            #endregion
         }
     }
 }

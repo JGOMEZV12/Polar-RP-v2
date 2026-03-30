@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Threading;
@@ -17,25 +17,18 @@ namespace Polar.HabboHotel.Items.Interactor
 {
     public class InteractorDeliveryBox : IFurniInteractor
     {
-        public void OnPlace(GameClient Session, Item Item)
-        {
-        }
+        public void OnPlace(GameClient Session, Item Item) { }
 
-        public void OnRemove(GameClient Session, Item Item)
-        {
-        }
+        public void OnRemove(GameClient Session, Item Item) { }
 
         public void OnTrigger(GameClient Session, Item Item, int Request, bool HasRights)
         {
-            if (Session == null)
+            // FIX: Validar Session y GetHabbo() juntos al inicio, en el orden correcto
+            if (Session == null || Session.GetHabbo() == null)
                 return;
 
             RoomUser User = Item.GetRoom().GetRoomUserManager().GetRoomUserByHabbo(Session.GetHabbo().Id);
-
             if (User == null)
-                return;
-
-            if (Session.GetHabbo() == null)
                 return;
 
             string Type = Item.DeliveryType;
@@ -90,9 +83,6 @@ namespace Polar.HabboHotel.Items.Interactor
             }
         }
 
-        public void OnWiredTrigger(Item Item)
-        {
-
-        }
+        public void OnWiredTrigger(Item Item) { }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+
 namespace Polar.HabboHotel.Rooms
 {
     public enum SquareState
@@ -6,74 +7,80 @@ namespace Polar.HabboHotel.Rooms
         OPEN = 0,
         BLOCKED = 1,
         SEAT = 2,
-        POOL = 3, //Should be closed ASAP
+        POOL = 3,
         VIP = 4
     }
 
     public class RoomModel
     {
-        //public string Name;
-        public int DoorOrientation;
-        public int DoorX;
-        public int DoorY;
-        public double DoorZ;
+        // ─────────────────────────────────────
+        //  Propiedades (antes campos públicos mutables)
+        // ─────────────────────────────────────
+        public int DoorOrientation { get; private set; }
+        public int DoorX { get; private set; }
+        public int DoorY { get; private set; }
+        public double DoorZ { get; private set; }
+        public int WallHeight { get; private set; }
+        public int MapSizeX { get; private set; }
+        public int MapSizeY { get; private set; }
+        public string Heightmap { get; private set; }
+        public bool GotPublicPool { get; private set; }
 
-        public string Heightmap;
+        public short[,] SqFloorHeight { get; private set; }
+        public byte[,] SqSeatRot { get; private set; }
+        public SquareState[,] SqState { get; private set; }
+        public byte[,] RoomModelFx { get; private set; }
 
-
-        public int MapSizeX;
-        public int MapSizeY;
-        public short[,] SqFloorHeight;
-        public byte[,] SqSeatRot;
-        public SquareState[,] SqState;
-
-
-        public bool gotPublicPool;
-        public byte[,] mRoomModelfx;
-
-        public int WallHeight;
-
-        //public List<PublicRoomSquare> Furnis;
-
-
-
-        public RoomModel(string id, int DoorX, int DoorY, double DoorZ, int DoorOrientation, string Heightmap, int WallHeight, string Poolmap)
+        // ─────────────────────────────────────
+        //  Constructor
+        // ─────────────────────────────────────
+        public RoomModel(string id, int doorX, int doorY, double doorZ, int doorOrientation,
+            string heightmap, int wallHeight, string poolmap)
         {
+            if (string.IsNullOrEmpty(heightmap))
+                throw new ArgumentException("Heightmap cannot be null or empty.", nameof(heightmap));
+
+            DoorX = doorX;
+            DoorY = doorY;
+            DoorZ = doorZ;
+            DoorOrientation = doorOrientation;
+            WallHeight = wallHeight;
+
+            // FIX: guardamos el heightmap ya en minúsculas
+            Heightmap = heightmap.ToLower();
+            GotPublicPool = !string.IsNullOrEmpty(poolmap);
+
+            // FIX: Convert.ToChar(13) → '\r' más legible
+            // FIX: Split con StringSplitOptions para ignorar líneas vacías al final
+            string[] tmpHeightmap = Heightmap.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+            // FIX: poolmap null-safe — si no hay pool usamos array vacío en lugar de llamar Split sobre null
+            string[] tmpFxMap = GotPublicPool
+                ? poolmap.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                : Array.Empty<string>();
+
+            MapSizeX = tmpHeightmap[0].Length;
+            MapSizeY = tmpHeightmap.Length;
+
+            SqState = new SquareState[MapSizeX, MapSizeY];
+            SqFloorHeight = new short[MapSizeX, MapSizeY];
+            SqSeatRot = new byte[MapSizeX, MapSizeY];
+
+            if (GotPublicPool)
+                RoomModelFx = new byte[MapSizeX, MapSizeY];
+
+            // FIX: catch vacío eliminado — si el parse falla ahora se propaga correctamente
+            // con el id del modelo en el mensaje para facilitar el debug
             try
             {
-                this.DoorX = DoorX;
-                this.DoorY = DoorY;
-                this.DoorZ = DoorZ;
-                this.DoorOrientation = DoorOrientation;
-
-                this.WallHeight = WallHeight;
-
-                this.Heightmap = Heightmap.ToLower();
-
-                this.gotPublicPool = !string.IsNullOrEmpty(Poolmap);
-                string[] tmpHeightmap = Heightmap.Split(Convert.ToChar(13));
-                string[] tmpFxMap = Poolmap.Split(Convert.ToChar(13));
-
-                this.MapSizeX = tmpHeightmap[0].Length;
-                this.MapSizeY = tmpHeightmap.Length;
-
-                SqState = new SquareState[MapSizeX, MapSizeY];
-                SqFloorHeight = new short[MapSizeX, MapSizeY];
-                SqSeatRot = new byte[MapSizeX, MapSizeY];
-                if (gotPublicPool)
-                    mRoomModelfx = new byte[MapSizeX, MapSizeY];
-
-                //this.Furnis = Furnis;
-
                 for (int y = 0; y < MapSizeY; y++)
                 {
+                    // FIX: Replace doble (\r y \n) reemplazado por el Split con ambos separadores arriba
                     string line = tmpHeightmap[y];
-                    line = line.Replace("\r", "");
-                    line = line.Replace("\n", "");
 
-                    int x = 0;
-                    foreach (char square in line)
+                    for (int x = 0; x < line.Length; x++)
                     {
+                        char square = line[x];
                         if (square == 'x')
                         {
                             SqState[x, y] = SquareState.BLOCKED;
@@ -81,139 +88,56 @@ namespace Polar.HabboHotel.Rooms
                         else
                         {
                             SqState[x, y] = SquareState.OPEN;
-                            SqFloorHeight[x, y] = parse(square);
+                            SqFloorHeight[x, y] = Parse(square);
                         }
-                        x++;
                     }
                 }
-
             }
-            catch //(Exception e)
+            catch (Exception e)
             {
-                //Console.WriteLine("Note: " + id + " failed to load properly.");
-                //Console.WriteLine("Error during room modeldata loading for model " + Heightmap);
-                //throw e;
+                throw new Exception($"Failed to parse RoomModel '{id}': {e.Message}", e);
             }
         }
 
-        public static short parse(char input)
+        // ─────────────────────────────────────
+        //  Parse — FIX: switch de 36 cases reemplazado por aritmética
+        // ─────────────────────────────────────
+
+        /// <summary>
+        /// Convierte un carácter de heightmap (0-9, a-z) en su valor numérico (0-35).
+        /// </summary>
+        public static short Parse(char input)
         {
+            if (input >= '0' && input <= '9')
+                return (short)(input - '0');           // 0–9
 
-            switch (input)
-            {
-                case '0':
-                    return 0;
-                case '1':
-                    return 1;
-                case '2':
-                    return 2;
-                case '3':
-                    return 3;
-                case '4':
-                    return 4;
-                case '5':
-                    return 5;
-                case '6':
-                    return 6;
-                case '7':
-                    return 7;
-                case '8':
-                    return 8;
-                case '9':
-                    return 9;
-                case 'a':
-                    return 10;
-                case 'b':
-                    return 11;
-                case 'c':
-                    return 12;
-                case 'd':
-                    return 13;
-                case 'e':
-                    return 14;
-                case 'f':
-                    return 15;
-                case 'g':
-                    return 16;
-                case 'h':
-                    return 17;
-                case 'i':
-                    return 18;
-                case 'j':
-                    return 19;
-                case 'k':
-                    return 20;
-                case 'l':
-                    return 21;
-                case 'm':
-                    return 22;
-                case 'n':
-                    return 23;
-                case 'o':
-                    return 24;
-                case 'p':
-                    return 25;
-                case 'q':
-                    return 26;
-                case 'r':
-                    return 27;
-                case 's':
-                    return 28;
-                case 't':
-                    return 29;
-                case 'u':
-                    return 30;
-                case 'v':
-                    return 31;
-                case 'w':
-                    return 32;
-                case 'x':
-                    return 33;
-                case 'y':
-                    return 34;
-                case 'z':
-                    return 35;
+            if (input >= 'a' && input <= 'z')
+                return (short)(input - 'a' + 10);      // 10–35
 
-                default:
-                    throw new FormatException("The input was not in a correct format: input must be between (0-k)");
-            }
+            throw new FormatException($"Invalid heightmap character '{input}'. Must be 0-9 or a-z.");
         }
 
-        public static byte parseByte(char input)
+        /// <summary>
+        /// Convierte un carácter numérico (0-9) en byte.
+        /// </summary>
+        public static byte ParseByte(char input)
         {
-            switch (input)
-            {
-                case '0':
-                    return 0;
-                case '1':
-                    return 1;
-                case '2':
-                    return 2;
-                case '3':
-                    return 3;
-                case '4':
-                    return 4;
-                case '5':
-                    return 5;
-                case '6':
-                    return 6;
-                case '7':
-                    return 7;
-                case '8':
-                    return 8;
-                case '9':
-                    return 9;
-                default:
-                    throw new FormatException("The input was not in a correct format: input must be a number between 0 and 9");
-            }
+            if (input >= '0' && input <= '9')
+                return (byte)(input - '0');
+
+            throw new FormatException($"Invalid byte character '{input}'. Must be 0-9.");
         }
 
+        // ─────────────────────────────────────
+        //  Destroy
+        // ─────────────────────────────────────
         public void Destroy()
         {
             Heightmap = null;
             SqState = null;
             SqFloorHeight = null;
             SqSeatRot = null;
+            RoomModelFx = null;
         }
     }
 }

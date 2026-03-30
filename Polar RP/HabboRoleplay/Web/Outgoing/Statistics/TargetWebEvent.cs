@@ -1,10 +1,5 @@
-﻿using System;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Fleck;
-
+using ConnectionManager;
+using Polar.Net;
 using Polar.HabboHotel.GameClients;
 using System.IO;
 using Polar.HabboHotel.Roleplay.Web;
@@ -23,7 +18,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -44,12 +39,12 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
                         if (Client.GetRoleplay().CombatMode)
                         {
                             Client.SendMessage(new RoomBubbleNotificationComposer("combat-icon", "Modo Combate: Activado"));
-                            Socket.Send("compose_combat_mode|active");
+                            Socket.SendWS( "compose_combat_mode|active");
                         }
                         else
                         {
                             Client.SendMessage(new RoomBubbleNotificationComposer("combat-icon", "Modo Combate: Desactivado"));
-                            Socket.Send("compose_combat_mode|desactive");
+                            Socket.SendWS( "compose_combat_mode|desactive");
                         }
 
                         Client.GetRoleplay().CooldownManager.CreateCooldown("combatmode", 1000, 3);
@@ -89,5 +84,13 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
                 #endregion
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

@@ -26,12 +26,12 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Interactions.Self
 
         public string Parameters
         {
-            get { return "%type%"; }
+            get { return "%tipo%"; }
         }
 
         public string Description
         {
-            get { return "Le permite conducir su VIP Hover Board o comprar un coche."; }
+            get { return "Le permite conducir su avion o su carro."; }
         }
 
         public async Task Execute(GameClients.GameClient Session, Rooms.Room Room, string[] Params)
@@ -41,7 +41,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Interactions.Self
                 //Console.WriteLine($"DriveCommand ejecutado con {Params.Length} parámetros: {string.Join(", ", Params)}");
 
                 // Si no hay parámetros adicionales y ya está conduciendo, detener
-                if (Params.Length == 1)
+                /*if (Params.Length == 1)
                 {
                     if (Session.GetRoleplay().DrivingCar == true)
                     {
@@ -50,10 +50,10 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Interactions.Self
                     }
                     else
                     {
-                        Session.SendWhisper("Uso: :drive [avion] o simplemente párate sobre un vehículo y usa :drive", 1);
+                        Session.SendWhisper("Uso: :manejar [avion] o simplemente párate sobre un vehículo y usa :manejar carro", 1);
                         return;
                     }
-                }
+                }*/
 
                 // Verificar si ya está conduciendo
                 if (Session.GetRoleplay().DrivingCar)
@@ -126,14 +126,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Interactions.Self
                 if (Session.GetRoleplay().TryGetCooldown("avionew", true))
                     return;
 
-                // Obtener lista de vehículos del usuario
-                List<VehiclesOwned> VO = PolarEnvironment.GetGame().GetVehiclesOwnedManager().getVehiclesOwnedList(Session.GetHabbo().Id);
-
-                if (VO == null || VO.Count == 0 || VO[0].Model != "sukhoi")
-                {
-                    Session.SendWhisper("No tienes ningún avión a tu nombre. ¡Compra uno en el Concesionario de la ciudad!", 1);
-                    return;
-                }
+               
 
                 // Si ya está conduciendo algo, detenerlo primero
                 if (Session.GetRoleplay().DrivingCar == true)
@@ -151,8 +144,8 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Interactions.Self
                 Session.GetRoleplay().CarTimer = 0;
                 Session.GetRoleplay().CarLife = 100;
 
-                Session.GetRoleplay().CarEnableId = 817;
-                Session.GetRoleplay().CarEffectId = 817;
+                Session.GetRoleplay().CarEnableId = 685;
+                Session.GetRoleplay().CarEffectId = 685;
 
                 if (Session.GetRoomUser() != null)
                 {
@@ -180,21 +173,17 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Interactions.Self
             {
                 //Console.WriteLine("Procesando comando para vehículo terrestre");
 
-                #region Get Vehicle Info
+                #region Get Veihcle Info (play_vehicles)  
                 Vehicle vehicle = null;
                 bool found = false;
                 int itemfurni = 0, corp = 0;
                 HabboHotel.Items.Item BTile = null;
                 string itemnm = null;
-
                 foreach (Vehicle Vehicle in VehicleManager.Vehicles.Values)
                 {
                     if (!found)
                     {
-                        BTile = Room.GetRoomItemHandler().GetFloor.FirstOrDefault(x =>
-                            x.GetBaseItem().ItemName.ToLower() == Vehicle.ItemName &&
-                            x.Coordinate == Session.GetRoomUser().Coordinate);
-
+                        BTile = Room.GetRoomItemHandler().GetFloor.FirstOrDefault(x => x.GetBaseItem().ItemName.ToLower() == Vehicle.ItemName && x.Coordinate == Session.GetRoomUser().Coordinate);
                         if (BTile != null)
                         {
                             vehicle = Vehicle;
@@ -202,15 +191,13 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Interactions.Self
                             itemnm = Vehicle.ItemName;
                             corp = Convert.ToInt32(Vehicle.CarCorp);
                             found = true;
-                            //Console.WriteLine($"Vehículo encontrado: {Vehicle.ItemName}, ID: {itemfurni}");
                         }
                     }
                 }
-
+                //Al examinar todos los autos ninguno conincide con el item donde está parado el user...
                 if (!found)
                 {
                     Session.SendWhisper("¡Debes estar sobre un vehículo para conducir!", 1);
-                    //Console.WriteLine("No se encontró vehículo en la posición del usuario");
                     return;
                 }
                 #endregion
@@ -355,6 +342,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Interactions.Self
                     Session.GetRoomUser().FastWalking = true;
                 }
 
+                RoleplayManager.PickItem(Session, itemfurni);//Recoge el item
                 RoleplayManager.Shout(Session, "* Encendió su coche *", 5);
                 PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Session, "event_vehicle", "open");
                 #endregion
@@ -435,7 +423,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Interactions.Self
             {
                 //Console.WriteLine("Deteniendo vehículo...");
 
-                if (Session.GetRoleplay().CarEnableId == 817) // Avión
+                if (Session.GetRoleplay().CarEnableId == 685) // Avión
                 {
                     // Retornamos a valores predeterminados
                     Session.GetRoleplay().DrivingCar = false;

@@ -1,9 +1,9 @@
+using ConnectionManager;
 ﻿using System;
 using System.Linq;
-using System.Text;
+using Polar.Net;
 using System.Threading.Tasks;
 using Polar.HabboHotel.Users;
-using Fleck;
 using Polar.HabboHotel.Items;
 using Polar.HabboHotel.GameClients;
 using System.IO;
@@ -28,7 +28,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -47,7 +47,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_apart", "welcome");
 
-                        Socket.Send("compose_apart|open|");
+                        Socket.SendWS( "compose_apart|open|");
                         Client.GetRoleplay().ViewApartments = true;
                         Client.GetRoleplay().CooldownManager.CreateCooldown("viewapart", 1000, 3);
                     }
@@ -58,7 +58,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 case "close":
                     {
                         Client.GetRoleplay().ViewApartments = false;
-                        Socket.Send("compose_apart|close|");
+                        Socket.SendWS( "compose_apart|close|");
                         break;
                     }
                 #endregion
@@ -67,7 +67,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 case "apart_close":
                     {
                         Client.GetRoleplay().ViewApartments = false;
-                        Socket.Send("compose_apart|apart_close|");
+                        Socket.SendWS( "compose_apart|apart_close|");
                         break;
                     }
                 #endregion
@@ -75,7 +75,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Welcome
                 case "welcome":
                     {
-                        Socket.Send("compose_apart|welcome|Bienvenid@ a los Apartamentos");
+                        Socket.SendWS( "compose_apart|welcome|Bienvenid@ a los Apartamentos");
                     }
                     break;
                 #endregion
@@ -113,7 +113,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         }
                         #endregion
 
-                        Socket.Send("compose_apart|new_apart|" + html);
+                        Socket.SendWS( "compose_apart|new_apart|" + html);
                     }
                     break;
                 #endregion
@@ -129,20 +129,20 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         int GetApartID;
                         if (!int.TryParse(ReceivedData[2], out GetApartID))
                         {
-                            Socket.Send("compose_apart|msg_error|Ha ocurrido un problema al obtener la Información del Apartamento.");
+                            Socket.SendWS( "compose_apart|msg_error|Ha ocurrido un problema al obtener la Información del Apartamento.");
                             return;
                         }
 
                         if (Client.GetRoleplay().Level < 2)
                         {
-                            Socket.Send("compose_apart|msg_error|Debes ser al menos Nivel 2 para comprar un apartamento.");
+                            Socket.SendWS( "compose_apart|msg_error|Debes ser al menos Nivel 2 para comprar un apartamento.");
                             return;
                         }
                         
                         string RoomName = ReceivedData[3];
                         if(string.IsNullOrEmpty(RoomName) || RoomName.Length <= 3)
                         {
-                            Socket.Send("compose_apart|msg_error|Debes colocar un nombre mayor a 3 caracteres.");
+                            Socket.SendWS( "compose_apart|msg_error|Debes colocar un nombre mayor a 3 caracteres.");
                             return;
                         }
 
@@ -150,7 +150,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (string.IsNullOrEmpty(FE) || (FE != "false" && FE != "true"))
                         {
-                            Socket.Send("compose_apart|msg_error|No se obtuvo información correctamente sobre el Floor Editor.");
+                            Socket.SendWS( "compose_apart|msg_error|No se obtuvo información correctamente sobre el Floor Editor.");
                             return;
                         }
 
@@ -159,7 +159,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         Apartment AP = ApartmentManager.GetApartmentById(GetApartID);
                         if (AP == null)
                         {
-                            Socket.Send("compose_apart|msg_error|Ha ocurrido un problema al obtener la Información del Apartamento.");
+                            Socket.SendWS( "compose_apart|msg_error|Ha ocurrido un problema al obtener la Información del Apartamento.");
                             return;
                         }
 
@@ -169,7 +169,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             {
                                 if (Client.GetHabbo().Diamonds < (AP.Price + 25))
                                 {
-                                    Socket.Send("compose_apart|msg_error|No cuentas con los Rubies suficientes.");
+                                    Socket.SendWS( "compose_apart|msg_error|No cuentas con los Rubies suficientes.");
                                     return;
                                 }
                             }
@@ -177,7 +177,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             {*/
                                 if (Client.GetHabbo().Diamonds < AP.Price)
                                 {
-                                    Socket.Send("compose_apart|msg_error|No cuentas con los Rubies suficientes.");
+                                    Socket.SendWS( "compose_apart|msg_error|No cuentas con los Rubies suficientes.");
                                     return;
                                 }
                             //}
@@ -187,13 +187,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             /*
                             if (FloorEditor && Client.GetHabbo().Diamonds < 25)
                             {
-                                Socket.Send("compose_apart|msg_error|No cuentas con los Rubies suficientes para el Floor Editor.");
+                                Socket.SendWS( "compose_apart|msg_error|No cuentas con los Rubies suficientes para el Floor Editor.");
                                 return;
                             }*/
 
                             if (Client.GetHabbo().Credits < AP.Price)
                             {
-                                Socket.Send("compose_apart|msg_error|No cuentas con el dinero suficiente.");
+                                Socket.SendWS( "compose_apart|msg_error|No cuentas con el dinero suficiente.");
                                 return;
                             }
                         }
@@ -205,7 +205,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                        /* if (MyAparts >= 5)
                         {
-                            Socket.Send("compose_apart|msg_error|¡Ya tienes " + MyAparts + " apartamentos! No pueden tener más de cinco.");
+                            Socket.SendWS( "compose_apart|msg_error|¡Ya tienes " + MyAparts + " apartamentos! No pueden tener más de cinco.");
                             return;
                         }*/
 
@@ -217,7 +217,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (!PolarEnvironment.GetGame().GetApartmentOwnedManager().BuyNewApartment(Client, AP.ModelName, RoomName, GetApartID, Room.Id, Room.City, true))
                         {
-                            Socket.Send("compose_apart|msg_error|Ocurrió un problema al intentar comprar el apartamento. Contacte con un Administrador.");
+                            Socket.SendWS( "compose_apart|msg_error|Ocurrió un problema al intentar comprar el apartamento. Contacte con un Administrador.");
                             return;
                         }
 
@@ -238,7 +238,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             Client.GetHabbo().UpdateDiamondsBalance();
                         }*/
 
-                        Socket.Send("compose_apart|msg_success|¡Apartamento comprado exitosamente!");
+                        Socket.SendWS( "compose_apart|msg_success|¡Apartamento comprado exitosamente!");
                         RoleplayManager.Shout(Client, "*Ha comprado un nuevo apartamento pagando $ " + String.Format("{0:N0}", AP.Price) + " por el*", 5);
                         Client.SendWhisper("¡Felicidades por tu nuevo apartamento! Ahora dirígete al asensor para poder acceder a el.", 1);
                         #endregion
@@ -255,7 +255,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if(AO == null || AO.Count <= 0)
                         {
-                            Socket.Send("compose_apart|apart_list|<b style='color:red'>Aún no hay apartamentos en uso en este edificio.</b>");
+                            Socket.SendWS( "compose_apart|apart_list|<b style='color:red'>Aún no hay apartamentos en uso en este edificio.</b>");
                             return;
                         }
                         else
@@ -292,7 +292,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             }
 
                             Client.GetRoleplay().ViewApartments = true;
-                            Socket.Send("compose_apart|apart_list|" + html);
+                            Socket.SendWS( "compose_apart|apart_list|" + html);
                         }
 
                     }
@@ -309,7 +309,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         if (!RoleplayManager.GenerateRoom(Client.GetRoomUser().RoomId, out Room Room))
                             return;
 
-                        #region Comodin Conditions
+                        /*#region Comodin Conditions
                         Item BTile = null;
                         BTile = Room.GetRoomItemHandler().GetFloor.FirstOrDefault(x => x.GetBaseItem().ItemName.ToLower() == "comodin_carro" && x.Coordinate == Client.GetRoomUser().Coordinate);
                         if (BTile == null)
@@ -317,7 +317,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_apart", "msg_ele_error," + "Debes acercarte al asensor para entrar a un apartamento.|");
                             return;
                         }
-                        #endregion
+                        #endregion*/
 
                         string[] ReceivedData = Data.Split(',');
                         int GetRoomID = 0;
@@ -399,7 +399,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (AO == null || AO.Count <= 0)
                         {
-                            Socket.Send("compose_apart|my_apart_list|<b style='color:red'>No tienes apartamentos en este edificio.</b>|" + Client.GetHabbo().Username + "|");
+                            Socket.SendWS( "compose_apart|my_apart_list|<b style='color:red'>No tienes apartamentos en este edificio.</b>|" + Client.GetHabbo().Username + "|");
                             return;
                         }
                         else
@@ -428,7 +428,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             }
                              
                             Client.GetRoleplay().ViewApartments = true;
-                            Socket.Send("compose_apart|my_apart_list|" + html + "|" + Client.GetHabbo().Username + "|");
+                            Socket.SendWS( "compose_apart|my_apart_list|" + html + "|" + Client.GetHabbo().Username + "|");
                         }
 
                     }
@@ -444,7 +444,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         Habbo Habbo = PolarEnvironment.GetHabboByUsername(Search);
                         if(Habbo == null)
                         {
-                            Socket.Send("compose_apart|apart_list|<b style='color:red'>No se encontraron apartamentos con ese dueño en este edificio.</b>");
+                            Socket.SendWS( "compose_apart|apart_list|<b style='color:red'>No se encontraron apartamentos con ese dueño en este edificio.</b>");
                             return;
                         }
 
@@ -452,7 +452,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (AO == null || AO.Count <= 0)
                         {
-                            Socket.Send("compose_apart|apart_list|<b style='color:red'>No se encontraron apartamentos con ese dueño en este edificio.</b>");
+                            Socket.SendWS( "compose_apart|apart_list|<b style='color:red'>No se encontraron apartamentos con ese dueño en este edificio.</b>");
                             return;
                         }
                         else
@@ -481,7 +481,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             }
 
                             Client.GetRoleplay().ViewApartments = true;
-                            Socket.Send("compose_apart|apart_list|" + html + "|" + Client.GetHabbo().Username + "|");
+                            Socket.SendWS( "compose_apart|apart_list|" + html + "|" + Client.GetHabbo().Username + "|");
                         }
 
                     }
@@ -495,7 +495,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (AO == null || AO.Count <= 0)
                         {
-                            Socket.Send("compose_apart|my_offer_aparts|<b style='color:red'>No tienes apartamentos en este edificio.</b>");
+                            Socket.SendWS( "compose_apart|my_offer_aparts|<b style='color:red'>No tienes apartamentos en este edificio.</b>");
                             return;
                         }
                         else
@@ -563,7 +563,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                                 html += "</div>";
                             }
 
-                            Socket.Send("compose_apart|my_offer_aparts|" + html);
+                            Socket.SendWS( "compose_apart|my_offer_aparts|" + html);
                         }
 
                     }
@@ -582,12 +582,12 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         string GetMerca = ReceivedData[4];
                         if (!int.TryParse(ReceivedData[1], out GetAPId))
                         {
-                            Socket.Send("compose_apart|msg_error|Ha ocurrido un problema al obtener la Información del Apartamento.");
+                            Socket.SendWS( "compose_apart|msg_error|Ha ocurrido un problema al obtener la Información del Apartamento.");
                             return;
                         }
                         if (!int.TryParse(ReceivedData[2], out GetAPPrice))
                         {
-                            Socket.Send("compose_apart|msg_error|Ha ocurrido un problema al obtener la Información del Precio.");
+                            Socket.SendWS( "compose_apart|msg_error|Ha ocurrido un problema al obtener la Información del Precio.");
                             return;
                         }
 
@@ -595,7 +595,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (AP == null || AP.LobbyId != Client.GetRoomUser().RoomId)
                         {
-                            Socket.Send("compose_apart|msg_error|No existe ningún apartamento con ese número en este edificio.|");
+                            Socket.SendWS( "compose_apart|msg_error|No existe ningún apartamento con ese número en este edificio.|");
                             return;
                         }
 
@@ -605,12 +605,12 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         {
                             if (PolarEnvironment.GetGame().GetApartmentOwnedManager().ToggleOfferApartment(AP, GetAPPrice, GetAPMoneda))
                             {
-                                Socket.Send("compose_apart|msg_success|¡Apartamento colocado en venta exitosamente! Toma en cuenta que ahora cualquier persona podrá entrar a verlo.|");
+                                Socket.SendWS( "compose_apart|msg_success|¡Apartamento colocado en venta exitosamente! Toma en cuenta que ahora cualquier persona podrá entrar a verlo.|");
                                 RoleplayManager.Shout(Client, "*Coloca en venta un apartamento*", 5);
                             }
                             else
                             {
-                                Socket.Send("compose_apart|msg_success|¡Apartamento quitado de la venta exitosamente!|");
+                                Socket.SendWS( "compose_apart|msg_success|¡Apartamento quitado de la venta exitosamente!|");
                                 RoleplayManager.Shout(Client, "*Quita un apartamento de la lista de ventas*", 5);
                             }
                         }
@@ -623,7 +623,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             if (PolarEnvironment.GetGame().GetApartmentOwnedManager().SellApartmentGouv(Client, AP))
                             {
-                                Socket.Send("compose_apart|msg_success|¡Apartamento vendido al Gobierno exitosamente!|");
+                                Socket.SendWS( "compose_apart|msg_success|¡Apartamento vendido al Gobierno exitosamente!|");
                                 RoleplayManager.Shout(Client, "*Vende un apartamento al Gobierno*", 5);
 
                                 if (APModel.Price <= 100)
@@ -660,7 +660,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (AO == null || AO.Count <= 0)
                         {
-                            Socket.Send("compose_apart|offer_aparts|<b style='color:red'>No hay apartamentos usados en venta en este edificio.</b>");
+                            Socket.SendWS( "compose_apart|offer_aparts|<b style='color:red'>No hay apartamentos usados en venta en este edificio.</b>");
                             return;
                         }
                         else
@@ -708,7 +708,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                                 html += "</div>";
                             }
 
-                            Socket.Send("compose_apart|offer_aparts|" + html);
+                            Socket.SendWS( "compose_apart|offer_aparts|" + html);
                         }
 
                     }
@@ -726,20 +726,20 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         int GetApartID;
                         if (!int.TryParse(ReceivedData[1], out GetApartID))
                         {
-                            Socket.Send("compose_apart|msg_error|Ha ocurrido un problema al obtener la Información del Apartamento.");
+                            Socket.SendWS( "compose_apart|msg_error|Ha ocurrido un problema al obtener la Información del Apartamento.");
                             return;
                         }
 
                         if (Client.GetRoleplay().Level < 2)
                         {
-                            Socket.Send("compose_apart|msg_error|Debes ser al menos Nivel 2 para comprar un apartamento.");
+                            Socket.SendWS( "compose_apart|msg_error|Debes ser al menos Nivel 2 para comprar un apartamento.");
                             return;
                         }
 
                         ApartmentOwned AP = PolarEnvironment.GetGame().GetApartmentOwnedManager().GetApartmentByInsideRoom(GetApartID);
                         if (AP == null)
                         {
-                            Socket.Send("compose_apart|msg_error|Ha ocurrido un problema al obtener la Información del Apartamento.");
+                            Socket.SendWS( "compose_apart|msg_error|Ha ocurrido un problema al obtener la Información del Apartamento.");
                             return;
                         }
                         #endregion
@@ -761,7 +761,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             {
                                 if (Client.GetHabbo().Diamonds < AP.Price)
                                 {
-                                    Socket.Send("compose_apart|msg_error|No cuentas con los Rubies suficientes.");
+                                    Socket.SendWS( "compose_apart|msg_error|No cuentas con los Rubies suficientes.");
                                     return;
                                 }
 
@@ -774,7 +774,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             {
                                 if (Client.GetHabbo().Credits < AP.Price)
                                 {
-                                    Socket.Send("compose_apart|msg_error|No cuentas con el dinero suficiente.");
+                                    Socket.SendWS( "compose_apart|msg_error|No cuentas con el dinero suficiente.");
                                     return;
                                 }
 
@@ -784,11 +784,11 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             if (!PolarEnvironment.GetGame().GetApartmentOwnedManager().BuyOfferApartment(Client, AP))
                             {
-                                Socket.Send("compose_apart|msg_error|Ha ocurrido un error al intentar comprar el apartamento.");
+                                Socket.SendWS( "compose_apart|msg_error|Ha ocurrido un error al intentar comprar el apartamento.");
                                 return;
                             }
 
-                            Socket.Send("compose_apart|msg_success|¡Apartamento comprado exitosamente!");
+                            Socket.SendWS( "compose_apart|msg_success|¡Apartamento comprado exitosamente!");
                             RoleplayManager.Shout(Client, "*Ha comprado un apartamento pagando " + DisplayPrice + " por el*", 5);
                             Client.SendWhisper("¡Felicidades por tu apartamento! Ahora dirígete al asensor para poder acceder a el.", 1);
                         }
@@ -806,7 +806,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         string[] ReceivedData = PData[1].Split('|');
                         string Msg = ReceivedData[0];
 
-                        Socket.Send("compose_apart|msg_ele_error|" + Msg);
+                        Socket.SendWS( "compose_apart|msg_ele_error|" + Msg);
                     }
                     break;
                 #endregion
@@ -817,11 +817,19 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         string[] PData = Data.Split(',');
                         string ReceivedData = PData[1];
 
-                        Socket.Send("compose_apart|open_apart_lock|" + ReceivedData);
+                        Socket.SendWS( "compose_apart|open_apart_lock|" + ReceivedData);
                     }
                     break;
                 #endregion
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

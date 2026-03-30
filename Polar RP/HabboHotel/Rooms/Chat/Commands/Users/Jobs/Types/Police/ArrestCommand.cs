@@ -24,7 +24,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Police
 
         public string Parameters
         {
-            get { return "%user%"; }
+            get { return "%user% %tiempo%"; }
         }
 
         public string Description
@@ -40,16 +40,21 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Police
             RPRoom Data2;
             int JailRID = PolarEnvironment.GetGame().GetRPRoomManager().TryToGetJail(MyCity, out Data);//prision de la cd.
             int PolStationID = PolarEnvironment.GetGame().GetRPRoomManager().TryToGetPolStation(MyCity, out Data2);//prision
-
+            /*
             if (Session.GetHabbo().CurrentRoomId != JailRID && Session.GetHabbo().CurrentRoomId != PolStationID)
             {
                 Session.SendWhisper("Debes llevar a la persona dentro de la Prisión o Comisaría para encarcelarla. ((Usa :escoltar [nombre] para llevarlo hasta allá)).", 1);
                 return;
-            }
-            
-            if (Params.Length == 1)
+            }*/
+
+            /*if (Params.Length == 1)
             {
                 Session.SendWhisper("Debes ingresar el nombre de la persona.", 1);
+                return;
+            }*/
+            if (Params.Length != 3)
+            {
+                Session.SendWhisper("Por favor ingrese un nombre de usuario y el tiempo!", 1);
                 return;
             }
 
@@ -146,7 +151,35 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Police
             Point TargetClientPos = new Point(TargetUser.X, TargetUser.Y);
             double Distance = RoleplayManager.GetDistanceBetweenPoints2D(ClientPos, TargetClientPos);
             Wanted Wanted = RoleplayManager.WantedList.ContainsKey(TargetClient.GetHabbo().Id) ? RoleplayManager.WantedList[TargetClient.GetHabbo().Id] : null;
-            int WantedTime = Wanted == null ? RoleplayManager.DefaultJailTime : Wanted.WantedLevel * RoleplayManager.StarsJailTime;
+
+            // 🔧 CORRECCIÓN 1: Validación segura del tiempo
+            int WantedTime;
+            if (Params.Length > 2 && !string.IsNullOrEmpty(Params[2]))
+            {
+                if (!int.TryParse(Params[2], out WantedTime))
+                {
+                    Session.SendWhisper("El tiempo debe ser un número válido.", 1);
+                    return;
+                }
+            }
+            else
+            {
+                WantedTime = 5; // Tiempo por defecto
+            }
+
+            // 🔧 CORRECCIÓN 2: Limitar el tiempo máximo
+            if (WantedTime <= 0)
+            {
+                Session.SendWhisper("El tiempo debe ser mayor a 0 minutos.", 1);
+                return;
+            }
+
+            if (WantedTime > 60) // Máximo 60 minutos
+            {
+                Session.SendWhisper("El tiempo máximo de arresto es 60 minutos.", 1);
+                return;
+            }
+
             int ReduceTime = 0;
             string ExtraMsg = "";
 
@@ -161,6 +194,10 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Police
                 ReduceTime = WantedTime / 4;
             }
 
+            // 🔧 CORRECCIÓN 3: Aplicar reducción de tiempo
+            int FinalJailTime = WantedTime - ReduceTime;
+            if (FinalJailTime < 1) FinalJailTime = 1;
+
             if (Distance <= 1)
             {
                 if (TargetClient.GetRoleplay().IsWorking)
@@ -170,7 +207,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Police
                     TargetClient.GetHabbo().Poof();
                 }
 
-                RoleplayManager.Shout(Session, "*Libera las manos de " + TargetClient.GetHabbo().Username + " y lo encierra en una celda durante " + WantedTime + " minuto(s)" + ExtraMsg, 37);
+                RoleplayManager.Shout(Session, "*Libera las manos de " + TargetClient.GetHabbo().Username + " y lo encierra en una celda durante " + FinalJailTime + " minuto(s)" + ExtraMsg, 37);
                 TargetClient.GetRoleplay().Cuffed = false;
                 TargetClient.GetRoomUser().ApplyEffect(0);
 
@@ -186,9 +223,20 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Police
                 if (!TargetClient.GetRoleplay().IsJailed)
                 {
                     TargetClient.GetRoleplay().IsJailed = true;
-                    TargetClient.GetRoleplay().JailedTimeLeft = WantedTime - ReduceTime;
-                    TargetClient.GetRoleplay().TimerManager.CreateTimer("jail", 1000, false);
+                    // 🔧 CORRECCIÓN 4: Usar el tiempo final calculado
+                    TargetClient.GetRoleplay().JailedTimeLeft = FinalJailTime;
+
+                    // 🔧 CORRECCIÓN 5: Verificar que el timer no exista antes de crearlo
+                    if (!TargetClient.GetRoleplay().TimerManager.ActiveTimers.ContainsKey("jail"))
+                    {
+                        TargetClient.GetRoleplay().TimerManager.CreateTimer("jail", 1000, false);
+                    }
                 }
+                /*TargetClient.GetRoleplay().TimerManager.ActiveTimers["stun"].EndTimer();
+                TargetClient.GetRoomUser().Frozen = false;
+                TargetClient.GetRoomUser().CanWalk = true;
+                TargetClient.GetRoleplay().IsStun = false;
+                TargetClient.GetRoleplay().Paralized = false;*/
 
                 if (TargetClient.GetHabbo().CurrentRoomId == JailRID)
                 {
@@ -213,14 +261,11 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Police
                 //PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(TargetClient, "ACH_Arrested", 1);
                 TargetClient.GetRoleplay().Arrested++;
                 if (TargetClient.GetRoomUser() != null)
-                    TargetClient.GetRoomUser().CanWalk = true;
-
-                // UnEscort
-                if (TargetClient.GetRoomUser() != null)
                 {
                     TargetClient.GetRoomUser().ClearMovement(true);
                     TargetClient.GetRoomUser().CanWalk = true;
                 }
+
 
                 #region Quitar Drogas
                 if (Session.GetRoleplay().Weed <= 0 && Session.GetRoleplay().Cocaine <= 0 && Session.GetRoleplay().Heroina <= 0)
@@ -261,6 +306,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Police
                     Session.GetRoleplay().Heroina = 0;*/
                 }
                 #endregion
+
                 #region Desequipar al Convicto
                 if (TargetClient.GetRoleplay().EquippedWeapon != null)
                 {
@@ -289,9 +335,6 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Police
                     TargetClient.GetRoleplay().Weed = 0;
                 }
                 #endregion
-
-
-                PolarEnvironment.SendMs("**__¡LiveFeed!__** `|` **" + TargetClient.GetHabbo().Username + "** Ha sido arrestad@ por **" + Session.GetHabbo().Username + "**");
 
                 #region Live Feed
                 foreach (GameClient client in PolarEnvironment.GetGame().GetClientManager().GetClients.ToList())

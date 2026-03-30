@@ -74,7 +74,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.SpecialRights
             }
 
             TargetSession.GetRoomUser().SendNameColourPacket();
-            Room.SendMessage(new ChatComposer(TargetSession.GetRoomUser().VirtualId, Message, 0, TargetSession.GetRoomUser().LastBubble));
+            Room.SendMessage(new ChatComposer(TargetSession.GetRoomUser().VirtualId, Message, 0, TargetSession.GetRoomUser().LastBubble, string.Empty));
             TargetSession.GetRoomUser().SendNamePacket();
 
             #endregion

@@ -134,7 +134,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Moderators.Seniors
             else
                 Job.AddNewMember(TargetClient.GetHabbo().Id, jobRank);
 
-            Job.SendPackets(TargetClient);
+            //Job.SendPackets(TargetClient);
             //Session.SendMessage(new GroupInfoComposer(OldJob, Session));
 
             Session.Shout("*Utiliza sus poderes de dios para dar trabajo a " + TargetClient.GetHabbo().Username + " en '" + Job.Name + "' como '" + JobRank.Name + "'*", 23);

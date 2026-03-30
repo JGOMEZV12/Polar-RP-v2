@@ -829,6 +829,198 @@ namespace Polar.HabboHotel.Groups
                 Group.Ranks = GenerateJobRanks(JobId);
             }
         }
+        // ─── Recarga desde base de datos ──────────────────────────────────────
+
+        /// <summary>
+        /// Recarga un grupo/pandilla concreto desde la DB y actualiza el diccionario en memoria.
+        /// Devuelve el Group actualizado, o null si no existe en DB.
+        /// </summary>
+        public Group ReloadGroup(int groupId)
+        {
+            try
+            {
+                // Determinar si es job o gang
+                bool isGang = groupId >= 1000;
+                string table = isGang ? "rp_gangs" : "rp_jobs";
+
+                DataRow Row = null;
+                using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+                {
+                    dbClient.SetQuery("SELECT * FROM `" + table + "` WHERE `id` = @id LIMIT 1");
+                    dbClient.AddParameter("id", groupId);
+                    Row = dbClient.getRow();
+                }
+
+                if (Row == null)
+                {
+                    // No existe en DB → eliminar del cache si estaba
+                    if (isGang)
+                    {
+                        Group old; Gangs.TryRemove(groupId, out old);
+                        old?.Dispose();
+                    }
+                    else
+                    {
+                        Group old; Jobs.TryRemove(groupId, out old);
+                        old?.Dispose();
+                    }
+                    return null;
+                }
+
+                // Si ya está cacheado, hacer refresh in-place (más rápido, mantiene referencias)
+                Group existing = isGang
+                    ? (Gangs.ContainsKey(groupId) ? Gangs[groupId] : null)
+                    : (Jobs.ContainsKey(groupId)  ? Jobs[groupId]  : null);
+
+                if (existing != null)
+                {
+                    existing.RefreshFromDatabase();
+                    Out.WriteLine("Grupo #" + groupId + " '" + existing.Name + "' recargado (in-place).", "GroupManager", ConsoleColor.Cyan);
+                    return existing;
+                }
+
+                // No estaba en cache → construirlo completo y añadirlo
+                Group rebuilt = BuildGroupFromRow(Row, groupId, isGang);
+                if (rebuilt != null)
+                {
+                    if (isGang) Gangs.TryAdd(groupId, rebuilt);
+                    else        Jobs.TryAdd(groupId, rebuilt);
+                    Out.WriteLine("Grupo #" + groupId + " '" + rebuilt.Name + "' cargado al cache.", "GroupManager", ConsoleColor.Cyan);
+                }
+                return rebuilt;
+            }
+            catch (Exception ex)
+            {
+                log.Error("[GroupManager.ReloadGroup] Id=" + groupId + " -> " + ex.Message);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Recarga todos los Jobs desde la DB (equivalente a GetJobData pero sin limpiar Gangs).
+        /// </summary>
+        public void ReloadAllJobs()
+        {
+            try
+            {
+                Out.WriteLine("Recargando todos los Jobs...", "GroupManager", ConsoleColor.Cyan);
+                GetJobData();
+                Out.WriteLine("Jobs recargados: " + Jobs.Count, "GroupManager", ConsoleColor.Green);
+            }
+            catch (Exception ex)
+            {
+                log.Error("[GroupManager.ReloadAllJobs] " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Recarga todas las Pandillas desde la DB (equivalente a GetGangData).
+        /// </summary>
+        public void ReloadAllGangs()
+        {
+            try
+            {
+                Out.WriteLine("Recargando todas las Pandillas...", "GroupManager", ConsoleColor.Cyan);
+                GetGangData();
+                Out.WriteLine("Pandillas recargadas: " + Gangs.Count, "GroupManager", ConsoleColor.Green);
+            }
+            catch (Exception ex)
+            {
+                log.Error("[GroupManager.ReloadAllGangs] " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Recarga absolutamente todo (GenericData + Jobs + Gangs).
+        /// Equivalente a llamar Initialize() de nuevo en caliente.
+        /// </summary>
+        public void ReloadAll()
+        {
+            try
+            {
+                Out.WriteLine("Recargando todos los grupos y pandillas...", "GroupManager", ConsoleColor.Yellow);
+                Initialize();
+                Out.WriteLine("Recarga completa: " + Jobs.Count + " Jobs, " + Gangs.Count + " Pandillas.", "GroupManager", ConsoleColor.Green);
+            }
+            catch (Exception ex)
+            {
+                log.Error("[GroupManager.ReloadAll] " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Helper interno: construye un Group completo desde un DataRow de rp_jobs o rp_gangs.
+        /// </summary>
+        private Group BuildGroupFromRow(DataRow Row, int Id, bool isGang)
+        {
+            string Name        = Row["name"].ToString();
+            string Description = Row["desc"].ToString();
+            string Badge       = Row["badge"].ToString();
+            int OwnerId        = Convert.ToInt32(Row["owner_id"]);
+            int Created        = Convert.ToInt32(Row["created"]);
+            int RoomId         = Convert.ToInt32(Row["room_id"]);
+            int State          = Convert.ToInt32(Row["state"]);
+            string Colour1     = Convert.ToString(Row["colour1"]);
+            string Colour2     = Convert.ToString(Row["colour2"]);
+            int AdminOnlyDeco  = Convert.ToInt32(Row["admindeco"]);
+
+            bool ForumEnabled      = PolarEnvironment.EnumToBool(Row["forum_enabled"].ToString());
+            int ForumMessagesCount = Convert.ToInt32(Row["forum_messages_count"]);
+            double ForumScore      = Convert.ToDouble(Row["forum_score"]);
+            int LastPosterId       = Convert.ToInt32(Row["forum_lastposter_id"]);
+            string LastPosterName  = PolarEnvironment.GetHabboById(LastPosterId) == null
+                                        ? "HoloRP"
+                                        : PolarEnvironment.GetHabboById(LastPosterId).Username;
+            int LastPosterTimeStamp = Convert.ToInt32(Row["forum_lastposter_timestamp"]);
+
+            int WhoCanRead   = Convert.ToInt32(Row["who_can_read"]);
+            int WhoCanPost   = Convert.ToInt32(Row["who_can_post"]);
+            int WhoCanThread = Convert.ToInt32(Row["who_can_thread"]);
+            int WhoCanMod    = Convert.ToInt32(Row["who_can_mod"]);
+
+            bool hChat   = PolarEnvironment.EnumToBool(Row["has_chat"].ToString());
+            int Balance  = Convert.ToInt32(Row["bank_balance"]);
+            int Stock    = Convert.ToInt32(Row["stock"]);
+            bool isGangB = PolarEnvironment.EnumToBool(Row["isGang"].ToString());
+
+            List<int> Requests;
+            ConcurrentDictionary<int, GroupMember> Members;
+            ConcurrentDictionary<int, GroupRank>   Ranks;
+            ConcurrentDictionary<int, GroupLogs>   Logs = GenerateLogs(Id);
+
+            int Kills = 0, CopKills = 0, Deaths = 0, Score = 0, MediPacks = 0, Stock2 = Stock;
+            int GangTurfTaken = 0, GangTurfDefend = 0;
+            bool Rupcy = false;
+
+            if (isGang)
+            {
+                Kills         = Convert.ToInt32(Row["gang_kills"]);
+                CopKills      = Convert.ToInt32(Row["gang_cop_kills"]);
+                Deaths        = Convert.ToInt32(Row["gang_deaths"]);
+                Score         = Convert.ToInt32(Row["gang_score"]);
+                MediPacks     = Convert.ToInt32(Row["medipacks"]);
+                Rupcy         = PolarEnvironment.EnumToBool(Row["bankruptcy"].ToString());
+                GangTurfTaken = Convert.ToInt32(Row["gang_turfs_taken"]);
+                GangTurfDefend= Convert.ToInt32(Row["gang_turfs_defend"]);
+
+                Members = GenerateGangMembers(Id, out Requests);
+                Ranks   = GenericGangRanks;
+            }
+            else
+            {
+                Members = GenerateJobMembers(Id, out Requests);
+                Ranks   = GenerateJobRanks(Id);
+            }
+
+            return new Group(Id, Name, Description, Badge, RoomId, OwnerId, Created, State, Colour1, Colour2, AdminOnlyDeco,
+                             ForumEnabled, Name, Description, ForumMessagesCount, ForumScore, LastPosterId, LastPosterName, LastPosterTimeStamp,
+                             WhoCanMod, WhoCanPost, WhoCanRead, WhoCanThread, Ranks, Members, Requests,
+                             Kills, CopKills, Deaths, Score, GangTurfTaken, GangTurfDefend, MediPacks,
+                             hChat, Balance, Stock, isGangB, Rupcy, Logs);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+
         public void DeleteGroup(int Id)
         {
             Group Group = null;

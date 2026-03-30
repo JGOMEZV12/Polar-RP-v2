@@ -35,7 +35,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Interactions.Self
 
         public string Description
         {
-            get { return "Te muestra una lista con todos tu(s) vehículo(s)."; }
+            get { return "Te muestra una lista con todos tus vehículos."; }
         }
 
         public async Task Execute(GameClients.GameClient Session, Rooms.Room Room, string[] Params)

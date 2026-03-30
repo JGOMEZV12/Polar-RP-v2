@@ -97,7 +97,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Administrators
 
                                 if (BaseWeapon != null)
                                 {
-                                    Weapon Weapon = new Weapon(id, basename, name, BaseWeapon.FiringText, BaseWeapon.EquipText, BaseWeapon.UnEquipText, BaseWeapon.ReloadText, BaseWeapon.Energy, effectid <= 0 ? BaseWeapon.EffectID : effectid, BaseWeapon.HandItem, range, mindam, maxdam, BaseWeapon.ClipSize, BaseWeapon.ReloadTime, BaseWeapon.Cost, BaseWeapon.CostFine, BaseWeapon.Stock, BaseWeapon.LevelRequirement, canuse, totalbullets, wlife, isvip, baulcar);
+                                    Weapon Weapon = new Weapon(id, basename, name, BaseWeapon.FiringText, BaseWeapon.EquipText, BaseWeapon.UnEquipText, BaseWeapon.ReloadText, BaseWeapon.Energy, effectid <= 0 ? BaseWeapon.EffectID : effectid, BaseWeapon.HandItem, range, mindam, maxdam, BaseWeapon.ClipSize, BaseWeapon.ReloadTime, BaseWeapon.Cost, BaseWeapon.CostFine, BaseWeapon.Stock, BaseWeapon.LevelRequirement, canuse, totalbullets, wlife, isvip, baulcar, BaseWeapon.Category);
 
                                     if (Weapon != null)
                                         Weapons.TryAdd(basename, Weapon);

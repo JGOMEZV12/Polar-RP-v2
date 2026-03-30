@@ -1,7 +1,8 @@
-﻿using System;
-using Polar.Communication.Packets.Outgoing.Pets;
+﻿using Polar.Communication.Packets.Outgoing.Pets;
 using Polar.Communication.Packets.Outgoing.Rooms.AI.Pets;
 using Polar.Communication.Packets.Outgoing.Rooms.Chat;
+using Polar.Database.Interfaces;
+using System;
 
 namespace Polar.HabboHotel.Rooms.AI
 {
@@ -69,6 +70,8 @@ namespace Polar.HabboHotel.Rooms.AI
             GnomeClothing = gnomeClothing;
         }
 
+        // 1. AddExperience - ya lo tienes ✓
+        // 2. OnRespect - ya marca NeedsUpdate, pero no guarda
         public void OnRespect()
         {
             Respect++;
@@ -78,32 +81,50 @@ namespace Polar.HabboHotel.Rooms.AI
                 DbState = PetDatabaseUpdateState.NeedsUpdate;
 
             if (Experience <= 150000)
-                AddExperience(10);
+                AddExperience(10); // Save() ya se llama dentro de AddExperience
         }
 
         public void AddExperience(int amount)
         {
+            //Console.WriteLine($"[PET DEBUG] Pet {PetId} AddExperience called, amount: {amount}, current XP: {Experience}, DbState: {DbState}");
+
             Experience += amount;
 
             if (Experience > 150000)
-            {
                 Experience = 150000;
-
-                Room?.SendMessage(new AddExperiencePointsComposer(PetId, VirtualId, amount));
-
-                return;
-            }
 
             if (DbState != PetDatabaseUpdateState.NeedsInsert)
                 DbState = PetDatabaseUpdateState.NeedsUpdate;
+
+            // Console.WriteLine($"[PET DEBUG] Pet {PetId} XP after: {Experience}, DbState after: {DbState}");
 
             if (Room != null)
             {
                 Room.SendMessage(new AddExperiencePointsComposer(PetId, VirtualId, amount));
 
-                if (Experience >= ExperienceGoal)
-                    Room.SendMessage(new ChatComposer(VirtualId, "*leveled up to level " + Level + " *", 0, 0));
+                if (Level < MaxLevel && Experience >= ExperienceGoal)
+                    LevelUp();
             }
+
+            // Console.WriteLine($"[PET DEBUG] Pet {PetId} calling Save()...");
+            Save();
+            //Console.WriteLine($"[PET DEBUG] Pet {PetId} Save() completed, DbState: {DbState}");
+        }
+
+        private void LevelUp()
+        {
+            // Cap experience at current level goal
+            if (Experience > ExperienceLevels[Level - 1])
+                Experience = ExperienceLevels[Level - 1];
+
+            if (DbState != PetDatabaseUpdateState.NeedsInsert)
+                DbState = PetDatabaseUpdateState.NeedsUpdate;
+
+            // Notify level up in room
+            Room.SendMessage(new ChatComposer(VirtualId, "*leveled up to level " + Level + "*", 0, 0, string.Empty));
+
+            // Send level updated packet
+            Room.SendMessage(new PetLevelUpComposer(this));
         }
 
         public void PetEnergy(bool add)
@@ -173,6 +194,35 @@ namespace Polar.HabboHotel.Rooms.AI
                 }
 
                 return ExperienceLevels.Length;
+            }
+        }
+
+        public void Save()
+        {
+            using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+            {
+                if (DbState == PetDatabaseUpdateState.NeedsInsert)
+                {
+                    dbClient.SetQuery("INSERT INTO `bots` (`id`,`user_id`,`room_id`,`name`,`x`,`y`,`z`) VALUES ('" + PetId + "','" + OwnerId + "','" + RoomId + "',@name,'0','0','0')");
+                    dbClient.AddParameter("name", Name);
+                    dbClient.RunQuery();
+
+                    dbClient.SetQuery("INSERT INTO `bots_petdata` (`type`,`race`,`color`,`experience`,`energy`,`createstamp`,`nutrition`,`respect`) VALUES ('" + Type + "',@race,@color,'0','100','" + CreationStamp + "','0','0')");
+                    dbClient.AddParameter("race", Race);
+                    dbClient.AddParameter("color", Color);
+                    dbClient.RunQuery();
+                }
+                else if (DbState == PetDatabaseUpdateState.NeedsUpdate)
+                {
+                    if (Room != null)
+                    {
+                        RoomUser user = Room.GetRoomUserManager().GetRoomUserByVirtualId(VirtualId);
+                        dbClient.RunQuery("UPDATE `bots` SET `room_id` = '" + RoomId + "', `x` = '" + (user != null ? user.X : 0) + "', `y` = '" + (user != null ? user.Y : 0) + "', `z` = '" + (user != null ? user.Z : 0) + "' WHERE `id` = '" + PetId + "' LIMIT 1");
+                    }
+                    dbClient.RunQuery("UPDATE `bots_petdata` SET `experience` = '" + Experience + "', `energy` = '" + Energy + "', `nutrition` = '" + Nutrition + "', `respect` = '" + Respect + "' WHERE `id` = '" + PetId + "' LIMIT 1");
+                }
+
+                DbState = PetDatabaseUpdateState.Updated;
             }
         }
 

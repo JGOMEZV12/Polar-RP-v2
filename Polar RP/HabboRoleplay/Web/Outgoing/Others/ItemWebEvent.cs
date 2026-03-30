@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Polar;
-using Fleck;
+using ConnectionManager;
+using Polar.Net;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Rooms;
 using Polar.Database.Interfaces;
@@ -26,7 +21,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -158,41 +153,8 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing
                         {
                             if (Client.GetRoleplay().EquippedWeapon.Name == BaseWeapon.Name)
                             {
-                                PolarEnvironment.GetGame().GetChatManager().GetCommands().Parse(Client, ":desequipar " + BaseWeapon.Name);
-                                /*CryptoRandom Random = new CryptoRandom();
-                                int Chance = Random.Next(1, 101);
-
-                                if (Chance <= 8)
-                                {
-                                    Client.Shout("*Intenta deslizar su " + Client.GetRoleplay().EquippedWeapon.PublicName + " de nuevo en su funda, pero falla*", 4);
-                                    return;
-                                }
-                                else
-                                {
-                                    RoleplayManager.UpdateMyWeaponStats(Client, "bullets", Client.GetRoleplay().Bullets, Client.GetRoleplay().EquippedWeapon.Name);
-                                    RoleplayManager.UpdateMyWeaponStats(Client, "life", Client.GetRoleplay().WLife, Client.GetRoleplay().EquippedWeapon.Name);
-
-                                    string UnEquipMessage = Client.GetRoleplay().EquippedWeapon.UnEquipText;
-                                    UnEquipMessage = UnEquipMessage.Replace("[NAME]", Client.GetRoleplay().EquippedWeapon.PublicName);
-
-                                    Client.Shout(UnEquipMessage, 4);
-
-                                    if (Client.GetRoomUser().CurrentEffect == Client.GetRoleplay().EquippedWeapon.EffectID)
-                                        Client.GetRoomUser().ApplyEffect(0);
-
-                                    if (Client.GetRoomUser().CarryItemID == Client.GetRoleplay().EquippedWeapon.HandItem)
-                                        Client.GetRoomUser().CarryItem(0);
-
-                                    Client.GetRoleplay().OwnedWeapons = null;
-                                    Client.GetRoleplay().OwnedWeapons = Client.GetRoleplay().LoadAndReturnWeapons();
-
-                                    Client.GetRoleplay().UpdateInteractingUserDialogues();
-                                    Client.GetRoleplay().RefreshStatDialogue();
-
-                                    Client.GetRoleplay().CooldownManager.CreateCooldown("unequip", 1000, 3);
-                                    Client.GetRoleplay().EquippedWeapon = null;
-                                    return;
-                                }*/
+                                PolarEnvironment.GetGame().GetChatManager().GetCommands().Parse(Client, ":desequipar");
+                                return;
                             }
                         }
 
@@ -342,7 +304,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing
                         string SendData = "";
                         SendData += html;
 
-                        Socket.Send("compose_update_inventory|" + SendData);
+                        Socket.SendWS( "compose_update_inventory|" + SendData);
                     }
                     break;
                 #endregion
@@ -395,5 +357,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing
                     #endregion
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

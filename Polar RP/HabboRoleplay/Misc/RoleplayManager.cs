@@ -1755,6 +1755,14 @@ namespace Polar.HabboRoleplay.Misc
             }
         }
 
+        public static Room GenerateRoom(int RoomId)
+        {
+            if (PolarEnvironment.GetGame() == null || PolarEnvironment.GetGame().GetRoomManager() == null)
+                return null;
+
+            Room Room = PolarEnvironment.GetGame().GetRoomManager().LoadRoom(RoomId);
+            return Room;
+        }
         /// <summary>
         /// Generates room based on roomid
         /// </summary>
@@ -1771,15 +1779,29 @@ namespace Polar.HabboRoleplay.Misc
 
         public static string SplitFigure(string Look, string Outfit)
         {
+            // Validar que Look no sea nulo o vacío
+            if (string.IsNullOrEmpty(Look))
+                Look = "hd-180-1.ch-210-62.lg-280-82.sh-290-62.cc-0-0";
+
+            // Validar que Outfit no sea nulo
+            if (string.IsNullOrEmpty(Outfit))
+                Outfit = "";
+
             ConcurrentDictionary<string, string> NewFigure = new ConcurrentDictionary<string, string>();
             string[] Splitted = Look.Split('.');
             string[] Splitted2 = Outfit.Split('.');
 
+            // Procesar Look
             for (int i = 0; i < Splitted.Length; i++)
             {
+                // Saltar elementos vacíos
+                if (string.IsNullOrEmpty(Splitted[i]))
+                    continue;
+
                 string[] SplittedPart = Splitted[i].Split('-');
 
-                if (Splitted == null)
+                // Validar que SplittedPart tenga al menos 2 elementos
+                if (SplittedPart == null || SplittedPart.Length < 2)
                     continue;
 
                 string BodyPart = SplittedPart[0];
@@ -1799,11 +1821,17 @@ namespace Polar.HabboRoleplay.Misc
                     NewFigure.TryUpdate(BodyPart, SpecificPart, NewFigure[BodyPart]);
             }
 
+            // Procesar Outfit
             for (int i = 0; i < Splitted2.Length; i++)
             {
+                // Saltar elementos vacíos
+                if (string.IsNullOrEmpty(Splitted2[i]))
+                    continue;
+
                 string[] SplittedPart2 = Splitted2[i].Split('-');
 
-                if (Splitted2 == null)
+                // Validar que SplittedPart2 tenga al menos 2 elementos
+                if (SplittedPart2 == null || SplittedPart2.Length < 2)
                     continue;
 
                 string BodyPart2 = SplittedPart2[0];
@@ -1823,8 +1851,11 @@ namespace Polar.HabboRoleplay.Misc
                     NewFigure.TryUpdate(BodyPart2, SpecificPart2, NewFigure[BodyPart2]);
             }
 
-            string ReturnFigure = "";
+            // Si no hay ninguna figura, devolver una por defecto
+            if (NewFigure.Count == 0)
+                return "hd-180-1.ch-210-62.lg-280-82.sh-290-62.cc-0-0";
 
+            string ReturnFigure = "";
             int count = 0;
             foreach (var Row in NewFigure)
             {
@@ -1838,7 +1869,6 @@ namespace Polar.HabboRoleplay.Misc
 
             return ReturnFigure;
         }
-
         public static int Distance(Vector2D Pos1, Vector2D Pos2)
         {
             return Math.Abs(Pos1.X - Pos2.X) + Math.Abs(Pos1.Y - Pos2.Y);
@@ -1906,11 +1936,11 @@ namespace Polar.HabboRoleplay.Misc
                                     if (User.GetClient().GetHabbo().Username != roomUser.GetClient().GetHabbo().Username && !roomUser.GetClient().GetRoleplay().Invisible)
                                         continue;
 
-                                roomUser.GetClient().SendMessage(new ChatComposer(User.VirtualId, Speech, 0, Bubble));
+                                roomUser.GetClient().SendMessage(new ChatComposer(User.VirtualId, Speech, 0, Bubble, string.Empty));
                             }
                         }
                         else
-                            Session.SendMessage(new ChatComposer(User.VirtualId, Speech, 0, Bubble));
+                            Session.SendMessage(new ChatComposer(User.VirtualId, Speech, 0, Bubble, string.Empty));
                     }
                 }
             }
@@ -1981,7 +2011,7 @@ namespace Polar.HabboRoleplay.Misc
         /// <param name="Session"></param>
         /// <param name="Speech"></param>
         /// <param name="Bubble"></param>
-        public static void Shout(GameClient Session, string Speech, int Bubble = 0)
+        public static void Shout(GameClient Session, string Speech, int Bubble = 0, string Colour = "black")
         {
             Room Room = null;
             RoomUser User = null;
@@ -2018,7 +2048,7 @@ namespace Polar.HabboRoleplay.Misc
                                     if (User.GetClient().GetHabbo().Username != roomUser.GetClient().GetHabbo().Username && !roomUser.GetClient().GetRoleplay().Invisible)
                                         continue;
 
-                                roomUser.GetClient().SendMessage(new ShoutComposer(User.VirtualId, Speech, 0, Bubble));
+                                roomUser.GetClient().SendMessage(new ShoutComposer(User.VirtualId, Speech, 0, Bubble, Colour));
                             }
                         }
                         else
@@ -2026,7 +2056,7 @@ namespace Polar.HabboRoleplay.Misc
                             User.SendNameColourPacket();
                             User.SendMeCommandPacket();
 
-                            Session.SendMessage(new ShoutComposer(User.VirtualId, Speech, 0, Bubble));
+                            Session.SendMessage(new ShoutComposer(User.VirtualId, Speech, 0, Bubble, Colour));
                         }
                     }
                 }
@@ -2056,15 +2086,31 @@ namespace Polar.HabboRoleplay.Misc
         /// <returns></returns>
         public static void GetLookAndMotto(GameClient Client, string Type = "")
         {
-            string WorkLook = "";
-            string Look = Client.GetHabbo().Look;
-            string Motto = Client.GetHabbo().Motto;
-            string Gender = Client.GetHabbo().Gender;
+            try
+            {
+                // Validar que Client y Habbo existan
+                if (Client == null || Client.GetHabbo() == null)
+                    return;
 
-            if (Type.ToLower() == "poof")
+                // Validar que Look no esté vacío
+                string Look = Client.GetHabbo().Look;
+                if (string.IsNullOrEmpty(Look))
+                {
+                    Look = "hd-180-1.ch-210-62.lg-280-82.sh-290-62.cc-0-0";
+                    Client.GetHabbo().Look = Look;
+                }
+
+                string WorkLook = "";
+                string Motto = Client.GetHabbo().Motto;
+
+                if (Client.GetHabbo().Gender == null || Client.GetHabbo().Gender == "")
+                    Client.GetHabbo().Gender = "m";
+                string Gender = Client.GetHabbo().Gender;
+
+                if (Type.ToLower() == "poof")
             {
                 Look = Client.GetRoleplay().OriginalOutfit;
-                Motto = Client.GetRoleplay().Class;
+                Motto = Client.GetRoleplay().OriginalMotto;
             }
 
             int JobId = Client.GetRoleplay().JobId;
@@ -2095,10 +2141,10 @@ namespace Polar.HabboRoleplay.Misc
                 if (Gender.ToLower() == "f")
                     Look = SplitFigure(Look, "ch-3689-94.lg-9587209-94-64.sh-735-92.hd-600-1");
 
-               /* if (Client.GetRoleplay().Jailbroken)
+                /*if (Client.GetRoleplay().Jailbroken)
                     Motto = "[ESCAPADO] Prisionero [#" + PrisonNumber + "]";
                 else
-                    Motto = "[PRISIONERO] Prisionero [#" + PrisonNumber + "]";*/
+                    */Motto = "[PRISIONERO] Prisionero [#" + PrisonNumber + "]";
             }
 
             if (Client.GetRoleplay().IsWorking)
@@ -2113,7 +2159,7 @@ namespace Polar.HabboRoleplay.Misc
 
                     Look = SplitFigure(Look, WorkLook);
                 }
-                //Motto = "[TRABAJANDO] " + Group.Name + " " + GroupRank.Name;
+                Motto = "[TRABAJANDO] " + Group.Name + " " + GroupRank.Name;
             }
 
             if (Client.GetRoleplay().SexTimer > 0)
@@ -2157,8 +2203,12 @@ namespace Polar.HabboRoleplay.Misc
                 if (Client.GetHabbo().CurrentRoom != null)
                     Client.GetHabbo().CurrentRoom.SendMessage(new UserChangeComposer(RoomUser, false));
             }
+            }
+            catch (Exception ex)
+            {
+                Logging.LogException("GetLookAndMotto error: " + ex.ToString());
+            }
         }
-
         /// <summary>
         /// Sends the user to desired bed in the room
         /// </summary>
@@ -2754,242 +2804,208 @@ namespace Polar.HabboRoleplay.Misc
                 return;
         }
         public static void SendUserNew(GameClient Client, int RID, string Message = "")
+{
+    RoomData roomData = PolarEnvironment.GetGame().GetRoomManager().GenerateRoomData(RID);
+    if (Client != null && roomData != null)
+    {
+        Client.GetRoleplay().AntiArrowCheck = true;
+
+        if (Client.GetHabbo().InRoom)
         {
-            RoomData roomData = PolarEnvironment.GetGame().GetRoomManager().GenerateRoomData(RID);
-            if (Client != null && roomData != null)
-            {
-                Client.GetRoleplay().AntiArrowCheck = true;
-
-                if (Client.GetHabbo().InRoom)
-                {
-                    Room OldRoom = null;
-                    if (!PolarEnvironment.GetGame().GetRoomManager().TryGetRoom(Client.GetHabbo().CurrentRoomId, out OldRoom))
-                        return;
-
-                    if (OldRoom.GetRoomUserManager() != null)
-                        OldRoom.GetRoomUserManager().RemoveUserFromRoom(Client, false, false);
-
-                    // New JDN
-                    OldRoom.GetRoomItemHandler().ClearItems(Client);
-                    OldRoom.GetRoomUserManager().ClearUsers(Client);
-                }
-
-                //Client.SendMessage(new GetGuestRoomResultComposer(Client, roomData, false, true));
-                Client.SendMessage(new GetGuestRoom2ResultComposer(Client, roomData, true, false));
-
-                // New JDN
-                #region Habbo=>PrepareRoom
-                Room Room;
-                if (!PolarEnvironment.GetGame().GetRoomManager().LoadRoom(RID, out Room))
-                {
-                    Client.SendMessage(new CloseConnectionComposer());
-                    return;
-                }
-
-                if (Room.isCrashed)
-                {
-                    Client.SendNotification("Esta sala está corrompida :(");
-                    Client.SendMessage(new CloseConnectionComposer());
-                    return;
-                }
-
-                if (!Room.GetRoomUserManager().AddAvatarToRoom(Client))
-                {
-                    Room.GetRoomUserManager().RemoveUserFromRoom(Client, false, false);
-                    return;
-                }
-
-                Client.GetHabbo().CurrentRoomId = Room.RoomId;
-                #endregion
-
-                Client.GetHabbo().HomeRoom = Room.Id;
-                Client.GetRoleplay().InState = false;
-
-                #region Habbo=>EntrerRoom
-                if (Room.Wallpaper != "0.0")
-                    Client.SendMessage(new RoomPropertyComposer("wallpaper", Room.Wallpaper));
-                if (Room.Floor != "0.0")
-                    Client.SendMessage(new RoomPropertyComposer("floor", Room.Floor));
-
-                Client.SendMessage(new RoomPropertyComposer("landscape", Room.Landscape));
-
-                if (Room.OwnerId != Client.GetHabbo().Id)
-                    Client.GetHabbo().GetStats().RoomVisits += 1;
-
- 
-                
-                #endregion
-
-                Room.GetGameMap().GenerateMaps();
-                Room.SendObjects(Client);
-
-                #region GetRoomEntryDataEvent
-                #region CONDITIONS RP BY JEIHDEN 
-
-
-                #region Tutorial Step Check
-                if (Client.GetRoleplay().TutorialStep == 13 && Room.WardrobeEnabled && Room.Type.Equals("public"))
-                {
-                    PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(Client, "compose_tutorial|13");
-                }
-                else if (Client.GetRoleplay().TutorialStep == 18 && Room.PhoneStoreEnabled && Room.Type.Equals("public"))
-                {
-                    PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(Client, "compose_tutorial|18");
-                }
-                else if (Client.GetRoleplay().TutorialStep == 23 && Room.BuyCarEnabled && Room.Type.Equals("public"))
-                {
-                    PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(Client, "compose_tutorial|24");
-                }
-                else if (Client.GetRoleplay().TutorialStep == 27 && Room.MallEnabled && Room.Type.Equals("public"))
-                {
-                    PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(Client, "compose_tutorial|28");
-                }
-                #endregion
-
-                #endregion
-
-                Client.SendMessage(new RoomVisualizationSettingsComposer(Room.WallThickness, Room.FloorThickness, Room.Hidewall));
-
-                RoomUser ThisUser = null;
-
-                if (Client.GetHabbo() != null)
-                    ThisUser = Room.GetRoomUserManager().GetRoomUserByHabbo(Client.GetHabbo().Username);
-
-                if (ThisUser != null && Client.GetHabbo().PetId == 0)
-                    Room.SendMessage(new UserChangeComposer(ThisUser, false));
-
-
-                if (Room.GetWired() != null)
-                    Room.GetWired().TriggerEvent(WiredBoxType.TriggerRoomEnter, Client.GetHabbo());
-
-                foreach (RoomUser Bot in Room.GetRoomUserManager().GetBots().ToList())
-                {
-                    if (Bot.IsBot || Bot.IsPet)
-                        Bot.BotAI.OnUserEnterRoom(ThisUser);
-                }
-
-                if (PolarEnvironment.GetUnixTimestamp() < Client.GetHabbo().FloodTime && Client.GetHabbo().FloodTime != 0)
-                    Client.SendMessage(new FloodControlComposer((int)Client.GetHabbo().FloodTime - (int)PolarEnvironment.GetUnixTimestamp()));
-                #endregion
-
-                #region GetGuestRoomEvent
-                if (Client.GetHabbo().CurrentRoom == null)
-                    Client.GetRoleplay().IsWorking = false;
-
-                if (Client.GetRoleplay().IsWorking)
-                {
-
-                    int JobId = Client.GetRoleplay().JobId;
-                    int JobRank = Client.GetRoleplay().JobRank;
-
-                    if (!GroupManager.GetJobRank(JobId, JobRank).CanWorkHere(Room.Id))
-                    {
-                        if (GroupManager.HasJobCommand(Client, "guide"))
-                        {
-                            var guideManager = PolarEnvironment.GetGame().GetGuideManager();
-                            guideManager.RemoveGuide(Client);
-
-                            #region End Existing Calls
-
-                            if (Client.GetRoleplay().GuideOtherUser != null)
-                            {
-                                Client.GetRoleplay().GuideOtherUser.SendMessage(new OnGuideSessionDetachedComposer(0));
-                                Client.GetRoleplay().GuideOtherUser.SendMessage(new OnGuideSessionDetachedComposer(1));
-                                if (Client.GetRoleplay().GuideOtherUser.GetRoleplay() != null)
-                                {
-                                    Client.GetRoleplay().GuideOtherUser.GetRoleplay().Sent911Call = false;
-                                    Client.GetRoleplay().GuideOtherUser.GetRoleplay().GuideOtherUser = null;
-                                }
-
-                                Client.GetRoleplay().GuideOtherUser = null;
-                                Client.SendMessage(new OnGuideSessionDetachedComposer(0));
-                                Client.SendMessage(new OnGuideSessionDetachedComposer(1));
-                            }
-                            #endregion
-                            else
-                                Client.SendMessage(new HelperToolConfigurationComposer(Client));
-                        }
-                        WorkManager.RemoveWorkerFromList(Client);
-                        Client.GetRoleplay().IsWorking = false;
-                        Client.GetHabbo().Poof();
-                    }
-                }
-                    #region Clean Websockets (Al cambiar de sala)
-
-                    #region Groups
-                    // WS Groups
-                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_group", "close");
-                PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_group", "open");
-                PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "turf_cap_off");
-                #endregion
-
-                #region Products
-                if (Client.GetRoleplay().ViewProducts)
-                {
-                    // WS Products
-                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_products", "close");
-                    Client.GetRoleplay().ViewProducts = false;
-                }
-                #endregion
-
-                #region Change Name
-                if (Client.GetRoleplay().ViewChangeName)
-                {
-                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_changename", "close");
-                    Client.GetRoleplay().ViewChangeName = false;
-                }
-                #endregion
-
-                #region Car List
-                if (Client.GetRoleplay().ViewCarList)
-                {
-                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_vehicle", "closeshop");
-                    Client.GetRoleplay().ViewCarList = false;
-                }
-                #endregion
-
-                #region Weapon List
-                if (Client.GetRoleplay().ViewWeaponsList)
-                {
-                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_shop", "closeshop");
-                    Client.GetRoleplay().ViewWeaponsList = false;
-                }
-                #endregion
-
-                #region Apart List
-                if (Client.GetRoleplay().ViewApartments)
-                {
-                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_apart", "apart_close");
-                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_apart", "close");
-                    Client.GetRoleplay().ViewApartments = false;
-                }
-                #endregion
-
-                #endregion
-                #endregion
-
-                if (Client.GetRoleplay().Pasajero == true)
-                {
-                   
-                    GameClient Chofer = PolarEnvironment.GetGame().GetClientManager().GetClientByUsername(Client.GetRoleplay().ChoferName);
-                    Chofer.SendMessage(new UserRemoveComposer(Client.GetRoomUser().VirtualId));
-                    Client.SendMessage(new UserRemoveComposer(Client.GetRoomUser().VirtualId));
-                }
-
-                if (Client.GetRoomUser() != null)
-                {
-                    if (Client.GetRoomUser().CurrentEffect == 23)
-                        Client.GetRoomUser().ApplyEffect(0);
-                }
-
-                Room.GetGameMap().GenerateMaps();
-            }
-            else
-            {
-                Client.SendNotification("[Error][100] -> Lamentablemente ha habido un error al mandarte a la zona solicitada, porfavor comunicate con el administrador/dueño del servidor explicando con detalles de lo ocurrido. ¡Gracias!");
+            Room OldRoom = null;
+            if (!PolarEnvironment.GetGame().GetRoomManager().TryGetRoom(Client.GetHabbo().CurrentRoomId, out OldRoom))
                 return;
+
+            if (OldRoom.GetRoomUserManager() != null)
+                OldRoom.GetRoomUserManager().RemoveUserFromRoom(Client, false, false);
+
+            OldRoom.GetRoomItemHandler().ClearItems(Client);
+            OldRoom.GetRoomUserManager().ClearUsers(Client);
+        }
+
+        // FIX: Primero decirle al cliente que SALGA de la sala actual
+        // Esto fuerza al cliente a limpiar el modelo del mapa en memoria
+        Client.SendMessage(new GetGuestRoomResultComposer(Client, roomData, false, true));
+        // Luego enviarle los datos de la nueva sala con el modelo correcto
+        Client.SendMessage(new GetGuestRoomResultComposer(Client, roomData, true, false));
+
+        #region Habbo=>PrepareRoom
+        Room Room;
+        if (!PolarEnvironment.GetGame().GetRoomManager().LoadRoom(RID, out Room))
+        {
+            Client.SendMessage(new CloseConnectionComposer());
+            return;
+        }
+
+        if (Room.isCrashed)
+        {
+            Client.SendNotification("Esta sala está corrompida :(");
+            Client.SendMessage(new CloseConnectionComposer());
+            return;
+        }
+
+        if (!Room.GetRoomUserManager().AddAvatarToRoom(Client))
+        {
+            Room.GetRoomUserManager().RemoveUserFromRoom(Client, false, false);
+            return;
+        }
+
+        Client.GetHabbo().CurrentRoomId = Room.RoomId;
+        #endregion
+
+        Client.GetHabbo().HomeRoom = Room.Id;
+        Client.GetRoleplay().InState = false;
+        Client.GetRoleplay().RoomEntryHandled = true;
+
+        #region Habbo=>EntrerRoom
+        if (Room.Wallpaper != "0.0")
+            Client.SendMessage(new RoomPropertyComposer("wallpaper", Room.Wallpaper));
+        if (Room.Floor != "0.0")
+            Client.SendMessage(new RoomPropertyComposer("floor", Room.Floor));
+
+        Client.SendMessage(new RoomPropertyComposer("landscape", Room.Landscape));
+
+        if (Room.OwnerId != Client.GetHabbo().Id)
+            Client.GetHabbo().GetStats().RoomVisits += 1;
+        #endregion
+
+        // Regenerar mapa ANTES de enviar objetos
+        Room.GetGameMap().GenerateMaps();
+        Room.SendObjects(Client);
+
+        #region Tutorial Step Check
+        if (Client.GetRoleplay().TutorialStep == 13 && Room.WardrobeEnabled && Room.Type.Equals("public"))
+            PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(Client, "compose_tutorial|13");
+        else if (Client.GetRoleplay().TutorialStep == 18 && Room.PhoneStoreEnabled && Room.Type.Equals("public"))
+            PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(Client, "compose_tutorial|18");
+        else if (Client.GetRoleplay().TutorialStep == 23 && Room.BuyCarEnabled && Room.Type.Equals("public"))
+            PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(Client, "compose_tutorial|24");
+        else if (Client.GetRoleplay().TutorialStep == 27 && Room.MallEnabled && Room.Type.Equals("public"))
+            PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(Client, "compose_tutorial|28");
+        #endregion
+
+        Client.SendMessage(new RoomVisualizationSettingsComposer(Room.WallThickness, Room.FloorThickness, Room.Hidewall));
+
+        RoomUser ThisUser = null;
+        if (Client.GetHabbo() != null)
+            ThisUser = Room.GetRoomUserManager().GetRoomUserByHabbo(Client.GetHabbo().Username);
+
+        if (ThisUser != null && Client.GetHabbo().PetId == 0)
+            Room.SendMessage(new UserChangeComposer(ThisUser, false));
+
+        if (Room.GetWired() != null)
+            Room.GetWired().TriggerEvent(WiredBoxType.TriggerRoomEnter, Client.GetHabbo());
+
+        foreach (RoomUser Bot in Room.GetRoomUserManager().GetBots().ToList())
+        {
+            if (Bot.IsBot || Bot.IsPet)
+                Bot.BotAI.OnUserEnterRoom(ThisUser);
+        }
+
+        if (PolarEnvironment.GetUnixTimestamp() < Client.GetHabbo().FloodTime && Client.GetHabbo().FloodTime != 0)
+            Client.SendMessage(new FloodControlComposer(
+                (int)Client.GetHabbo().FloodTime - (int)PolarEnvironment.GetUnixTimestamp()));
+
+        if (Client.GetHabbo().CurrentRoom == null)
+            Client.GetRoleplay().IsWorking = false;
+
+        if (Client.GetRoleplay().IsWorking)
+        {
+            int JobId = Client.GetRoleplay().JobId;
+            int JobRank = Client.GetRoleplay().JobRank;
+
+            if (!GroupManager.GetJobRank(JobId, JobRank).CanWorkHere(Room.Id))
+            {
+                if (GroupManager.HasJobCommand(Client, "guide"))
+                {
+                    var guideManager = PolarEnvironment.GetGame().GetGuideManager();
+                    guideManager.RemoveGuide(Client);
+
+                    if (Client.GetRoleplay().GuideOtherUser != null)
+                    {
+                        Client.GetRoleplay().GuideOtherUser.SendMessage(new OnGuideSessionDetachedComposer(0));
+                        Client.GetRoleplay().GuideOtherUser.SendMessage(new OnGuideSessionDetachedComposer(1));
+                        if (Client.GetRoleplay().GuideOtherUser.GetRoleplay() != null)
+                        {
+                            Client.GetRoleplay().GuideOtherUser.GetRoleplay().Sent911Call = false;
+                            Client.GetRoleplay().GuideOtherUser.GetRoleplay().GuideOtherUser = null;
+                        }
+                        Client.GetRoleplay().GuideOtherUser = null;
+                        Client.SendMessage(new OnGuideSessionDetachedComposer(0));
+                        Client.SendMessage(new OnGuideSessionDetachedComposer(1));
+                    }
+                    else
+                        Client.SendMessage(new HelperToolConfigurationComposer(Client));
+                }
+                WorkManager.RemoveWorkerFromList(Client);
+                Client.GetRoleplay().IsWorking = false;
+                Client.GetHabbo().Poof();
             }
         }
+
+        PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_group", "close");
+        PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_group", "open");
+        PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "turf_cap_off");
+
+        if (Client.GetRoleplay().ViewProducts)
+        {
+            PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_products", "close");
+            Client.GetRoleplay().ViewProducts = false;
+        }
+
+        if (Client.GetRoleplay().ViewChangeName)
+        {
+            PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_changename", "close");
+            Client.GetRoleplay().ViewChangeName = false;
+        }
+
+        if (Client.GetRoleplay().ViewCarList)
+        {
+            PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_vehicle", "closeshop");
+            Client.GetRoleplay().ViewCarList = false;
+        }
+
+        if (Client.GetRoleplay().ViewWeaponsList)
+        {
+            PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_shop", "closeshop");
+            Client.GetRoleplay().ViewWeaponsList = false;
+        }
+
+        if (Client.GetRoleplay().ViewApartments)
+        {
+            PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_apart", "apart_close");
+            PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_apart", "close");
+            Client.GetRoleplay().ViewApartments = false;
+        }
+
+        if (Client.GetRoleplay().Pasajero == true)
+        {
+            GameClient Chofer = PolarEnvironment.GetGame().GetClientManager()
+                .GetClientByUsername(Client.GetRoleplay().ChoferName);
+            if (Chofer != null && Client.GetRoomUser() != null)
+            {
+                Chofer.SendMessage(new UserRemoveComposer(Client.GetRoomUser().VirtualId));
+                Client.SendMessage(new UserRemoveComposer(Client.GetRoomUser().VirtualId));
+            }
+        }
+
+        if (Client.GetRoomUser() != null)
+        {
+            if (Client.GetRoomUser().CurrentEffect == 23)
+                Client.GetRoomUser().ApplyEffect(0);
+        }
+
+        // Segunda regeneración al final para asegurar consistencia
+        Room.GetGameMap().GenerateMaps();
+
+        if (!string.IsNullOrEmpty(Message))
+            Client.SendMessage(new MOTDNotificationComposer(Message));
+    }
+    else
+    {
+        Client.SendNotification("[Error][100] -> Lamentablemente ha habido un error al mandarte a la zona solicitada, porfavor comunicate con el administrador/dueño del servidor explicando con detalles de lo ocurrido. ¡Gracias!");
+    }
+}
         public static void SendUser(GameClient Client, int RID, string Message = "")
         {
             RoomData roomData = PolarEnvironment.GetGame().GetRoomManager().GenerateRoomData(RID);
@@ -3776,10 +3792,10 @@ namespace Polar.HabboRoleplay.Misc
                     }
 
                     // Handle food logic if applicable
-                    if (IsFood && Session != null)
+                    if (IsFood && Session != null && Session.GetHabbo() != null)
                     {
                         NewItem.InteractingUser = Session.GetHabbo().Id;
-                        Session = null;
+                        // Session = null; ← ELIMINA ESTA LÍNEA
                     }
 
                     // Place the item in the room

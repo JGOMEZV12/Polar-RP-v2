@@ -43,6 +43,12 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                     base.WriteInteger(Habbo.Id);
                     base.WriteString(Habbo.Username);
                     base.WriteString(Habbo.Motto);
+                    base.WriteInteger(Habbo.BackgroundId);
+                    base.WriteInteger(Habbo.StandId);
+                    base.WriteInteger(Habbo.OverlayId);
+                    base.WriteBoolean(Habbo.VIPRank > 0 ? true : false);
+                    base.WriteInteger(Habbo.GetClient().GetRoleplay().Level);
+                    base.WriteInteger(Habbo.GetClient().GetRoleplay().ChalecoPor);
                     base.WriteString(Habbo.Look);
                     base.WriteInteger(User.VirtualId);
                     base.WriteInteger(User.X);
@@ -68,14 +74,20 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
 
                     base.WriteString("");//Whats this?
                     base.WriteInteger(Habbo.GetStats().AchievementPoints);//Achievement score
-                    base.WriteBoolean(false);//Builders club?
+                    base.WriteBoolean(true);//Builders club?
                 }
                 else if (Habbo.PetId > 0 && Habbo.PetId != 100)
                 {
                     base.WriteInteger(Habbo.Id);
                     base.WriteString(Habbo.Username);
                     base.WriteString(Habbo.Motto);
-                    base.WriteString((Habbo.PetFigure == null) ? PetFigureForType(Habbo) : Habbo.PetFigure);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
+                    base.WriteBoolean(false);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
+                    base.WriteString(PetFigureForType(Habbo.PetId));
 
                     base.WriteInteger(User.VirtualId);
                     base.WriteInteger(User.X);
@@ -99,6 +111,12 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                     base.WriteInteger(Habbo.Id);
                     base.WriteString(Habbo.Username);
                     base.WriteString(Habbo.Motto);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
+                    base.WriteBoolean(false);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
                     base.WriteString(Habbo.Look.ToLower());
                     base.WriteInteger(User.VirtualId);
                     base.WriteInteger(User.X);
@@ -118,7 +136,12 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                 base.WriteInteger(User.BotAI.BaseId);
                 base.WriteString(User.BotData.Name);
                 base.WriteString(User.BotData.Motto);
-
+                base.WriteInteger(0);
+                base.WriteInteger(0);
+                base.WriteInteger(0);
+                base.WriteBoolean(false);
+                base.WriteInteger(0);
+                base.WriteInteger(0);
                 //base.WriteString("26 30 ffffff 5 3 302 4 2 201 11 1 102 12 0 -1 28 4 401 24");
                 base.WriteString(User.BotData.Look.ToLower() + ((User.PetData.Saddle > 0) ? " 3 2 " + User.PetData.PetHair + " " + User.PetData.HairDye + " 3 " + User.PetData.PetHair + " " + User.PetData.HairDye + " 4 " + User.PetData.Saddle + " 0" : " 2 2 " + User.PetData.PetHair + " " + User.PetData.HairDye + " 3 " + User.PetData.PetHair + " " + User.PetData.HairDye + ""));
 
@@ -148,6 +171,12 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                     base.WriteInteger(User.BotAI.BaseId + 1000000);
                     base.WriteString(User.GetBotRoleplay().Name);
                     base.WriteString(Outfit[1]);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
+                    base.WriteBoolean(false);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
                     base.WriteString(Outfit[0]);
                     base.WriteInteger(User.VirtualId);
                     base.WriteInteger(User.X);
@@ -183,6 +212,12 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                     base.WriteInteger(User.BotAI.BaseId);
                     base.WriteString(User.BotData.Name);
                     base.WriteString(User.BotData.Motto);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
+                    base.WriteBoolean(false);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
                     base.WriteString(User.BotData.Look.ToLower());
                     base.WriteInteger(User.VirtualId);
                     base.WriteInteger(User.X);
@@ -192,8 +227,8 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                     base.WriteInteger((User.BotData.AiType == BotAIType.PET) ? 2 : 4);
 
                     base.WriteString(User.BotData.Gender.ToLower()); // ?
-                    base.WriteInteger(User.BotData.ownerID); //Owner Id
-                    base.WriteString(PolarEnvironment.GetUsernameById(User.BotData.ownerID)); // Owner name
+                    base.WriteInteger(User.BotData.OwnerID); //Owner Id
+                    base.WriteString(PolarEnvironment.GetUsernameById(User.BotData.OwnerID)); // Owner name
                     base.WriteInteger(5);//Action Count
                     base.WriteShort(1);//Copy looks
                     base.WriteShort(2);//Setup speech
@@ -205,11 +240,9 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
             }
         }
 
-        public string PetFigureForType(Habbo Habbo)
+        public string PetFigureForType(int Type)
         {
             Random _random = new Random();
-            int Type = Habbo.PetId;
-            string ChosenFigure = "";
 
             switch (Type)
             {
@@ -217,728 +250,763 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                 default:
                 case 60:
                     {
-                        int RandomNumber = _random.Next(1, 5);
+                        int RandomNumber = _random.Next(1, 4);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "0 0 f08b90 2 2 -1 1 3 -1 1"; break;
+                                return "0 0 f08b90 2 2 -1 1 3 -1 1";
                             case 2:
-                                ChosenFigure = "0 15 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "0 15 ffffff 2 2 -1 0 3 -1 0";
                             case 3:
-                                ChosenFigure = "0 20 d98961 2 2 -1 0 3 -1 0"; break;
+                                return "0 20 d98961 2 2 -1 0 3 -1 0";
                             case 4:
-                                ChosenFigure = "0 21 da9dbd 2 2 -1 0 3 -1 0"; break;
+                                return "0 21 da9dbd 2 2 -1 0 3 -1 0";
                         }
-                        break;
                     }
                 #endregion
 
-                #region Cat Figures
+                #region Cat Figures.
                 case 1:
                     {
-                        int RandomNumber = _random.Next(1, 6);
+                        int RandomNumber = _random.Next(1, 5);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "1 18 d5b35f 2 2 -1 0 3 -1 0"; break;
+                                return "1 18 d5b35f 2 2 -1 0 3 -1 0";
                             case 2:
-                                ChosenFigure = "1 0 ff7b3a 2 2 -1 0 3 -1 0"; break;
+                                return "1 0 ff7b3a 2 2 -1 0 3 -1 0";
                             case 3:
-                                ChosenFigure = "1 18 d98961 2 2 -1 0 3 -1 0"; break;
+                                return "1 18 d98961 2 2 -1 0 3 -1 0";
                             case 4:
-                                ChosenFigure = "1 0 ff7b3a 2 2 -1 0 3 -1 1"; break;
+                                return "1 0 ff7b3a 2 2 -1 0 3 -1 1";
                             case 5:
-                                ChosenFigure = "1 24 d5b35f 2 2 -1 0 3 -1 0"; break;
+                                return "1 24 d5b35f 2 2 -1 0 3 -1 0";
                         }
-                        break;
                     }
                 #endregion
 
                 #region Terrier Figures
                 case 2:
                     {
-                        int RandomNumber = _random.Next(1, 7);
+                        int RandomNumber = _random.Next(1, 6);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "3 3 eeeeee 2 2 -1 0 3 -1 0"; break;
+                                return "3 3 eeeeee 2 2 -1 0 3 -1 0";
                             case 2:
-                                ChosenFigure = "3 0 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "3 0 ffffff 2 2 -1 0 3 -1 0";
                             case 3:
-                                ChosenFigure = "3 5 eeeeee 2 2 -1 0 3 -1 0"; break;
+                                return "3 5 eeeeee 2 2 -1 0 3 -1 0";
                             case 4:
-                                ChosenFigure = "3 6 eeeeee 2 2 -1 0 3 -1 0"; break;
+                                return "3 6 eeeeee 2 2 -1 0 3 -1 0";
                             case 5:
-                                ChosenFigure = "3 4 dddddd 2 2 -1 0 3 -1 0"; break;
+                                return "3 4 dddddd 2 2 -1 0 3 -1 0";
                             case 6:
-                                ChosenFigure = "3 5 dddddd 2 2 -1 0 3 -1 0"; break;
+                                return "3 5 dddddd 2 2 -1 0 3 -1 0";
                         }
-                        break;
                     }
                 #endregion
 
                 #region Croco Figures
                 case 3:
                     {
-                        int RandomNumber = _random.Next(1, 6);
+                        int RandomNumber = _random.Next(1, 5);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "2 10 84ce84 2 2 -1 0 3 -1 0"; break;
+                                return "2 10 84ce84 2 2 -1 0 3 -1 0";
                             case 2:
-                                ChosenFigure = "2 8 838851 2 2 0 0 3 -1 0"; break;
+                                return "2 8 838851 2 2 0 0 3 -1 0";
                             case 3:
-                                ChosenFigure = "2 11 b99105 2 2 -1 0 3 -1 0"; break;
+                                return "2 11 b99105 2 2 -1 0 3 -1 0";
                             case 4:
-                                ChosenFigure = "2 3 e8ce25 2 2 -1 0 3 -1 0"; break;
+                                return "2 3 e8ce25 2 2 -1 0 3 -1 0";
                             case 5:
-                                ChosenFigure = "2 2 fcfad3 2 2 -1 0 3 -1 0"; break;
+                                return "2 2 fcfad3 2 2 -1 0 3 -1 0";
                         }
-                        break;
                     }
                 #endregion
 
                 #region Bear Figures
                 case 4:
                     {
-                        int RandomNumber = _random.Next(1, 5);
+                        int RandomNumber = _random.Next(1, 4);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "4 2 e4feff 2 2 -1 0 3 -1 0"; break;
+                                return "4 2 e4feff 2 2 -1 0 3 -1 0";
                             case 2:
-                                ChosenFigure = "4 3 e4feff 2 2 -1 0 3 -1 0"; break;
+                                return "4 3 e4feff 2 2 -1 0 3 -1 0";
                             case 3:
-                                ChosenFigure = "4 1 eaeddf 2 2 -1 0 3 -1 0"; break;
+                                return "4 1 eaeddf 2 2 -1 0 3 -1 0";
                             case 4:
-                                ChosenFigure = "4 0 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "4 0 ffffff 2 2 -1 0 3 -1 0";
                         }
-                        break;
                     }
                 #endregion
 
                 #region Pig Figures
                 case 5:
                     {
-                        int RandomNumber = _random.Next(1, 8);
+                        int RandomNumber = _random.Next(1, 7);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "5 2 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "5 2 ffffff 2 2 -1 0 3 -1 0";
                             case 2:
-                                ChosenFigure = "5 0 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "5 0 ffffff 2 2 -1 0 3 -1 0";
                             case 3:
-                                ChosenFigure = "5 3 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "5 3 ffffff 2 2 -1 0 3 -1 0";
                             case 4:
-                                ChosenFigure = "5 5 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "5 5 ffffff 2 2 -1 0 3 -1 0";
                             case 5:
-                                ChosenFigure = "5 7 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "5 7 ffffff 2 2 -1 0 3 -1 0";
                             case 6:
-                                ChosenFigure = "5 1 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "5 1 ffffff 2 2 -1 0 3 -1 0";
                             case 7:
-                                ChosenFigure = "5 8 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "5 8 ffffff 2 2 -1 0 3 -1 0";
                         }
-                        break;
                     }
                 #endregion
 
                 #region Lion Figures
                 case 6:
                     {
-                        int RandomNumber = _random.Next(1, 12);
+                        int RandomNumber = _random.Next(1, 11);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "6 0 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "6 0 ffffff 2 2 -1 0 3 -1 0";
                             case 2:
-                                ChosenFigure = "6 1 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "6 1 ffffff 2 2 -1 0 3 -1 0";
                             case 3:
-                                ChosenFigure = "6 2 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "6 2 ffffff 2 2 -1 0 3 -1 0";
                             case 4:
-                                ChosenFigure = "6 3 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "6 3 ffffff 2 2 -1 0 3 -1 0";
                             case 5:
-                                ChosenFigure = "6 4 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "6 4 ffffff 2 2 -1 0 3 -1 0";
                             case 6:
-                                ChosenFigure = "6 0 ffd8c9 2 2 -1 0 3 -1 0"; break;
+                                return "6 0 ffd8c9 2 2 -1 0 3 -1 0";
                             case 7:
-                                ChosenFigure = "6 5 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "6 5 ffffff 2 2 -1 0 3 -1 0";
                             case 8:
-                                ChosenFigure = "6 11 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "6 11 ffffff 2 2 -1 0 3 -1 0";
                             case 9:
-                                ChosenFigure = "6 2 ffe49d 2 2 -1 0 3 -1 0"; break;
+                                return "6 2 ffe49d 2 2 -1 0 3 -1 0";
                             case 10:
-                                ChosenFigure = "6 11 ff9ae 2 2 -1 0 3 -1 0"; break;
+                                return "6 11 ff9ae 2 2 -1 0 3 -1 0";
                             case 11:
-                                ChosenFigure = "6 2 ff9ae 2 2 -1 0 3 -1 0"; break;
+                                return "6 2 ff9ae 2 2 -1 0 3 -1 0";
                         }
-                        break;
                     }
                 #endregion
 
                 #region Rhino Figures
                 case 7:
                     {
-                        int RandomNumber = _random.Next(1, 8);
+                        int RandomNumber = _random.Next(1, 7);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "7 5 aeaeae 2 2 -1 0 3 -1 0"; break;
+                                return "7 5 aeaeae 2 2 -1 0 3 -1 0";
                             case 2:
-                                ChosenFigure = "7 7 ffc99a 2 2 -1 0 3 -1 0"; break;
+                                return "7 7 ffc99a 2 2 -1 0 3 -1 0";
                             case 3:
-                                ChosenFigure = "7 5 cccccc 2 2 -1 0 3 -1 0"; break;
+                                return "7 5 cccccc 2 2 -1 0 3 -1 0";
                             case 4:
-                                ChosenFigure = "7 5 9adcff 2 2 -1 0 3 -1 0"; break;
+                                return "7 5 9adcff 2 2 -1 0 3 -1 0";
                             case 5:
-                                ChosenFigure = "7 5 ff7d6a 2 2 -1 0 3 -1 0"; break;
+                                return "7 5 ff7d6a 2 2 -1 0 3 -1 0";
                             case 6:
-                                ChosenFigure = "7 6 cccccc 2 2 -1 0 3 -1 0"; break;
+                                return "7 6 cccccc 2 2 -1 0 3 -1 0";
                             case 7:
-                                ChosenFigure = "7 0 cccccc 2 2 -1 0 3 -1 0"; break;
+                                return "7 0 cccccc 2 2 -1 0 3 -1 0";
                         }
-                        break;
                     }
                 #endregion
 
                 #region Spider Figures
                 case 8:
                     {
-                        int RandomNumber = _random.Next(1, 14);
+                        int RandomNumber = _random.Next(1, 13);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "8 0 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "8 0 ffffff 2 2 -1 0 3 -1 0";
                             case 2:
-                                ChosenFigure = "8 1 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "8 1 ffffff 2 2 -1 0 3 -1 0";
                             case 3:
-                                ChosenFigure = "8 2 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "8 2 ffffff 2 2 -1 0 3 -1 0";
                             case 4:
-                                ChosenFigure = "8 3 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "8 3 ffffff 2 2 -1 0 3 -1 0";
                             case 5:
-                                ChosenFigure = "8 4 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "8 4 ffffff 2 2 -1 0 3 -1 0";
                             case 6:
-                                ChosenFigure = "8 14 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "8 14 ffffff 2 2 -1 0 3 -1 0";
                             case 7:
-                                ChosenFigure = "8 11 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "8 11 ffffff 2 2 -1 0 3 -1 0";
                             case 8:
-                                ChosenFigure = "8 8 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "8 8 ffffff 2 2 -1 0 3 -1 0";
                             case 9:
-                                ChosenFigure = "8 6 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "8 6 ffffff 2 2 -1 0 3 -1 0";
                             case 10:
-                                ChosenFigure = "8 5 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "8 5 ffffff 2 2 -1 0 3 -1 0";
                             case 11:
-                                ChosenFigure = "8 9 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "8 9 ffffff 2 2 -1 0 3 -1 0";
                             case 12:
-                                ChosenFigure = "8 10 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "8 10 ffffff 2 2 -1 0 3 -1 0";
                             case 13:
-                                ChosenFigure = "8 7 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "8 7 ffffff 2 2 -1 0 3 -1 0";
                         }
-                        break;
                     }
                 #endregion
 
                 #region Turtle Figures
                 case 9:
                     {
-                        int RandomNumber = _random.Next(1, 10);
+                        int RandomNumber = _random.Next(1, 9);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "9 0 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "9 0 ffffff 2 2 -1 0 3 -1 0";
                             case 2:
-                                ChosenFigure = "9 1 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "9 1 ffffff 2 2 -1 0 3 -1 0";
                             case 3:
-                                ChosenFigure = "9 2 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "9 2 ffffff 2 2 -1 0 3 -1 0";
                             case 4:
-                                ChosenFigure = "9 3 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "9 3 ffffff 2 2 -1 0 3 -1 0";
                             case 5:
-                                ChosenFigure = "9 4 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "9 4 ffffff 2 2 -1 0 3 -1 0";
                             case 6:
-                                ChosenFigure = "9 5 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "9 5 ffffff 2 2 -1 0 3 -1 0";
                             case 7:
-                                ChosenFigure = "9 6 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "9 6 ffffff 2 2 -1 0 3 -1 0";
                             case 8:
-                                ChosenFigure = "9 7 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "9 7 ffffff 2 2 -1 0 3 -1 0";
                             case 9:
-                                ChosenFigure = "9 8 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "9 8 ffffff 2 2 -1 0 3 -1 0";
                         }
-                        break;
                     }
                 #endregion
 
                 #region Chick Figures
                 case 10:
                     {
-                        ChosenFigure = "10 0 ffffff 2 2 -1 0 3 -1 0";
-                        break;
+                        int RandomNumber = _random.Next(1, 1);
+                        switch (RandomNumber)
+                        {
+                            default:
+                            case 1:
+                                return "10 0 ffffff 2 2 -1 0 3 -1 0";
+                        }
                     }
                 #endregion
 
                 #region Frog Figures
                 case 11:
                     {
-                        int RandomNumber = _random.Next(1, 14);
+                        int RandomNumber = _random.Next(1, 13);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "11 1 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "11 1 ffffff 2 2 -1 0 3 -1 0";
                             case 2:
-                                ChosenFigure = "11 2 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "11 2 ffffff 2 2 -1 0 3 -1 0";
                             case 3:
-                                ChosenFigure = "11 3 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "11 3 ffffff 2 2 -1 0 3 -1 0";
                             case 4:
-                                ChosenFigure = "11 4 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "11 4 ffffff 2 2 -1 0 3 -1 0";
                             case 5:
-                                ChosenFigure = "11 5 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "11 5 ffffff 2 2 -1 0 3 -1 0";
                             case 6:
-                                ChosenFigure = "11 9 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "11 9 ffffff 2 2 -1 0 3 -1 0";
                             case 7:
-                                ChosenFigure = "11 10 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "11 10 ffffff 2 2 -1 0 3 -1 0";
                             case 8:
-                                ChosenFigure = "11 6 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "11 6 ffffff 2 2 -1 0 3 -1 0";
                             case 9:
-                                ChosenFigure = "11 12 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "11 12 ffffff 2 2 -1 0 3 -1 0";
                             case 10:
-                                ChosenFigure = "11 11 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "11 11 ffffff 2 2 -1 0 3 -1 0";
                             case 11:
-                                ChosenFigure = "11 15 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "11 15 ffffff 2 2 -1 0 3 -1 0";
                             case 12:
-                                ChosenFigure = "11 13 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "11 13 ffffff 2 2 -1 0 3 -1 0";
                             case 13:
-                                ChosenFigure = "11 18 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "11 18 ffffff 2 2 -1 0 3 -1 0";
                         }
-                        break;
                     }
                 #endregion
 
                 #region Dragon Figures
                 case 12:
                     {
-                        int RandomNumber = _random.Next(1, 7);
+                        int RandomNumber = _random.Next(1, 6);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "12 0 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "12 0 ffffff 2 2 -1 0 3 -1 0";
                             case 2:
-                                ChosenFigure = "12 1 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "12 1 ffffff 2 2 -1 0 3 -1 0";
                             case 3:
-                                ChosenFigure = "12 2 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "12 2 ffffff 2 2 -1 0 3 -1 0";
                             case 4:
-                                ChosenFigure = "12 3 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "12 3 ffffff 2 2 -1 0 3 -1 0";
                             case 5:
-                                ChosenFigure = "12 4 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "12 4 ffffff 2 2 -1 0 3 -1 0";
                             case 6:
-                                ChosenFigure = "12 5 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "12 5 ffffff 2 2 -1 0 3 -1 0";
                         }
-                        break;
                     }
-                #endregion
-
-                #region Monster Figures
-                // Case 13 is disabled as habbo did not add an avatar for it
                 #endregion
 
                 #region Monkey Figures
                 case 14:
                     {
-                        int RandomNumber = _random.Next(1, 15);
+                        int RandomNumber = _random.Next(1, 14);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "14 0 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "14 0 ffffff 2 2 -1 0 3 -1 0";
                             case 2:
-                                ChosenFigure = "14 1 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "14 1 ffffff 2 2 -1 0 3 -1 0";
                             case 3:
-                                ChosenFigure = "14 2 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "14 2 ffffff 2 2 -1 0 3 -1 0";
                             case 4:
-                                ChosenFigure = "14 3 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "14 3 ffffff 2 2 -1 0 3 -1 0";
                             case 5:
-                                ChosenFigure = "14 6 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "14 6 ffffff 2 2 -1 0 3 -1 0";
                             case 6:
-                                ChosenFigure = "14 4 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "14 4 ffffff 2 2 -1 0 3 -1 0";
                             case 7:
-                                ChosenFigure = "14 5 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "14 5 ffffff 2 2 -1 0 3 -1 0";
                             case 8:
-                                ChosenFigure = "14 7 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "14 7 ffffff 2 2 -1 0 3 -1 0";
                             case 9:
-                                ChosenFigure = "14 8 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "14 8 ffffff 2 2 -1 0 3 -1 0";
                             case 10:
-                                ChosenFigure = "14 9 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "14 9 ffffff 2 2 -1 0 3 -1 0";
                             case 11:
-                                ChosenFigure = "14 10 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "14 10 ffffff 2 2 -1 0 3 -1 0";
                             case 12:
-                                ChosenFigure = "14 11 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "14 11 ffffff 2 2 -1 0 3 -1 0";
                             case 13:
-                                ChosenFigure = "14 12 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "14 12 ffffff 2 2 -1 0 3 -1 0";
                             case 14:
-                                ChosenFigure = "14 13 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "14 13 ffffff 2 2 -1 0 3 -1 0";
                         }
-                        break;
                     }
                 #endregion
 
                 #region Horse Figures
                 case 15:
                     {
-                        int RandomNumber = _random.Next(1, 21);
+                        int RandomNumber = _random.Next(1, 20);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "15 2 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 2 ffffff 2 2 -1 0 3 -1 0";
                             case 2:
-                                ChosenFigure = "15 3 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 3 ffffff 2 2 -1 0 3 -1 0";
                             case 3:
-                                ChosenFigure = "15 4 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 4 ffffff 2 2 -1 0 3 -1 0";
                             case 4:
-                                ChosenFigure = "15 5 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 5 ffffff 2 2 -1 0 3 -1 0";
                             case 5:
-                                ChosenFigure = "15 6 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 6 ffffff 2 2 -1 0 3 -1 0";
                             case 6:
-                                ChosenFigure = "15 7 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 7 ffffff 2 2 -1 0 3 -1 0";
                             case 7:
-                                ChosenFigure = "15 8 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 8 ffffff 2 2 -1 0 3 -1 0";
                             case 8:
-                                ChosenFigure = "15 9 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 9 ffffff 2 2 -1 0 3 -1 0";
                             case 9:
-                                ChosenFigure = "15 10 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 10 ffffff 2 2 -1 0 3 -1 0";
                             case 10:
-                                ChosenFigure = "15 11 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 11 ffffff 2 2 -1 0 3 -1 0";
                             case 11:
-                                ChosenFigure = "15 12 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 12 ffffff 2 2 -1 0 3 -1 0";
                             case 12:
-                                ChosenFigure = "15 13 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 13 ffffff 2 2 -1 0 3 -1 0";
                             case 13:
-                                ChosenFigure = "15 14 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 14 ffffff 2 2 -1 0 3 -1 0";
                             case 14:
-                                ChosenFigure = "15 15 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 15 ffffff 2 2 -1 0 3 -1 0";
                             case 15:
-                                ChosenFigure = "15 16 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 16 ffffff 2 2 -1 0 3 -1 0";
                             case 16:
-                                ChosenFigure = "15 17 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 17 ffffff 2 2 -1 0 3 -1 0";
                             case 17:
-                                ChosenFigure = "15 78 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 78 ffffff 2 2 -1 0 3 -1 0";
                             case 18:
-                                ChosenFigure = "15 77 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 77 ffffff 2 2 -1 0 3 -1 0";
                             case 19:
-                                ChosenFigure = "15 79 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 79 ffffff 2 2 -1 0 3 -1 0";
                             case 20:
-                                ChosenFigure = "15 80 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "15 80 ffffff 2 2 -1 0 3 -1 0";
                         }
-                        break;
-                    }
-                #endregion
-
-                #region Monster Plant Figures
-                case 16:
-                    {
-                        int RandomNumber = _random.Next(1, 11);
-                        switch (RandomNumber)
-                        {
-                            case 1:
-                                ChosenFigure = "18 1 ffffff"; break;
-                            case 2:
-                                ChosenFigure = "18 2 ffffff"; break;
-                            case 3:
-                                ChosenFigure = "18 3 ffffff"; break;
-                            case 4:
-                                ChosenFigure = "18 4 ffffff"; break;
-                            case 5:
-                                ChosenFigure = "18 5 ffffff"; break;
-                            case 6:
-                                ChosenFigure = "18 6 ffffff"; break;
-                            case 7:
-                                ChosenFigure = "18 7 ffffff"; break;
-                            case 8:
-                                ChosenFigure = "18 8 ffffff"; break;
-                            case 9:
-                                ChosenFigure = "18 9 ffffff"; break;
-                            case 10:
-                                ChosenFigure = "18 10 ffffff"; break;
-                        }
-                        break;
                     }
                 #endregion
 
                 #region Bunny Figures
                 case 17:
                     {
-                        int RandomNumber = _random.Next(1, 6);
+                        int RandomNumber = _random.Next(1, 8);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "17 1 ffffff"; break;
+                                return "17 1 ffffff";
                             case 2:
-                                ChosenFigure = "17 2 ffffff"; break;
+                                return "17 2 ffffff";
                             case 3:
-                                ChosenFigure = "17 3 ffffff"; break;
+                                return "17 3 ffffff";
                             case 4:
-                                ChosenFigure = "17 4 ffffff"; break;
+                                return "17 4 ffffff";
                             case 5:
-                                ChosenFigure = "17 5 ffffff"; break;
+                                return "17 5 ffffff";
+                            case 6:
+                                return "18 0 ffffff";
+                            case 7:
+                                return "19 0 ffffff";
+                            case 8:
+                                return "20 0 ffffff";
                         }
-                        break;
-                    }
-
-                case 18:
-                    {
-                        ChosenFigure = "18 0 ffffff";
-                        break;
-                    }
-
-                case 19:
-                    {
-                        ChosenFigure = "19 0 ffffff";
-                        break;
-                    }
-
-                case 20:
-                    {
-                        ChosenFigure = "20 0 ffffff";
-                        break;
                     }
                 #endregion
 
                 #region Pigeon Figures (White & Black)
                 case 21:
                     {
-                        ChosenFigure = "21 0 ffffff";
-                        break;
-                    }
-                case 22:
-                    {
-                        ChosenFigure = "22 0 ffffff";
-                        break;
+                        int RandomNumber = _random.Next(1, 3);
+                        switch (RandomNumber)
+                        {
+                            default:
+                            case 1:
+                                return "21 0 ffffff";
+                            case 2:
+                                return "22 0 ffffff";
+                        }
                     }
                 #endregion
 
                 #region Demon Monkey Figures
                 case 23:
                     {
-                        int RandomNumber = _random.Next(1, 4);
+                        int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "23 0 ffffff"; break;
+                                return "23 0 ffffff";
                             case 2:
-                                ChosenFigure = "23 1 ffffff"; break;
+                                return "23 1 ffffff";
                             case 3:
-                                ChosenFigure = "23 3 ffffff"; break;
+                                return "23 3 ffffff";
                         }
                     }
-                    break;
                 #endregion
 
                 #region Baby Bear Figures
                 case 24:
                     {
-                        int RandomNumber = _random.Next(1, 5);
+                        int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "4 2 e4feff 2 2 -1 0 3 -1 0"; break;
+                                return "24 0 ffffff";
                             case 2:
-                                ChosenFigure = "4 3 e4feff 2 2 -1 0 3 -1 0"; break;
-                            case 3:
-                                ChosenFigure = "4 1 eaeddf 2 2 -1 0 3 -1 0"; break;
-                            case 4:
-                                ChosenFigure = "4 0 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "24 1 ffffff";
                         }
-                        break;
                     }
                 #endregion
 
                 #region Baby Terrier Figures
                 case 25:
                     {
-                        int RandomNumber = _random.Next(1, 7);
+                        int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "3 3 eeeeee 2 2 -1 0 3 -1 0"; break;
+                                return "25 0 ffffff";
                             case 2:
-                                ChosenFigure = "3 0 ffffff 2 2 -1 0 3 -1 0"; break;
-                            case 3:
-                                ChosenFigure = "3 5 eeeeee 2 2 -1 0 3 -1 0"; break;
-                            case 4:
-                                ChosenFigure = "3 6 eeeeee 2 2 -1 0 3 -1 0"; break;
-                            case 5:
-                                ChosenFigure = "3 4 dddddd 2 2 -1 0 3 -1 0"; break;
-                            case 6:
-                                ChosenFigure = "3 5 dddddd 2 2 -1 0 3 -1 0"; break;
+                                return "25 1 ffffff";
                         }
-                        break;
                     }
                 #endregion
 
                 #region Gnome Figures
                 case 26:
                     {
-                        int RandomNumber = _random.Next(1, 5);
+                        int RandomNumber = _random.Next(1, 4);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "26 1 ffffff 5 0 -1 0 4 402 5 3 301 4 1 101 2 2 201 3"; break;
+                                return "26 1 ffffff 5 0 -1 0 4 402 5 3 301 4 1 101 2 2 201 3";
                             case 2:
-                                ChosenFigure = "26 1 ffffff 5 0 -1 0 1 102 13 3 301 4 4 401 5 2 201 3"; break;
+                                return "26 1 ffffff 5 0 -1 0 1 102 13 3 301 4 4 401 5 2 201 3";
                             case 3:
-                                ChosenFigure = "26 6 ffffff 5 1 102 8 2 201 16 4 401 9 3 303 4 0 -1 6"; break;
+                                return "26 6 ffffff 5 1 102 8 2 201 16 4 401 9 3 303 4 0 -1 6";
                             case 4:
-                                ChosenFigure = "26 30 ffffff 5 0 -1 0 3 303 4 4 401 5 1 101 2 2 201 3"; break;
+                                return "26 30 ffffff 5 0 -1 0 3 303 4 4 401 5 1 101 2 2 201 3";
                         }
-                        break;
-                    }
-
-                case 27:
-                    {
-                        int RandomNumber = _random.Next(1, 5);
-                        switch (RandomNumber)
-                        {
-                            case 1:
-                                ChosenFigure = "27 1 ffffff 5 0 -1 0 4 402 5 3 301 4 1 101 2 2 201 3"; break;
-                            case 2:
-                                ChosenFigure = "27 1 ffffff 5 0 -1 0 1 102 13 3 301 4 4 401 5 2 201 3"; break;
-                            case 3:
-                                ChosenFigure = "27 6 ffffff 5 1 102 8 2 201 16 4 401 9 3 303 4 0 -1 6"; break;
-                            case 4:
-                                ChosenFigure = "27 30 ffffff 5 0 -1 0 3 303 4 4 401 5 1 101 2 2 201 3"; break;
-                        }
-                        break;
                     }
                 #endregion
 
-                #region Baby Cat Figures
+                #region Kitten Figures
                 case 28:
                     {
-                        int RandomNumber = _random.Next(1, 6);
+                        int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "28 18 d5b35f 2 2 -1 0 3 -1 0"; break;
+                                return "28 0 ffffff";
                             case 2:
-                                ChosenFigure = "28 0 ff7b3a 2 2 -1 0 3 -1 0"; break;
-                            case 3:
-                                ChosenFigure = "28 18 d98961 2 2 -1 0 3 -1 0"; break;
-                            case 4:
-                                ChosenFigure = "28 0 ff7b3a 2 2 -1 0 3 -1 1"; break;
-                            case 5:
-                                ChosenFigure = "28 24 d5b35f 2 2 -1 0 3 -1 0"; break;
+                                return "28 1 ffffff";
                         }
-                        break;
                     }
                 #endregion
 
-                #region Baby Dog Figures
+
+                #region Puppy Figures
                 case 29:
                     {
-                        int RandomNumber = _random.Next(1, 5);
+                        int RandomNumber = _random.Next(1, 11);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "29 0 f08b90 2 2 -1 1 3 -1 1"; break;
+                                return "29 0 ffffff";
                             case 2:
-                                ChosenFigure = "29 15 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "29 1 ffffff";
                             case 3:
-                                ChosenFigure = "29 20 d98961 2 2 -1 0 3 -1 0"; break;
+                                return "29 2 ffffff";
                             case 4:
-                                ChosenFigure = "29 21 da9dbd 2 2 -1 0 3 -1 0"; break;
+                                return "29 3 ffffff";
+                            case 5:
+                                return "29 4 ffffff";
+                            case 6:
+                                return "29 5 ffffff";
+                            case 7:
+                                return "29 6 ffffff";
+                            case 8:
+                                return "29 7 ffffff";
+                            case 9:
+                                return "29 8 ffffff";
+                            case 10:
+                                return "29 9 ffffff";
                         }
-                        break;
                     }
                 #endregion
 
-                #region Baby Pig Figures
+                #region Piglet Figures
                 case 30:
                     {
-                        int RandomNumber = _random.Next(1, 8);
+                        int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "30 2 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "30 0 ffffff";
                             case 2:
-                                ChosenFigure = "30 0 ffffff 2 2 -1 0 3 -1 0"; break;
-                            case 3:
-                                ChosenFigure = "30 3 ffffff 2 2 -1 0 3 -1 0"; break;
-                            case 4:
-                                ChosenFigure = "30 5 ffffff 2 2 -1 0 3 -1 0"; break;
-                            case 5:
-                                ChosenFigure = "30 7 ffffff 2 2 -1 0 3 -1 0"; break;
-                            case 6:
-                                ChosenFigure = "30 1 ffffff 2 2 -1 0 3 -1 0"; break;
-                            case 7:
-                                ChosenFigure = "30 8 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "30 1 ffffff";
                         }
-                        break;
                     }
                 #endregion
 
-                #region Oompa Loompa Figures
+
+                #region Haloompa Figures
                 case 31:
                     {
-                        int RandomNumber = _random.Next(1, 5);
+                        int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "31 1 ffffff 5 0 -1 0 4 402 5 3 301 4 1 101 2 2 201 3"; break;
+                                return "31 0 ffffff";
                             case 2:
-                                ChosenFigure = "31 1 ffffff 5 0 -1 0 1 102 13 3 301 4 4 401 5 2 201 3"; break;
-                            case 3:
-                                ChosenFigure = "31 6 ffffff 5 1 102 8 2 201 16 4 401 9 3 303 4 0 -1 6"; break;
-                            case 4:
-                                ChosenFigure = "31 30 ffffff 5 0 -1 0 3 303 4 4 401 5 1 101 2 2 201 3"; break;
+                                return "31 1 ffffff";
                         }
-                        break;
                     }
                 #endregion
 
-                #region Pet Rock Figures
+
+                #region Rock/Stone Figures 
                 case 32:
                     {
-                        ChosenFigure = "32 0 ffffff";
-                        break;
+                        int RandomNumber = _random.Next(1, 3);
+                        switch (RandomNumber)
+                        {
+                            default:
+                            case 1:
+                                return "32 0 ffffff";
+                            case 2:
+                                return "32 1 ffffff";
+                        }
                     }
                 #endregion
 
-                #region Pteradactyl Figures
+                #region Pterosaur Figures 
                 case 33:
                     {
-                        int RandomNumber = _random.Next(1, 5);
+                        int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "33 2 e4feff 2 2 -1 0 3 -1 0"; break;
+                                return "33 0 ffffff";
                             case 2:
-                                ChosenFigure = "33 3 e4feff 2 2 -1 0 3 -1 0"; break;
-                            case 3:
-                                ChosenFigure = "33 1 eaeddf 2 2 -1 0 3 -1 0"; break;
-                            case 4:
-                                ChosenFigure = "33 0 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "33 1 ffffff";
                         }
-                        break;
                     }
                 #endregion
 
-                #region T-Rex Figures
+                #region Velociraptor Figures 
                 case 34:
                     {
-                        int RandomNumber = _random.Next(1, 5);
+                        int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
                         {
+                            default:
                             case 1:
-                                ChosenFigure = "34 2 e4feff 2 2 -1 0 3 -1 0"; break;
+                                return "34 0 ffffff";
                             case 2:
-                                ChosenFigure = "34 3 e4feff 2 2 -1 0 3 -1 0"; break;
-                            case 3:
-                                ChosenFigure = "34 1 eaeddf 2 2 -1 0 3 -1 0"; break;
-                            case 4:
-                                ChosenFigure = "34 0 ffffff 2 2 -1 0 3 -1 0"; break;
+                                return "34 1 ffffff";
                         }
-                        break;
                     }
-                    #endregion
-            }
+                #endregion
+                #region Cow Figures
+                case 35:
+                    {
+                        int RandomNumber = _random.Next(1, 3);
+                        switch (RandomNumber)
+                        {
+                            default:
+                            case 1:
+                                return "35 0 ffffff";
+                            case 2:
+                                return "35 1 ffffff";
+                        }
+                    }
+                #endregion
+                #region Penguin Figures
+                case 36:
+                    {
+                        int RandomNumber = _random.Next(1, 3);
+                        switch (RandomNumber)
+                        {
+                            default:
+                            case 1:
+                                return "36 0 ffffff";
+                            case 2:
+                                return "36 1 ffffff";
+                        }
+                    }
+                #endregion
+                #region Elephant Figures
+                case 37:
+                    {
+                        int RandomNumber = _random.Next(1, 3);
+                        switch (RandomNumber)
+                        {
+                            default:
+                            case 1:
+                                return "37 0 ffffff";
+                            case 2:
+                                return "37 1 ffffff";
+                        }
+                    }
+                #endregion
+                #region Handsome Baby Figures
+                case 38:
+                    {
+                        int RandomNumber = _random.Next(1, 3);
+                        switch (RandomNumber)
+                        {
+                            default:
+                            case 1:
+                                return "38 0 ffffff";
+                            case 2:
+                                return "38 1 ffffff";
+                        }
+                    }
+                #endregion
+                #region Ugly Baby Figures
+                case 39:
+                    {
+                        int RandomNumber = _random.Next(1, 3);
+                        switch (RandomNumber)
+                        {
+                            default:
+                            case 1:
+                                return "39 0 ffffff";
+                            case 2:
+                                return "39 1 ffffff";
+                        }
+                    }
+                #endregion
+                #region Mario Figures
+                case 40:
+                    {
+                        int RandomNumber = _random.Next(1, 3);
+                        switch (RandomNumber)
+                        {
+                            default:
+                            case 1:
+                                return "40 0 ffffff";
+                            case 2:
+                                return "40 1 ffffff";
+                        }
+                    }
+                #endregion
+                #region Pikachu Figures
+                case 41:
+                    {
+                        int RandomNumber = _random.Next(1, 3);
+                        switch (RandomNumber)
+                        {
+                            default:
+                            case 1:
+                                return "41 0 ffffff";
+                            case 2:
+                                return "41 1 ffffff";
+                        }
+                    }
+                #endregion
+                #region Wolf Figures
+                case 42:
+                    {
+                        int RandomNumber = _random.Next(1, 3);
+                        switch (RandomNumber)
+                        {
+                            default:
+                            case 1:
+                                return "42 0 ffffff";
+                            case 2:
+                                return "42 1 ffffff";
+                        }
+                    }
+                #endregion
 
-            Habbo.PetFigure = ChosenFigure;
-            return ChosenFigure;
+            }
         }
     }
 }

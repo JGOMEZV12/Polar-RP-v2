@@ -30,31 +30,7 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Engine
             int Rotation = Packet.PopInt();
 
             bool HasRights = false;
-            /*
-            var RentableItems = Room.GetRoomItemHandler().GetFloor.Where(it => it.GetBaseItem().InteractionType == InteractionType.RENTABLE_SPACE).ToList();
-            Item SpaceItem = null;
-
-            if (RentableItems.Count > 0)
-            {
-                foreach (var RentableSpace in RentableItems)
-                {
-                    var SpaceData = RentableSpace.RentableSpaceData;
-
-                    if (SpaceData == null)
-                        continue;
-
-                    if (SpaceData.FarmingSpace != null)
-                        continue;
-
-                    if (SpaceData.OwnerId != Session.GetHabbo().Id)
-                        continue;
-
-                    HasRights = true;
-                    SpaceItem = RentableSpace;
-                    break;
-                }
-            }*/
-
+          
             Item Item = Room.GetRoomItemHandler()?.GetItem(ItemId);
             if (Item == null || Item.GetBaseItem() == null)
                 return;

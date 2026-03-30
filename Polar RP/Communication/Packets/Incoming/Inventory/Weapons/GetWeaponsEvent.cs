@@ -11,6 +11,7 @@ namespace Polar.Communication.Packets.Incoming.Inventory.Weapons
         public void Parse(HabboHotel.GameClients.GameClient Session, ClientPacket Packet)
         {
             Session.SendMessage(new WeaponsComposer(Session));
+            //Console.WriteLine("Aqui pendejo");
         }
     }
 }

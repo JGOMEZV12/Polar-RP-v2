@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -47,6 +47,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
 
             if (Instance.RoomData.Group.IsMember(Player.Id))
                 return false;
+
             return true;
         }
     }

@@ -6,16 +6,11 @@ using System.Threading.Tasks;
 
 namespace Polar.Communication.Packets.Outgoing.HabboCamera
 {
-    internal class SendRoomThumbnailAlertComposer : ServerPacket
+    public class SendRoomThumbnailAlertComposer : ServerPacket
     {
         public SendRoomThumbnailAlertComposer()
             : base(ServerPacketHeader.SendRoomThumbnailAlertMessageComposer)
         {
-            Compose(this);
-        }
-
-        public void Compose(ServerPacket packet)
-        { 
         }
     }
 }

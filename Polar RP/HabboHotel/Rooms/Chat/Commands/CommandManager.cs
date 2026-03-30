@@ -47,6 +47,8 @@ using Polar.HabboHotel.Rooms.Chat.Commands.Ambassadors;
 using Polar.HabboHotel.Rooms.Chat.Pets.Commands;
 using Polar.HabboHotel.Rooms.Chat.Commands.User.Fun;
 using Polar.HabboHotel.Rooms.Chat.Commands.User;
+using Polar.Core;
+using Polar.HabboHotel.Rooms.Chat.Commands.Users;
 
 namespace Polar.HabboHotel.Rooms.Chat.Commands
 {
@@ -60,15 +62,16 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
         /// <summary>
         /// Commands registered for use.
         /// </summary>
-        private readonly Dictionary<string, IChatCommand> _commands;
-        private readonly Dictionary<string, IChatCommand> _jobcommands;
-        private readonly Dictionary<string, IChatCommand> _gangcommands;
-        private readonly Dictionary<string, IChatCommand> _staffcommands;
-        private readonly Dictionary<string, IChatCommand> _ambassadorcommands;
-        private readonly Dictionary<string, IChatCommand> _loggedcommands;
-        private readonly Dictionary<string, IChatCommand> _vipcommands;
-        private readonly Dictionary<string, IChatCommand> _eventcommands;
-        private List<string> _aliases;
+        public Dictionary<string, IChatCommand> _commands;
+        public Dictionary<string, IChatCommand> _jobcommands;
+        public Dictionary<string, IChatCommand> _gangcommands;
+        public Dictionary<string, IChatCommand> _staffcommands;
+        public Dictionary<string, IChatCommand> _vehiclescommands;
+        public Dictionary<string, IChatCommand> _rpCommands;
+        public Dictionary<string, IChatCommand> _ambassadorcommands;
+        public Dictionary<string, IChatCommand> _vipcommands;
+        public Dictionary<string, IChatCommand> _eventcommands;
+        public List<string> _aliases;
 
         /// <summary>
         /// The default initializer for the CommandManager
@@ -81,7 +84,8 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
             this._gangcommands = new Dictionary<string, IChatCommand>();
             this._ambassadorcommands = new Dictionary<string, IChatCommand>();
             this._staffcommands = new Dictionary<string, IChatCommand>();
-            this._loggedcommands = new Dictionary<string, IChatCommand>();
+            this._vehiclescommands = new Dictionary<string, IChatCommand>();
+            this._rpCommands = new Dictionary<string, IChatCommand>();
             this._vipcommands = new Dictionary<string, IChatCommand>();
             this._eventcommands = new Dictionary<string, IChatCommand>();
             this._aliases = new List<string>();
@@ -109,16 +113,22 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
         /// <returns>True if parsed or false if not.</returns>
         public async Task<bool> Parse(GameClient Session, string Message)
         {
-            if (Session == null || Session.GetHabbo() == null || Session.GetHabbo().CurrentRoom == null)
-                return false;
+            try
+            {
+                // Verificación inicial más completa
+                if (Session == null || Session.GetHabbo() == null || Session.GetHabbo().CurrentRoom == null)
+                    return false;
 
-            if (!Message.StartsWith(_prefix))
-                return false;
+                var habbo = Session.GetHabbo();
+                var currentRoom = habbo.CurrentRoom;
 
-            #region Commands List
+                if (!Message.StartsWith(_prefix))
+                    return false;
 
-            #region :commands
-            if (Message.ToLower() == _prefix + "comandos")
+               /* #region Commands List
+
+                #region :commands
+                if (Message.ToLower() == _prefix + "comandos")
             {
                 StringBuilder List = new StringBuilder();
                 List.Append("Esta es la lista de comandos que tiene disponible:\n\n");
@@ -172,7 +182,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
                     {
                         if (Groups.GroupManager.HasJobCommand(Session, CmdList.Key.ToLower()))
                             List.Append(":" + CmdList.Key + " " + CmdList.Value.Parameters + " - " + CmdList.Value.Description + "\n");
-                    }*/
+                    }//
                     List.Append(":" + CmdList.Key + " " + CmdList.Value.Parameters + " - " + CmdList.Value.Description + "\n");
 
                 }
@@ -257,66 +267,72 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
                     return true;
                 }
             }
-            #endregion
+                #endregion
 
-            #endregion
+                #endregion*/
 
-            if (Message == _prefix + "commandsnew" || Message == _prefix + "comandosnew")
-            {
-                // Enviamos WS de ventana de comandos.
-                PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Session, "event_commands", "open");
-                return true;
-            }
-            Message = Message.Substring(1);
-            string[] Split = Message.Split(' ');
-
-            if (Split.Length == 0)
-                return false;
-
-            IChatCommand Cmd = null;
-            IChatCommand LogCmd = null;
-            if (_commands.TryGetValue(Split[0].ToLower(), out Cmd))
-            {
-                _loggedcommands.TryGetValue(Split[0].ToLower(), out LogCmd);
-
-                if (Cmd == LogCmd)
+                if (Message == _prefix + "commands" || Message == _prefix + "comandos")
                 {
-                    if (_staffcommands.ContainsKey(Split[0].ToLower()))
-                        this.LogCommand(Session.GetHabbo().Id, Message, Session.GetHabbo().MachineId, "staff");
-                    else if (_ambassadorcommands.ContainsKey(Split[0].ToLower()))
-                        this.LogCommand(Session.GetHabbo().Id, Message, Session.GetHabbo().MachineId, "ambassador");
-                    else if (_jobcommands.ContainsKey(Split[0].ToLower()))
-                        this.LogCommand(Session.GetHabbo().Id, Message, Session.GetHabbo().MachineId, "job");
-                    else if (_vipcommands.ContainsKey(Split[0].ToLower()))
-                        this.LogCommand(Session.GetHabbo().Id, Message, Session.GetHabbo().MachineId, "vip");
-                    else if (_eventcommands.ContainsKey(Split[0].ToLower()))
-                        this.LogCommand(Session.GetHabbo().Id, Message, Session.GetHabbo().MachineId, "event");
-                    else
-                        this.LogCommand(Session.GetHabbo().Id, Message, Session.GetHabbo().MachineId, "user");
+                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Session, "event_commands", "open");
+                    return true;
                 }
+
+                Message = Message.Substring(1);
+                string[] Split = Message.Split(' ');
+
+                if (Split.Length == 0)
+                    return false;
+
+                IChatCommand Cmd = null;
+
+                // Verifica que el comando exista
+                if (!_commands.TryGetValue(Split[0].ToLower(), out Cmd))
+                    return false;
+
+                // Verifica que el comando no sea null
+                if (Cmd == null)
+                    return false;
+
+
+                // Verificación de permisos con null checks
                 if (!string.IsNullOrEmpty(Cmd.PermissionRequired))
                 {
-                    if (Split[0].ToLower() == "push")
-                    {
+                    var permissions = habbo.GetPermissions();
+                    if (permissions == null)
+                        return false;
 
-                            if (!Session.GetHabbo().GetPermissions().HasCommand(Cmd.PermissionRequired))
-                                return false;
-
-                    }
-                    else
-                    {
-                        if (!Session.GetHabbo().GetPermissions().HasCommand(Cmd.PermissionRequired))
-                            return false;
-                    }
+                    if (!permissions.HasCommand(Cmd.PermissionRequired))
+                        return false;
                 }
 
-                Session.GetHabbo().IChatCommand = Cmd;
-                Session.GetHabbo().CurrentRoom.GetWired().TriggerEvent(WiredBoxType.TriggerUserSaysCommand, Session.GetHabbo(), this);
+                // Verificación para comandos de ganga con null checks
+                if (_gangcommands.ContainsKey(Split[0].ToLower()))
+                {
+                    var roleplay = habbo.GetClient().GetRoleplay();
+                    if (roleplay == null)
+                        return false;
 
-                await Cmd.Execute(Session, Session.GetHabbo().CurrentRoom, Split);
+                    // Más verificaciones específicas para comandos de ganga
+                }
+
+                // Ejecutar el comando con verificaciones
+                habbo.IChatCommand = Cmd;
+
+                // Verifica que el wired trigger no cause null reference
+                if (currentRoom?.GetWired() != null)
+                {
+                    currentRoom.GetWired().TriggerEvent(WiredBoxType.TriggerUserSaysCommand, habbo, this);
+                }
+
+                await Cmd.Execute(Session, currentRoom, Split);
                 return true;
             }
-            return false;
+            catch (Exception ex)
+            {
+                // Log del error para debugging
+                Logging.LogException($"Error en CommandManager.Parse: {ex.Message}\n{ex.StackTrace}");
+                return false;
+            }
         }
 
         #region Commands
@@ -364,29 +380,30 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
             this.Register("cd", new CooldownsCommand(), "", true);
 
             // Banking
-            this.Register("saldo", new BalanceCommand());
-            this.Register("tanque", new TanqueCommand());
-            this.Register("cedula", new CedulaCommand());
-            this.Register("basura", new CamionCommand());
-            this.Register("depositar", new DepositCommand());
-            this.Register("retirar", new WithdrawCommand());
+            this.Register("saldo", new BalanceCommand(), "rp");
+            this.Register("tanque", new TanqueCommand(), "rp");
+            this.Register("cedula", new CedulaCommand(), "rp");
+            this.Register("basura", new CamionCommand(), "rp");
+            this.Register("depositar", new DepositCommand(), "rp");
+            this.Register("retirar", new WithdrawCommand(), "rp");
 
             // Criminal Activity
-            this.Register("leyes", new LawsCommand());
-            this.Register("noticias", new TutorialCommand());
+            this.Register("leyes", new LawsCommand(), "rp");
+            this.Register("noticias", new TutorialCommand(), "rp");
             this.Register("tutorialbr", new TutorialbrCommand());
-            this.Register("businfo", new BusinfoCommand());
-            this.Register("robar", new RobCommand());
-            this.Register("robarbanco", new RobBankCommand());
-            this.Register("robarcajero", new RobATMCommand());
-            this.Register("robartienda", new RobartiendaCommand());
-            this.Register("norobarbanco", new RobBankCommand(true));
-            this.Register("norobarcajero", new RobATMCommand(true));
-            
-            this.Register("medicina", new MedicinaCommand());
-            this.Register("caramelos", new CaramelosCommand());
-            this.Register("botardrogas", new DisposeCommand());
-            this.Register("consumir", new SmokeCommand());
+            this.Register("businfo", new BusinfoCommand(), "rp");
+            this.Register("robar", new RobCommand(), "rp");
+            this.Register("robarbanco", new RobBankCommand(), "rp");
+            this.Register("robarcajero", new RobATMCommand(), "rp");
+            this.Register("robartienda", new RobartiendaCommand(), "rp");
+            this.Register("norobarbanco", new RobBankCommand(true), "rp");
+            this.Register("norobarcajero", new RobATMCommand(true), "rp");
+            this.Register("fuga", new FugaCommand(), "rp");
+
+            this.Register("medicina", new MedicinaCommand(), "rp");
+            this.Register("caramelos", new CaramelosCommand(), "rp");
+            this.Register("botardrogas", new DisposeCommand(), "rp");
+            this.Register("consumir", new SmokeCommand(), "rp");
 
             //dd
             this.Register("darpermisos", new GiveRightsCommand());
@@ -395,75 +412,76 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
             this.Register("tirarbasura", new TirarBasuraCommand());
 
             // Purchasing Goods
-            this.Register("comprarbalas", new BuyBulletsCommand());
-            this.Register("bullets", new BuyBulletsCommand(), "", true);
-            this.Register("comprarsaldo", new BuyCreditCommand());
-            this.Register("credit", new BuyCreditCommand(), "", true);
-            this.Register("comprarcombustible", new BuyFuelCommand());
-            this.Register("fuel", new BuyFuelCommand(), "", true);
-            this.Register("comprarticket", new BuyTicketCommand(), "userlog");
-            this.Register("ticket", new BuyTicketCommand(), "userlog", true);
+            this.Register("comprarbalas", new BuyBulletsCommand(), "rp");
+            //this.Register("bullets", new BuyBulletsCommand(), "", true);
+            this.Register("comprarsaldo", new BuyCreditCommand(), "rp");
+            //this.Register("credit", new BuyCreditCommand(), "", true);
+            this.Register("comprarcombustible", new BuyFuelCommand(), "rp");
+            //this.Register("fuel", new BuyFuelCommand(), "", true);
+            this.Register("comprarticket", new BuyTicketCommand(), "rp");
 
             // Combat
-            this.Register("modocombate", new CombatModeCommand());
-            this.Register("cmode", new CombatModeCommand(), "", true);
+            //this.Register("modocombate", new CombatModeCommand());
+            this.Register("cmode", new CombatModeCommand(), "rp", true);
             this.Register("golpe", new HitCommand());
-            this.Register("sacar", new EquipCommand());
-            this.Register("hechizo", new HechizosCommand(), "", true);
-            this.Register("equipar", new EquipCommand(), "", true);
-            this.Register("guardar", new UnEquipCommand());
-            this.Register("desequipar", new UnEquipCommand(), "", true);
-            this.Register("disparar", new ShootCommand());
-            this.Register("recargar", new ReloadGunCommand());
+            //this.Register("sacar", new EquipCommand());
+            this.Register("hechizo", new HechizosCommand(), "rp", true);
+            this.Register("equipar", new EquipCommand(), "rp", true);
+            //this.Register("guardar", new UnEquipCommand());
+            this.Register("desequipar", new UnEquipCommand(), "rp", true);
+            this.Register("disparar", new ShootCommand(), "rp");
+            this.Register("recargar", new ReloadGunCommand(), "rp");
             this.Register("permiso", new PermisoCommand());
             this.Register("permisoweed", new PermisoWeedCommand());
 
             // Offers
-            this.Register("dar", new GiveCommand(), "userlog");
-            this.Register("ctransferir", new CtransferirCommand(), "userlog");
-            this.Register("atransferir", new AtransferirCommand(), "userlog");
-            this.Register("ofertas", new OffersCommand());
+            this.Register("dar", new GiveCommand(), "staff");
+            this.Register("ctransferir", new CtransferirCommand(), "rp");
+            this.Register("atransferir", new AtransferirCommand(), "rp");
+            this.Register("ofertas", new OffersCommand(), "rp");
            //this.Register("ofrecer", new OfferCommand());
-            this.Register("ofrecer", new SellCommand());// Old OfferCommand            
-            this.Register("aceptar", new AcceptCommand());
-            this.Register("rechazar", new DeclineCommand());
-            this.Register("vender", new SellCommand());
+            this.Register("ofrecer", new SellCommand(), "rp");// Old OfferCommand            
+            this.Register("aceptar", new AcceptCommand(), "rp");
+            this.Register("rechazar", new DeclineCommand(), "rp");
+            this.Register("vender", new SellCommand(), "rp");
             //this.Register("vender", new VenderCommand());
-            this.Register("acc", new AcceptWeaponCommand());
-            this.Register("renunciar", new RenunciarCommand(), "joblog");
+            //this.Register("acc", new AcceptWeaponCommand());
+            this.Register("renunciar", new RenunciarCommand(), "job");
 
             // Police Related
-            this.Register("llamarpolicia", new CallPoliceCommand());
-            this.Register("emergencia", new EmergenciaCommand());
-            this.Register("911", new CallPoliceCommand());
-            this.Register("fianza", new BailCommand());
-            this.Register("rendicion", new SurrenderCommand());
-            this.Register("buscados", new WantedListCommand());
+            this.Register("llamarpolicia", new CallPoliceCommand(), "rp");
+            this.Register("emergencia", new EmergenciaCommand(), "rp");
+            this.Register("911", new CallPoliceCommand(), "rp");
+            this.Register("fianza", new BailCommand(), "rp");
+            this.Register("rendicion", new SurrenderCommand(), "rp");
+            this.Register("buscados", new WantedListCommand(), "rp");
             this.Register("wl", new WantedListCommand());
-            this.Register("escoltar", new EscortCommand());
+            this.Register("escoltar", new EscortCommand(), "job");
 
             #region Basurero
             this.Register("descargarcamion", new ReturnBasuCommand());
             #endregion
             #region Mecanico
-            this.Register("reparar", new SellCommand());
-            this.Register("mamada", new SellCommand());
-            this.Register("revisar", new ReviewMecCommand());
+            this.Register("reparar", new SellCommand(), "job");
+            this.Register("mamada", new SellCommand(), "rp");
+            this.Register("revisar", new ReviewMecCommand(), "job");
             #endregion
             this.Register("crear", new CreateCommand());
             this.Register("servicio", new ServiceCommand());
             this.Register("mapa", new MapCommand());
             this.Register("map", new MapCommand());
+
             #region Camionero
-            this.Register("cargas", new LoadsCamCommand());
-            this.Register("cargarcamion", new CargarCamCommand());
-            this.Register("depositarcarga", new DepositCamCommand());
-            this.Register("entregarcamion", new ReturnCamCommand());
-            this.Register("abandonarcarga", new LeaveCamCommand());
+            this.Register("cargas", new LoadsCamCommand(), "job");
+            this.Register("cargarcamion", new CargarCamCommand(), "job");
+            this.Register("depositarcarga", new DepositCamCommand(), "job");
+            this.Register("entregarcamion", new ReturnCamCommand(), "job");
+            this.Register("abandonarcarga", new LeaveCamCommand(), "job");
             #endregion
+
             // Court
-            this.Register("juicio", new TrialCommand());
-            this.Register("votar", new VoteCommand());
+            this.Register("juicio", new TrialCommand(), "rp");
+            this.Register("votar", new VoteCommand(), "rp");
 
             // Toggles
             this.Register("apagartelefono", new ToggleTextsCommand());
@@ -471,17 +489,16 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
             this.Register("disablemimic", new DisableMimicCommand());
 
             // Self Interactions
-            this.Register("manejar", new DriveCommand());
-            this.Register("detener", new DriveCommand());
+            this.Register("manejar", new DriveCommand(), "vehicle");
+            this.Register("detener", new DriveCommand(), "vehicle", true);
             //this.Register("nomanejar", new DriveCommand());
-            this.Register("subir", new UpCommand());
-            this.Register("bajar", new DownCommand());
-            this.Register("abrircarro", new OpenCommand());
-            this.Register("cerrarcarro", new CloseCommand());
-            this.Register("localizar", new LocalizarCommand());
-            this.Register("misautos", new MyCarsCommand());
-            this.Register("autos", new MyCarsCommand());
-            this.Register("comprarcarro", new BuyCarCommand());
+            this.Register("subir", new UpCommand(), "vehicle");
+            this.Register("bajar", new DownCommand(), "vehicle");
+            this.Register("abrircarro", new OpenCommand(), "vehicle");
+            this.Register("cerrarcarro", new CloseCommand(), "vehicle");
+            this.Register("localizar", new LocalizarCommand(), "vehicle");
+            this.Register("misautos", new MyCarsCommand(), "vehicle");
+            this.Register("comprarcarro", new BuyCarCommand(), "vehicle");
             this.Register("sit", new SitCommand());
             this.Register("stand", new StandCommand());
             this.Register("lay", new LayCommand());
@@ -490,97 +507,83 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
 
             // Item Interaction
             this.Register("llamarenvio", new CallDeliveryCommand());
-            this.Register("comer", new EatCommand());
-            this.Register("agarrar", new AgarrarCommand());
+            this.Register("comer", new EatCommand(), "rp");
+            this.Register("agarrar", new AgarrarCommand(), "rp");
             //this.Register("kevlar", new KevlarCommand());
-            this.Register("beber", new DrinkCommand());
-            this.Register("entrenar", new WorkoutCommand());
-            this.Register("plantar", new PlaceCommand());
+            this.Register("beber", new DrinkCommand(), "rp");
+            this.Register("entrenar", new WorkoutCommand(), "rp");
+            this.Register("plantar", new PlaceCommand(), "rp");
             this.Register("place", new PlaceCommand());
-            this.Register("colocar", new PlaceCommand());
+            this.Register("colocar", new PlaceCommand(), "rp");
             //this.Register("reparar", new PlaceCommand());
-            this.Register("jugar", new JugarCommand());
-            this.Register("llorar", new LlorarCommand());
-            this.Register("manos", new ManosCommand());
-            this.Register("reir", new ReirCommand());
+            this.Register("jugar", new JugarCommand(), "rp");
+            this.Register("llorar", new LlorarCommand(), "rp");
+            this.Register("manos", new ManosCommand(), "rp");
+            this.Register("reir", new ReirCommand(), "rp");
 
             // Marriage Interaction
-            this.Register("casarse", new MarryCommand());
-            this.Register("hijo", new HijoCommand());
-            this.Register("embarazar", new EmbarazarCommand());
-            this.Register("propose", new MarryCommand(), "", true);
-            this.Register("divorcio", new DivorceCommand());
-            this.Register("abandonar", new AbandonarCommand());
-            this.Register("sexo", new SexCommand());
+            this.Register("casarse", new MarryCommand(), "rp");
+            this.Register("hijo", new HijoCommand(), "rp");
+            this.Register("embarazar", new EmbarazarCommand(), "rp");
+            //this.Register("propose", new MarryCommand(), "", true);
+            this.Register("divorcio", new DivorceCommand(), "rp");
+            this.Register("abandonar", new AbandonarCommand(), "rp");
+            this.Register("sexo", new SexCommand(), "rp");
 
             // User Interaction
-            this.Register("buy", new BuyCommand());
-            this.Register("comprar", new BuyCommand());
-            this.Register("baul", new BaulCommand(), "logged");
-            this.Register("maletero", new BaulCommand(), "logged");
-            this.Register("usarbidon", new UseBidonCommand());
-            this.Register("combustible", new BuyFuelCommand());
-            this.Register("llenartanque", new BuyFuelFillCommand());
-            this.Register("cachetada", new SlapCommand());
-            this.Register("acariciar", new AcariciarCommand());
-            this.Register("eyacular", new EyacularCommand());
-            this.Register("besar", new KissCommand());
-            this.Register("mear", new MearCommand());
-            this.Register("masturbarse", new MasturbarseCommand());
-            this.Register("tocar", new AgarratetaCommand());
+            this.Register("comprar", new BuyCommand(), "rp");
+            this.Register("baul", new BaulCommand(), "vehicle");
+            this.Register("usarbidon", new UseBidonCommand(), "vehicle");
+            this.Register("combustible", new BuyFuelCommand(), "vehicle");
+            this.Register("llenartanque", new BuyFuelFillCommand(), "vehicle");
+            this.Register("cachetada", new SlapCommand(), "rp");
+            this.Register("acariciar", new AcariciarCommand(), "rp");
+            this.Register("eyacular", new EyacularCommand(), "rp");
+            this.Register("besar", new KissCommand(), "rp");
+            this.Register("mear", new MearCommand(), "rp");
+            this.Register("masturbarse", new MasturbarseCommand(), "rp");
+            this.Register("tocar", new AgarratetaCommand(), "rp");
             this.Register("estado", new EstadoCommand());
-            this.Register("suicidar", new SuicidarCommand());
-            this.Register("secuestrar", new SecuestrarCommand());
-            this.Register("escupir", new EscupirCommand());
-            this.Register("tequiero", new TequieroCommand());
-            this.Register("teamo", new TeamoCommand());
-            this.Register("patear", new PatearCommand());
-            this.Register("oral", new OralCommand());
-            this.Register("anal", new AnalCommand());
-            this.Register("abrazar", new HugCommand());
-            this.Register("violar", new RapeCommand());
-            this.Register("nalgada", new NalgadaCommand());
-            this.Register("coquetear", new CoquetearCommand());
-            this.Register("masaje", new MasajeCommand());
+            this.Register("suicidar", new SuicidarCommand(), "rp");
+            this.Register("secuestrar", new SecuestrarCommand(), "rp");
+            this.Register("escupir", new EscupirCommand(), "rp");
+            this.Register("tequiero", new TequieroCommand(), "rp");
+            this.Register("teamo", new TeamoCommand(), "rp");
+            this.Register("patear", new PatearCommand(), "rp");
+            this.Register("oral", new OralCommand(), "rp");
+            this.Register("anal", new AnalCommand(), "rp");
+            this.Register("abrazar", new HugCommand(), "rp");
+            this.Register("violar", new RapeCommand(), "rp");
+            this.Register("nalgada", new NalgadaCommand(), "rp");
+            this.Register("coquetear", new CoquetearCommand(), "rp");
+            this.Register("masaje", new MasajeCommand(), "rp");
 
 
             // Apartment
             this.Register("kick", new KickCommand());
             this.Register("roomkick", new RoomKickCommand());
-            this.Register("pickall", new PickAllCommand(), "userlog");
+            this.Register("pickall", new PickAllCommand());
             //this.Register("chooser", new ChooserCommand());
             this.Register("comprarcasa", new BuyApartmentCommand());
-            this.Register("ponerprecio", new SetPriceommand(), "userlog");
+            this.Register("ponerprecio", new SetPriceommand(), "rp");
 
             this.Register("entrar", new EnterCommand());
             this.Register("salir", new ExitCommand());
 
             // Events
             this.Register("eventstore", new PurchaseEventCommand(), "eventlog");
-            this.Register("estore", new PurchaseEventCommand(), "eventlog", true);
-            //this.Register("comprar", new PurchaseEventCommand(), "eventlog", true);
 
             // Gambling
             this.Register("apostar", new GamblingCommand(), "eventlog");
-            this.Register("pasar", new GamblingCommand(), "eventlog", true);
 
             // Bounties
-            this.Register("recompensa", new AddBountyCommand(), "userlog");
-            this.Register("setb", new AddBountyCommand(), "userlog", true);
-            this.Register("addbounty", new AddBountyCommand(), "userlog", true);
-            this.Register("addb", new AddBountyCommand(), "userlog", true);
-            this.Register("norecompensa", new RemoveBountyCommand(), "userlog");
-            this.Register("removeb", new RemoveBountyCommand(), "userlog", true);
-            this.Register("recompensas", new BountyListCommand(), "");
-            this.Register("bl", new BountyListCommand(), "", true);
-            this.Register("blist", new BountyListCommand(), "", true);
+            this.Register("recompensa", new AddBountyCommand(), "rp");
+            this.Register("norecompensa", new RemoveBountyCommand(), "rp");
+            this.Register("rlista", new BountyListCommand(), "rp");
 
             // Translation
-            this.Register("translate", new TranslateCommand());
-            this.Register("trans", new TranslateCommand(), "", true);
-            this.Register("stoptranslate", new StopTranslateCommand());
-            this.Register("stranslate", new StopTranslateCommand(), "", true);
-            this.Register("strans", new StopTranslateCommand(), "", true);
+            this.Register("translate", new TranslateCommand(), "rp");
+            this.Register("stranslate", new StopTranslateCommand(), "rp");
 
             // Misc
             // this.Register("ayuda", new HelpCommand());
@@ -623,75 +626,71 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
         private void RegisterUsersJobs()
         {
             // General
-            this.Register("trabajar", new StartWorkCommand(), "joblog");
-            this.Register("notrabajar", new StopWorkCommand(), "joblog");
-            this.Register("empresas", new CorpListCommand(), "joblog");
-            this.Register("clist", new CorpListCommand(), "joblog", true);
-            this.Register("infoempresas", new CorpInfoCommand(), "joblog");
-            this.Register("cinfo", new CorpInfoCommand(), "joblog", true);
-            this.Register("promover", new PromoteCommand(), "joblog");
-            this.Register("degradar", new DemoteCommand(), "joblog");
-            this.Register("sendhome", new SendhomeCommand(), "joblog");
-            this.Register("contratar", new HireCommand(), "joblog");
-            this.Register("despedir", new FireCommand(), "joblog");
-            this.Register("verminutos", new CheckMinutesCommand(), "joblog");
-            this.Register("checkmins", new CheckMinutesCommand(), "joblog", true);
+            this.Register("trabajar", new StartWorkCommand(), "job");
+            this.Register("notrabajar", new StopWorkCommand(), "job");
+            this.Register("empresas", new CorpListCommand(), "job");
+            this.Register("infoempresas", new CorpInfoCommand(), "job");
+            this.Register("promover", new PromoteCommand(), "job");
+            this.Register("degradar", new DemoteCommand(), "job");
+            this.Register("sendhome", new SendhomeCommand(), "job");
+            this.Register("contratar", new HireCommand(), "job");
+            this.Register("despedir", new FireCommand(), "job");
+            this.Register("verminutos", new CheckMinutesCommand(), "job");
 
             // Hospital
-            this.Register("revivir", new DischargeCommand(), "joblog");
-            this.Register("aceptarmuerte", new AcceptDeathCommand());
-            this.Register("curar", new HealCommand(), "joblog", true);
-            this.Register("ayudar", new AyudarCommand(), "joblog");
+            this.Register("revivir", new DischargeCommand(), "job");
+            //this.Register("aceptarmuerte", new AcceptDeathCommand());
+            this.Register("curar", new HealCommand(), "job");
+            this.Register("ayudar", new AyudarCommand(), "job");
             //this.Register("curar", new CurarCommand(), "joblog");
-            this.Register("vacuna", new VacunaCommand(), "joblog");
-            this.Register("pinchar", new PincharCommand(), "joblog");
-            this.Register("ponerchaleco", new PonerchalecoCommand(), "joblog");
-            this.Register("comprarchaleco", new ComprarChalecoCommand(), "joblog");
+            this.Register("vacuna", new VacunaCommand(), "job");
+            this.Register("pinchar", new PincharCommand(), "job");
+            this.Register("ponerchaleco", new PonerchalecoCommand(), "rp");
+            this.Register("comprarchaleco", new ComprarChalecoCommand(), "rp");
             //this.Register("chaleco", new ChalecopoliciaCommand(), "joblog");
-            this.Register("explosivos", new ExplosivosCommand(), "joblog");
-            this.Register("hidratar", new HidratacionCommand(), "joblog");
-            this.Register("hidratacion", new HidratacionCommand(), "joblog", true);
+            this.Register("explosivos", new ExplosivosCommand(), "rp");
+            this.Register("hidratar", new HidratacionCommand(), "rp");
+            //this.Register("hidratacion", new HidratacionCommand(), "joblog", true);
             
 
 
             // Police
-            this.Register("radio", new RadioAlertCommand(), "joblog");
-            this.Register("r", new RadioAlertCommand(), "joblog");
-            this.Register("tradio", new ToggleRadioAlertCommand(), "joblog");
-            this.Register("toggleradio", new ToggleRadioAlertCommand(), "joblog");
-            this.Register("buscar", new LawCommand(), "joblog");
-            this.Register("kevlar", new KevlarCommand(), "joblog");
-            this.Register("nobuscar", new UnLawCommand(), "joblog");
-            this.Register("paralizar", new StunCommand(), "joblog");
-            this.Register("desparalizar", new UnStunCommand(), "joblog");
+            this.Register("radio", new RadioAlertCommand(), "job");
+            this.Register("r", new RadioAlertCommand(), "job");
+            this.Register("tradio", new ToggleRadioAlertCommand(), "job");
+            //this.Register("toggleradio", new ToggleRadioAlertCommand(), "joblog");
+            this.Register("buscar", new LawCommand(), "job");
+            this.Register("kevlar", new KevlarCommand(), "job");
+            this.Register("nobuscar", new UnLawCommand(), "job");
+            this.Register("paralizar", new StunCommand(), "job");
+            this.Register("desparalizar", new UnStunCommand(), "job");
            /* this.Register("spray", new StunCommand(), "joblog");
             this.Register("nospray", new UnStunCommand(), "joblog");*/
-            this.Register("esposar", new CuffCommand(), "joblog");
-            this.Register("noesposar", new UnCuffCommand(), "joblog");
-            this.Register("cateo", new SearchCommand(), "joblog");
-            this.Register("catear", new SearchCommand(), "joblog");
-            this.Register("arrestar", new ArrestCommand(), "joblog");
-            this.Register("liberar", new ReleaseCommand(), "joblog");
-            this.Register("ptrial", new PoliceTrialCommand(), "joblog");
-            this.Register("unptrial", new PoliceTrialCommand(), "joblog", true);
-            this.Register("limpiarlista", new ClearWantedCommand(), "joblog");
-            this.Register("cw", new ClearWantedCommand(), "joblog", true);
-            this.Register("flashbang", new FlashBangCommand(), "joblog");
-            this.Register("refuerzos", new BackupCommand(), "joblog");
-            this.Register("ref", new BackupCommand(), "joblog");
-            this.Register("carinfo", new CheckCarInfoCommand(), "joblog");
-            this.Register("infocar", new CheckCarInfoCommand(), "joblog");
+            this.Register("esposar", new CuffCommand(), "job");
+            this.Register("noesposar", new UnCuffCommand(), "job");
+            this.Register("cateo", new SearchCommand(), "job");
+            //this.Register("catear", new SearchCommand(), "joblog");
+            this.Register("arrestar", new ArrestCommand(), "job");
+            this.Register("liberar", new ReleaseCommand(), "job");
+            this.Register("ptrial", new PoliceTrialCommand(), "job");
+            this.Register("unptrial", new PoliceTrialCommand(), "job", true);
+            this.Register("limpiarlista", new ClearWantedCommand(), "job");
+            //this.Register("cw", new ClearWantedCommand(), "joblog", true);
+            this.Register("flashbang", new FlashBangCommand(), "job");
+            this.Register("refuerzos", new BackupCommand(), "job");
+            //this.Register("ref", new BackupCommand(), "job");
+            this.Register("carinfo", new CheckCarInfoCommand(), "job");
+            //this.Register("infocar", new CheckCarInfoCommand(), "joblog");
 
             // Restaurant & Cafe
-            this.Register("servir", new ServeCommand(), "joblog");
+            this.Register("servir", new ServeCommand(), "job");
 
             // Banking
-            this.Register("abrircuenta", new OpenAccountCommand(), "joblog");
-            this.Register("account", new OpenAccountCommand(), "joblog", true);
-            this.Register("versaldo", new CheckBalanceCommand(), "joblog");
+            this.Register("abrircuenta", new OpenAccountCommand(), "job");
+            this.Register("versaldo", new CheckBalanceCommand(), "job");
 
             // Clothing
-            this.Register("descuento", new DiscountCommand(), "joblog");
+            this.Register("descuento", new DiscountCommand(), "job");
 
             /*// Heticos
             this.Register("pasajero", new PasajeroCommand());
@@ -714,14 +713,14 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
             //this.Register("setsh", new SetSHCommand(), "vip");
             this.Register("stopsh", new StopSHCommand(), "vip");
             this.Register("opendimmer", new OpenDimmerCommand(), "vip");
-            this.Register("odimmer", new OpenDimmerCommand(), "vip", true);
+            //this.Register("odimmer", new OpenDimmerCommand(), "vip", true);
             this.Register("vipa", new VIPAlertCommand(), "vip");
-            this.Register("va", new VIPAlertCommand(), "vip", true);
-            this.Register("v", new VIPAlertCommand(), "vip", true);
+            //this.Register("va", new VIPAlertCommand(), "vip", true);
+            //this.Register("v", new VIPAlertCommand(), "vip", true);
             this.Register("vipalerta", new ToggleVIPAlertCommand(), "vip");
-            this.Register("toggleva", new ToggleVIPAlertCommand(), "vip", true);
-            this.Register("togglev", new ToggleVIPAlertCommand(), "vip", true);
-            this.Register("moonwalk", new MoonwalkCommand(), "vip", true);
+            /*this.Register("toggleva", new ToggleVIPAlertCommand(), "vip", true);
+            this.Register("togglev", new ToggleVIPAlertCommand(), "vip", true);*/
+            this.Register("moonwalk", new MoonwalkCommand(), "vip");
         }
 
         /// <summary>
@@ -739,9 +738,9 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
         /// </summary>
         private void RegisterTrialModerators()
         {
-            this.Register("sa", new StaffAlertCommand(), "stafflog");
-            this.Register("strabajar", new OnDutyCommand(), "stafflog");
-            this.Register("offstrabajar", new OffDutyCommand(), "stafflog");
+            this.Register("sa", new StaffAlertCommand(), "staff");
+            this.Register("strabajar", new OnDutyCommand(), "staff");
+            this.Register("offstrabajar", new OffDutyCommand(), "staff");
         }
 
         /// <summary>
@@ -749,14 +748,14 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
         /// </summary>
         private void RegisterModerators()
         {
-            this.Register("alert", new AlertCommand(), "stafflog");
-            this.Register("ban", new BanCommand(), "stafflog");
-            this.Register("mute", new MuteCommand(), "stafflog");
-            this.Register("unmute", new UnmuteCommand(), "stafflog");
-            this.Register("userinfo", new UserInfoCommand(), "stafflog");
-            this.Register("update", new UpdateCommand(), "stafflog");
-            this.Register("poll", new PollCommand(), "stafflog");
-            this.Register("givespecial", new GiveSpecialReward(), "stafflog");
+            this.Register("alert", new AlertCommand(), "staff");
+            this.Register("ban", new BanCommand(), "staff");
+            this.Register("mute", new MuteCommand(), "staff");
+            this.Register("unmute", new UnmuteCommand(), "staff");
+            this.Register("userinfo", new UserInfoCommand(), "staff");
+            this.Register("update", new UpdateCommand(), "staff");
+            this.Register("poll", new PollCommand(), "staff");
+            this.Register("givespecial", new GiveSpecialReward(), "staff");
         }
 
         /// <summary>
@@ -764,18 +763,18 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
         /// </summary>
         private void RegisterSeniorModerators()
         {
-            this.Register("ha", new HotelAlertCommand(), "stafflog");
-            this.Register("wha", new WhisperHotelAlertCommand(), "stafflog");
-            this.Register("nha", new NoticeHotelAlertCommand(), "stafflog");
-            this.Register("ipban", new IPBanCommand(), "stafflog");
-            this.Register("roomalert", new RoomAlertCommand(), "stafflog");
-            this.Register("roommute", new RoomMuteCommand(), "stafflog");
-            this.Register("roomunmute", new RoomUnmuteCommand(), "stafflog");
-            this.Register("summon", new SummonCommand(), "stafflog");
-            this.Register("follow", new FollowCommand(), "stafflog");
-            this.Register("unload", new UnloadCommand(), "stafflog");
-            this.Register("senduser", new SendUserCommand(), "stafflog");
-            this.Register("dartrabajo", new SuperHireCommand(), "stafflog");
+            this.Register("ha", new HotelAlertCommand(), "staff");
+            this.Register("wha", new WhisperHotelAlertCommand(), "staff");
+            this.Register("nha", new NoticeHotelAlertCommand(), "staff");
+            this.Register("ipban", new IPBanCommand(), "staff");
+            this.Register("roomalert", new RoomAlertCommand(), "staff");
+            this.Register("roommute", new RoomMuteCommand(), "staff");
+            this.Register("roomunmute", new RoomUnmuteCommand(), "staff");
+            this.Register("summon", new SummonCommand(), "staff");
+            this.Register("follow", new FollowCommand(), "staff");
+            this.Register("unload", new UnloadCommand(), "staff");
+            this.Register("senduser", new SendUserCommand(), "staff");
+            this.Register("dartrabajo", new SuperHireCommand(), "staff");
         }
 
         /// <summary>
@@ -783,30 +782,31 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
         /// </summary>
         private void RegisterAdministrators()
         {
-            this.Register("boveda", new VaultCommand(), "stafflog");
-            this.Register("at", new AdminTaxiCommand(), "stafflog");
-            this.Register("setz", new SetSHCommand(), "stafflog");
-            this.Register("hal", new HALCommand(), "stafflog");
-            this.Register("mip", new MIPCommand(), "stafflog");
-            this.Register("rpstats", new RPStatsCommand(), "stafflog");
-            this.Register("rpweapons", new RPWeaponsCommand(), "stafflog");
-            this.Register("rpfarming", new RPFarmingStatsCommand(), "stafflog");
-            this.Register("override", new OverrideCommand(), "stafflog");
-            this.Register("teleport", new TeleportCommand(), "stafflog");
-            this.Register("spull", new SuperPullCommand(), "stafflog");
-            this.Register("spush", new SuperPushCommand(), "stafflog");
-            this.Register("eventha", new EventAlertCommand(), "stafflog");
-            this.Register("restore", new RestoreCommand(), "stafflog");
-            this.Register("adminrelease", new AdminReleaseCommand(), "stafflog");
-            this.Register("adminjail", new AdminJailCommand(), "stafflog");
-            this.Register("roomrestore", new RoomRestoreCommand(), "stafflog");
-            this.Register("roomrelease", new RoomReleaseCommand(), "stafflog");
-            this.Register("roomheal", new RoomHealCommand(), "stafflog");
-            this.Register("warptome", new WarpToMeCommand(), "stafflog");
-            this.Register("warpmeto", new WarpMeToCommand(), "stafflog");
-            this.Register("blacklist", new BlackListCommand(), "stafflog");
-            this.Register("unblacklist", new UnBlackListCommand(), "stafflog");
-            this.Register("coordbot", new BotRPCommand(), "stafflog");
+            this.Register("boveda", new VaultCommand(), "staff");
+            this.Register("at", new AdminTaxiCommand(), "staff");
+            this.Register("deleteroom", new DeleteRoomCommand(), "staff");
+            this.Register("setz", new SetSHCommand(), "staff");
+            this.Register("hal", new HALCommand(), "staff");
+            this.Register("mip", new MIPCommand(), "staff");
+            this.Register("rpstats", new RPStatsCommand(), "staff");
+            this.Register("rpweapons", new RPWeaponsCommand(), "staff");
+            this.Register("rpfarming", new RPFarmingStatsCommand(), "staff");
+            this.Register("override", new OverrideCommand(), "staff");
+            this.Register("teleport", new TeleportCommand(), "staff");
+            this.Register("spull", new SuperPullCommand(), "staff");
+            this.Register("spush", new SuperPushCommand(), "staff");
+            this.Register("eventha", new EventAlertCommand(), "staff");
+            this.Register("restore", new RestoreCommand(), "staff");
+            this.Register("adminrelease", new AdminReleaseCommand(), "staff");
+            this.Register("adminjail", new AdminJailCommand(), "staff");
+            this.Register("roomrestore", new RoomRestoreCommand(), "staff");
+            this.Register("roomrelease", new RoomReleaseCommand(), "staff");
+            this.Register("roomheal", new RoomHealCommand(), "staff");
+            this.Register("warptome", new WarpToMeCommand(), "staff");
+            this.Register("warpmeto", new WarpMeToCommand(), "staff");
+            this.Register("blacklist", new BlackListCommand(), "staff");
+            this.Register("unblacklist", new UnBlackListCommand(), "staff");
+            this.Register("coordbot", new BotRPCommand(), "staff");
         }
 
         /// <summary>
@@ -815,38 +815,38 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
         private void RegisterManagers()
         {
 
-            this.Register("givebadge", new GiveBadgeCommand(), "stafflog");
-            this.Register("roombadge", new RoomBadgeCommand(), "stafflog");
-            this.Register("massbadge", new MassBadgeCommand(), "stafflog");
-            this.Register("globalgive", new GlobalGiveCommand(), "stafflog");
-            this.Register("freeze", new FreezeCommand(), "stafflog");
-            this.Register("unfreeze", new UnFreezeCommand(), "stafflog");
-            this.Register("flagother", new FlagOtherCommand(), "stafflog");
-            this.Register("flag", new FlagOtherCommand(), "stafflog", true);
+            this.Register("givebadge", new GiveBadgeCommand(), "staff");
+            this.Register("roombadge", new RoomBadgeCommand(), "staff");
+            this.Register("massbadge", new MassBadgeCommand(), "staff");
+            this.Register("globalgive", new GlobalGiveCommand(), "staff");
+            this.Register("freeze", new FreezeCommand(), "staff");
+            this.Register("unfreeze", new UnFreezeCommand(), "staff");
+            this.Register("flagother", new FlagOtherCommand(), "staff");
+            this.Register("flag", new FlagOtherCommand(), "staff", true);
             this.Register("mimic", new MimicCommand(), "staff");
             this.Register("togglewhispers", new ToggleWhispersCommand(), "staff");
-            this.Register("disconnect", new DisconnectCommand(), "stafflog");
-            this.Register("dc", new DisconnectCommand(), "stafflog", true);
-            this.Register("purge", new PurgeCommand(), "stafflog");
-            this.Register("purga", new PurgeCommand(), "stafflog");
-            this.Register("checklottery", new StopEventCommand(), "stafflog", true);
-            this.Register("accountcheck", new AccountCheckCommand(), "stafflog");
-            this.Register("checkaccount", new AccountCheckCommand(), "stafflog", true);
-            this.Register("namecheck", new NameCheckCommand(), "stafflog");
-            this.Register("checkname", new NameCheckCommand(), "stafflog", true);
-            this.Register("summonstaff", new SummonStaffCommand(), "stafflog");
-            this.Register("checkpoll", new CheckPollCommand(), "stafflog");
-            this.Register("pollcheck", new CheckPollCommand(), "stafflog", true);
-            this.Register("warpalltome", new WarpAllToMeCommand(), "stafflog");
-            this.Register("sendroom", new SendRoomCommand(), "stafflog");
-            this.Register("freezeroom", new FreezeRoomCommand(), "stafflog");
-            this.Register("unfreezeroom", new UnFreezeRoomCommand(), "stafflog");
-            //this.Register("wonline", new WOnlineCommand(), "stafflog");
-            this.Register("makebota", new MakeBotActionCommand(), "stafflog");
-            this.Register("quitarwhatsapp", new BanChatterCommand(), "stafflog");
-            this.Register("darwhatsapp", new UnBanChatterCommand(), "stafflog");
-            this.Register("deletechat", new DeleteChatCommand(), "stafflog");
-            this.Register("tlock", new TLockCommand(), "stafflog");
+            this.Register("disconnect", new DisconnectCommand(), "staff");
+            this.Register("dc", new DisconnectCommand(), "staff", true);
+            this.Register("purge", new PurgeCommand(), "staff");
+            this.Register("purga", new PurgeCommand(), "staff");
+            this.Register("checklottery", new StopEventCommand(), "staff", true);
+            this.Register("accountcheck", new AccountCheckCommand(), "staff");
+            this.Register("checkaccount", new AccountCheckCommand(), "staff", true);
+            this.Register("namecheck", new NameCheckCommand(), "staff");
+            this.Register("checkname", new NameCheckCommand(), "staff", true);
+            this.Register("summonstaff", new SummonStaffCommand(), "staff");
+            this.Register("checkpoll", new CheckPollCommand(), "staff");
+            this.Register("pollcheck", new CheckPollCommand(), "staff", true);
+            this.Register("warpalltome", new WarpAllToMeCommand(), "staff");
+            this.Register("sendroom", new SendRoomCommand(), "staff");
+            this.Register("freezeroom", new FreezeRoomCommand(), "staff");
+            this.Register("unfreezeroom", new UnFreezeRoomCommand(), "staff");
+            //this.Register("wonline", new WOnlineCommand(), "staff");
+            this.Register("makebota", new MakeBotActionCommand(), "staff");
+            this.Register("quitarwhatsapp", new BanChatterCommand(), "staff");
+            this.Register("darwhatsapp", new UnBanChatterCommand(), "staff");
+            this.Register("deletechat", new DeleteChatCommand(), "staff");
+            this.Register("tlock", new TLockCommand(), "staff");
         }
 
         /// <summary>
@@ -858,32 +858,32 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
             this.Register("handitem", new HandItemCommand(), "staff");
             this.Register("enable", new EnableCommand(), "staff");
             this.Register("coords", new CoordsCommand(), "staff");
-            this.Register("setspeed", new SetSpeedCommand(), "stafflog");
+            this.Register("setspeed", new SetSpeedCommand(), "staff");
             this.Register("startquestion", new StartQuestionCommand(), "staff");
-            this.Register("kickbots", new KickBotsCommand(), "stafflog");
-            this.Register("kickpets", new KickPetsCommand(), "stafflog");
-            this.Register("disablediagonal", new DisableDiagonalCommand(), "stafflog");
-            this.Register("room", new RoomCommand(), "stafflog");
-            this.Register("bot", new BotCommand(), "stafflog");
-            this.Register("activebots", new ActiveBotsCommand(), "stafflog");
-            this.Register("fixweapons", new FixWeaponsCommand(), "stafflog");
-            this.Register("whispertile", new SetWhisperTileCommand(), "stafflog");
-            this.Register("page", new HtmlPageCommand(), "stafflog");
-            this.Register("upage", new HtmlUPageCommand(), "stafflog");
-            this.Register("uipage", new HtmlUIPageCommand(), "stafflog");
-            this.Register("rpage", new HtmlRPageCommand(), "stafflog");
-            this.Register("maintenance", new MaintenanceCommand(), "stafflog");
-            this.Register("maint", new MaintenanceCommand(), "stafflog", true);
+            this.Register("kickbots", new KickBotsCommand(), "staff");
+            this.Register("kickpets", new KickPetsCommand(), "staff");
+            this.Register("disablediagonal", new DisableDiagonalCommand(), "staff");
+            this.Register("room", new RoomCommand(), "staff");
+            this.Register("bot", new BotCommand(), "staff");
+            this.Register("activebots", new ActiveBotsCommand(), "staff");
+            this.Register("fixweapons", new FixWeaponsCommand(), "staff");
+            this.Register("whispertile", new SetWhisperTileCommand(), "staff");
+            this.Register("page", new HtmlPageCommand(), "staff");
+            this.Register("upage", new HtmlUPageCommand(), "staff");
+            this.Register("uipage", new HtmlUIPageCommand(), "staff");
+            this.Register("rpage", new HtmlRPageCommand(), "staff");
+            this.Register("maintenance", new MaintenanceCommand(), "staff");
+            this.Register("maint", new MaintenanceCommand(), "staff", true);
 
-            this.Register("todo", new ToDoCommand());
-            this.Register("todoadd", new ToDoCommand());
-            this.Register("addtodo", new ToDoCommand(), "", true);
-            this.Register("tda", new ToDoCommand(), "", true);
-            this.Register("tododel", new ToDoCommand());
-            this.Register("tododelete", new ToDoCommand(), "", true);
-            this.Register("deltodo", new ToDoCommand(), "", true);
-            this.Register("deletetodo", new ToDoCommand(), "", true);
-            this.Register("tdd", new ToDoCommand(), "", true);
+            //this.Register("todo", new ToDoCommand(), "staff");
+            //this.Register("todoadd", new ToDoCommand(), "staff");
+            //this.Register("addtodo", new ToDoCommand(), "staff", true);
+            //this.Register("tda", new ToDoCommand(), "staff", true);
+            //this.Register("tododel", new ToDoCommand(), "staff");
+            //this.Register("tododelete", new ToDoCommand(), "staff", true);
+            //this.Register("deltodo", new ToDoCommand(), "staff", true);
+            //this.Register("deletetodo", new ToDoCommand(), "staff", true);
+            //this.Register("tdd", new ToDoCommand(), "staff", true);
 
         }
 
@@ -892,21 +892,21 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
         /// </summary>
         private void RegisterOwners()
         {
-            //this.Register("fastwalk", new FastwalkCommand(), "stafflog");
-            this.Register("forcesit", new ForceSitCommand(), "stafflog");
-            this.Register("forcelay", new ForceLayCommand(), "stafflog");
-            this.Register("allaroundme", new AllAroundMeCommand(), "stafflog");
-            this.Register("alleyesonme", new AllEyesOnMeCommand(), "stafflog");
-            this.Register("massdance", new MassDanceCommand(), "stafflog");
-            this.Register("massenable", new MassEnableCommand(), "stafflog");
-            this.Register("summonall", new SummonAllCommand(), "stafflog");
-            this.Register("releaseall", new ReleaseAllCommand(), "stafflog");
-            this.Register("restoreall", new RestoreAllCommand(), "stafflog");
-            this.Register("invisible", new InvisibleCommand(), "stafflog");
-            this.Register("visible", new VisibleCommand(), "stafflog");
-            this.Register("massact", new MassActionCommand(), "stafflog");
-            this.Register("unidle", new UnIdleCommand(), "stafflog");
-            this.Register("unban", new UnBanCommand(), "stafflog");
+            //this.Register("fastwalk", new FastwalkCommand(), "staff");
+            this.Register("forcesit", new ForceSitCommand(), "staff");
+            this.Register("forcelay", new ForceLayCommand(), "staff");
+            this.Register("allaroundme", new AllAroundMeCommand(), "staff");
+            this.Register("alleyesonme", new AllEyesOnMeCommand(), "staff");
+            this.Register("massdance", new MassDanceCommand(), "staff");
+            this.Register("massenable", new MassEnableCommand(), "staff");
+            this.Register("summonall", new SummonAllCommand(), "staff");
+            this.Register("releaseall", new ReleaseAllCommand(), "staff");
+            this.Register("restoreall", new RestoreAllCommand(), "staff");
+            this.Register("invisible", new InvisibleCommand(), "staff");
+            this.Register("visible", new VisibleCommand(), "staff");
+            this.Register("massact", new MassActionCommand(), "staff");
+            this.Register("unidle", new UnIdleCommand(), "staff");
+            this.Register("unban", new UnBanCommand(), "staff");
         }
 
         /// <summary>
@@ -914,37 +914,37 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
         /// </summary>
         private void RegisterSpecialRights()
         {
-            this.Register("makepet", new MakePetCommand(), "stafflog");
-            this.Register("transformall", new TransformAllCommand(), "stafflog");
-            this.Register("roomtransform", new RoomMakePetCommand(), "stafflog");
-            this.Register("summonpets", new SummonPetsCommand(), "stafflog");
-            this.Register("pet", new PetTransformCommand(), "stafflog");
-            this.Register("colour", new ColourChangeCommand(), "stafflog");
-            this.Register("color", new ColourChangeCommand(), "stafflog", true);
-            this.Register("changeuclass", new ChangeUClassCommand(), "stafflog");
-            //this.Register("sfastwalk", new SuperFastwalkCommand(), "stafflog");
-            //this.Register("mpu", new MPUCommand(), "stafflog");
-            this.Register("makesay", new MakeSayCommand(), "stafflog");
-            this.Register("sayall", new SayAllCommand(), "stafflog");
-            this.Register("coins", new GiveCoinsCommand(), "stafflog");
-            this.Register("duckets", new GiveDucketsCommand(), "stafflog");
-            this.Register("diamonds", new GiveDiamondsCommand(), "stafflog");
-            this.Register("rcoins", new TakeCoinsCommand(), "stafflog");
-            this.Register("rduckets", new TakeDucketsCommand(), "stafflog");
-            this.Register("rdiamonds", new TakeDiamondsCommand(), "stafflog");
-            this.Register("epoints", new GiveEventPointsCommand(), "stafflog");
-            this.Register("rank", new GiveRankCommand(), "stafflog");
-            this.Register("kill", new KillCommand(), "stafflog");
-            this.Register("setstat", new SetStatCommand(), "stafflog");
-            this.Register("sethp", new SetStatCommand(), "stafflog", true);
-            this.Register("snap", new KillCommand(), "stafflog");
-            this.Register("setenergy", new SetStatCommand(), "stafflog", true);
-            this.Register("sethunger", new SetStatCommand(), "stafflog", true);
-            this.Register("sethygiene", new SetStatCommand(), "stafflog", true);
-            this.Register("givevip", new GiveVIPCommand(), "stafflog");
-            this.Register("takevip", new TakeVIPCommand(), "stafflog");
-            this.Register("banvip", new BanVIPCommand(), "stafflog");
-            this.Register("unbanvip", new UnBanVIPCommand(), "stafflog");
+            this.Register("makepet", new MakePetCommand(), "staff");
+            this.Register("transformall", new TransformAllCommand(), "staff");
+            this.Register("roomtransform", new RoomMakePetCommand(), "staff");
+            this.Register("summonpets", new SummonPetsCommand(), "staff");
+            this.Register("pet", new PetTransformCommand(), "staff");
+            this.Register("colour", new ColourChangeCommand(), "staff");
+            this.Register("color", new ColourChangeCommand(), "staff", true);
+            this.Register("changeuclass", new ChangeUClassCommand(), "staff");
+            //this.Register("sfastwalk", new SuperFastwalkCommand(), "staff");
+            //this.Register("mpu", new MPUCommand(), "staff");
+            this.Register("makesay", new MakeSayCommand(), "staff");
+            this.Register("sayall", new SayAllCommand(), "staff");
+            this.Register("coins", new GiveCoinsCommand(), "staff");
+            this.Register("duckets", new GiveDucketsCommand(), "staff");
+            this.Register("diamonds", new GiveDiamondsCommand(), "staff");
+            this.Register("rcoins", new TakeCoinsCommand(), "staff");
+            this.Register("rduckets", new TakeDucketsCommand(), "staff");
+            this.Register("rdiamonds", new TakeDiamondsCommand(), "staff");
+            this.Register("epoints", new GiveEventPointsCommand(), "staff");
+            this.Register("rank", new GiveRankCommand(), "staff");
+            this.Register("kill", new KillCommand(), "staff");
+            this.Register("setstat", new SetStatCommand(), "staff");
+            this.Register("sethp", new SetStatCommand(), "staff", true);
+            this.Register("snap", new KillCommand(), "staff");
+            this.Register("setenergy", new SetStatCommand(), "staff", true);
+            this.Register("sethunger", new SetStatCommand(), "staff", true);
+            this.Register("sethygiene", new SetStatCommand(), "staff", true);
+            this.Register("givevip", new GiveVIPCommand(), "staff");
+            this.Register("takevip", new TakeVIPCommand(), "staff");
+            this.Register("banvip", new BanVIPCommand(), "staff");
+            this.Register("unbanvip", new UnBanVIPCommand(), "staff");
         }
         #endregion
 
@@ -961,6 +961,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
             switch (Type.ToLower())
             {
                 case "job":
+                case "joblog":
                     {
                         this._commands.Add(CommandText, Command);
                         this._jobcommands.Add(CommandText, Command);
@@ -972,11 +973,22 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
                         this._gangcommands.Add(CommandText, Command);
                         break;
                     }
+                case "rp":
+                    {
+                        this._commands.Add(CommandText, Command);
+                        this._rpCommands.Add(CommandText, Command);
+                        break;
+                    }
+                case "vehicle":
+                    {
+                        this._commands.Add(CommandText, Command);
+                        this._vehiclescommands.Add(CommandText, Command);
+                        break;
+                    }
                 case "vip":
                     {
                         this._commands.Add(CommandText, Command);
                         this._vipcommands.Add(CommandText, Command);
-                        this._loggedcommands.Add(CommandText, Command);
                         break;
                     }
                 case "staff":
@@ -985,38 +997,16 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
                         this._staffcommands.Add(CommandText, Command);
                         break;
                     }
-                case "stafflog":
-                    {
-                        this._commands.Add(CommandText, Command);
-                        this._staffcommands.Add(CommandText, Command);
-                        this._loggedcommands.Add(CommandText, Command);
-                        break;
-                    }
                 case "ambassadorlog":
                     {
                         this._commands.Add(CommandText, Command);
                         this._ambassadorcommands.Add(CommandText, Command);
-                        this._loggedcommands.Add(CommandText, Command);
-                        break;
-                    }
-                case "userlog":
-                    {
-                        this._commands.Add(CommandText, Command);
-                        this._loggedcommands.Add(CommandText, Command);
-                        break;
-                    }
-                case "joblog":
-                    {
-                        this._commands.Add(CommandText, Command);
-                        this._jobcommands.Add(CommandText, Command);
-                        this._loggedcommands.Add(CommandText, Command);
                         break;
                     }
                 case "eventlog":
                     {
                         this._commands.Add(CommandText, Command);
                         this._eventcommands.Add(CommandText, Command);
-                        this._loggedcommands.Add(CommandText, Command);
                         break;
                     }
                 default:

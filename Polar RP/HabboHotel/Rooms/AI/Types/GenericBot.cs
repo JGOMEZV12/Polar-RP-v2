@@ -136,7 +136,10 @@ namespace Polar.HabboHotel.Rooms.AI.Types
                         else if (GetBotData().TargetUser == 0)
                         {
                             nextCoord = GetRoom().GetGameMap().GetRandomWalkableSquare();
-                            GetRoomUser().MoveTo(nextCoord.X, nextCoord.Y);
+                            if (nextCoord.X > 0 && nextCoord.Y > 0) // Asumiendo que (0,0) indica un error
+                            {
+                                GetRoomUser().MoveTo(nextCoord.X, nextCoord.Y);
+                            }
                         }
                         break;
 

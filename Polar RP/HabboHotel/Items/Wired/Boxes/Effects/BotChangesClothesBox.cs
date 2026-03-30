@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections;
@@ -49,24 +49,24 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
             if (String.IsNullOrEmpty(this.StringData))
                 return false;
 
-
             string[] Stuff = this.StringData.Split('\t');
             if (Stuff.Length != 2)
-                return false;//This is important, incase a cunt scripts.
+                return false;
 
             string Username = Stuff[0];
 
             RoomUser User = this.Instance.GetRoomUserManager().GetBotByName(Username);
             if (User == null)
-                return false;      
-            
+                return false;
+
             string Figure = Stuff[1];
+
+            // FIX: Actualizar BotData ANTES de enviar el composer para que el cliente reciba el look nuevo
+            User.BotData.Look = Figure;
+            User.BotData.Gender = "M";
 
             ServerPacket UserChangeComposer = new UserChangeComposer(User.VirtualId, User.BotData);
             Instance.SendMessage(UserChangeComposer);
-
-            User.BotData.Look = Figure;
-            User.BotData.Gender = "M";
 
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {

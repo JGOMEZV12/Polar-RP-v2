@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Threading;
@@ -16,20 +16,16 @@ namespace Polar.HabboHotel.Items.Interactor
 {
     public class InteractorRecolector : IFurniInteractor
     {
-        public void OnPlace(GameClient Session, Item Item)
-        {
-        }
+        public void OnPlace(GameClient Session, Item Item) { }
 
-        public void OnRemove(GameClient Session, Item Item)
-        {
-        }
+        public void OnRemove(GameClient Session, Item Item) { }
 
         public void OnTrigger(GameClient Session, Item Item, int Request, bool HasRights)
         {
-            if (Session == null)
+            // FIX: Validar también GetHabbo() antes de usarlo
+            if (Session == null || Session.GetHabbo() == null)
                 return;
 
-            #region Conditions
             if (!GroupManager.HasJobCommand(Session, "basurero"))
             {
                 Session.SendWhisper("Sólo un trabajador del basurero puede recoger la basura", 1);
@@ -47,10 +43,8 @@ namespace Polar.HabboHotel.Items.Interactor
                 Session.SendWhisper("¡Ya tienes el camión lleno de basura, ve a descargar en la central de desechos!", 1);
                 return;
             }
-            #endregion
 
             RoomUser User = Item.GetRoom().GetRoomUserManager().GetRoomUserByHabbo(Session.GetHabbo().Id);
-
             if (User == null)
                 return;
 
@@ -72,7 +66,6 @@ namespace Polar.HabboHotel.Items.Interactor
                     User.ClearMovement(true);
                     User.SetRot(Rotation.Calculate(User.Coordinate.X, User.Coordinate.Y, Item.GetX, Item.GetY), false);
 
-                    // 135 Cycles approximately 1 minute
                     Item.ExtraData = "1";
                     Item.UpdateState(false, true);
                     Item.RequestUpdate(135 * Minutes, true);
@@ -101,10 +94,7 @@ namespace Polar.HabboHotel.Items.Interactor
             }
         }
 
-        public void OnWiredTrigger(Item Item)
-        {
-
-        }
+        public void OnWiredTrigger(Item Item) { }
 
         public void ChooseReward(GameClient Session)
         {
@@ -121,17 +111,14 @@ namespace Polar.HabboHotel.Items.Interactor
             {
                 int Amount;
 
-                // Cocaine
                 if (Chance > 25)
                 {
                     Amount = Random.Next(1, 5);
                     Session.GetRoleplay().Cocaine += Amount;
-                    Session.GetRoleplay().CurHealth-= 10;
+                    Session.GetRoleplay().CurHealth -= 10;
                     Session.GetRoleplay().BasuTrashCount += 1;
                     Session.Shout("*Buscando en la basura consiguió: " + Amount + "g de cocaina pero se cortó con un vidrio [-10 Salud] [+1 basura]*", 4);
                 }
-
-                // Cigarettes
                 else if (Chance <= 10 && Chance > 5)
                 {
                     Amount = Random.Next(1, 20);
@@ -140,8 +127,6 @@ namespace Polar.HabboHotel.Items.Interactor
                     Session.GetRoleplay().BasuTrashCount += 1;
                     Session.Shout("*Después de buscar y recoger la basura encuentra: " + Amount + " cigarrillos  [-5 Higiene] [+1 basura]*", 4);
                 }
-
-                // Weed
                 else
                 {
                     Amount = Random.Next(1, 10);
@@ -154,7 +139,8 @@ namespace Polar.HabboHotel.Items.Interactor
             #endregion
 
             #region Money
-            else if (Chance > 2 && Chance <= 1)
+            // FIX: Condición imposible corregida (Chance > 2 && Chance <= 1 nunca se cumple)
+            else if (Chance > 65 && Chance <= 80)
             {
                 int Amount = Random.Next(200, 1000);
 

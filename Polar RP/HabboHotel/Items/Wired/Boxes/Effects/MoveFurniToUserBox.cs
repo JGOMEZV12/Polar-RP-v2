@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -11,7 +11,6 @@ using System.Drawing;
 using System.Security.Cryptography;
 using Polar.Communication.Packets.Outgoing.Rooms.Engine;
 using Polar.Utilities;
-
 
 namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
 {
@@ -80,7 +79,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
             if (this.SetItems.Count == 0)
                 return false;
 
-
             if (this._next == 0 || this._next < PolarEnvironment.Now())
                 this._next = PolarEnvironment.Now() + this.Delay;
 
@@ -114,7 +112,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                         this.SetItems.TryRemove(Item.Id, out toRemove);
 
                     Point Point = Instance.GetGameMap().GetChaseMovement(Item);
-
                     Instance.GetWired().OnUserFurniCollision(Instance, Item);
 
                     if (!Instance.GetGameMap().ItemCanMove(Item, Point))

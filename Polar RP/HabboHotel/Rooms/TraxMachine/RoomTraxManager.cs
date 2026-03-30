@@ -4,51 +4,65 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Polar.HabboHotel.Rooms.TraxMachine
 {
     public class RoomTraxManager
     {
+        // ─────────────────────────────────────
+        //  Propiedades
+        // ─────────────────────────────────────
         public Room Room { get; private set; }
         public List<Item> Playlist { get; private set; }
-        public int Capacity = 10;
         public bool IsPlaying { get; private set; }
         public int StartedPlayTimestamp { get; private set; }
         public Item SelectedDiscItem { get; private set; }
-
         public TraxMusicData AnteriorMusic { get; private set; }
         public Item AnteriorItem { get; private set; }
 
+        // FIX: Capacity como propiedad con setter privado — no exponer mutación libre
+        public int Capacity { get; private set; } = 10;
 
-
-        DataTable dataTable;
+        // ─────────────────────────────────────
+        //  Constructor
+        // ─────────────────────────────────────
         public RoomTraxManager(Room room)
         {
             Room = room;
-            //room.OnFurnisLoad += Room_OnFurnisLoad;
-
             IsPlaying = false;
-
             StartedPlayTimestamp = 0;
-
             Playlist = new List<Item>();
-
             SelectedDiscItem = null;
-            using (var adap = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-            {
-                adap.RunQuery("SELECT * FROM room_jukebox_songs WHERE room_id = '" + Room.Id + "'");
-                dataTable = adap.getTable();
-            }
+
+            // FIX: dataTable ya no se guarda como campo — se consume aquí y se libera
+            LoadPlaylistFromDatabase();
         }
 
-        private void Room_OnFurnisLoad()
+        // ─────────────────────────────────────
+        //  Carga inicial desde BD
+        // ─────────────────────────────────────
+        private void LoadPlaylistFromDatabase()
         {
+            DataTable dataTable = null;
+
+            // FIX: query parametrizada — antes concatenaba Room.Id directamente (SQL injection)
+            using (var adap = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+            {
+                adap.SetQuery("SELECT * FROM room_jukebox_songs WHERE room_id = @roomId");
+                adap.AddParameter("roomId", Room.Id);
+                adap.RunQuery();
+                dataTable = adap.getTable();
+            }
+
+            if (dataTable == null)
+                return;
+
             foreach (DataRow row in dataTable.Rows)
             {
-                var itemid = int.Parse(row["item_id"].ToString());
-                var item = Room.GetRoomItemHandler().GetItem(itemid);
+                if (!int.TryParse(row["item_id"].ToString(), out int itemId))
+                    continue;
+
+                var item = Room.GetRoomItemHandler().GetItem(itemId);
                 if (item == null)
                     continue;
 
@@ -56,25 +70,36 @@ namespace Polar.HabboHotel.Rooms.TraxMachine
             }
         }
 
-
+        // ─────────────────────────────────────
+        //  Ciclo
+        // ─────────────────────────────────────
         public void OnCycle()
         {
-            if (IsPlaying)
+            if (!IsPlaying)
+                return;
+
+            // FIX: ActualSongData se calculaba DOS veces en el original — ahora una sola vez
+            var currentSong = ActualSongData;
+
+            if (currentSong != SelectedDiscItem)
             {
-                if (ActualSongData != SelectedDiscItem)
+                AnteriorItem = SelectedDiscItem;
+                AnteriorMusic = GetMusicByItem(SelectedDiscItem);
+                SelectedDiscItem = currentSong;
+
+                if (SelectedDiscItem == null)
                 {
-                    AnteriorItem = SelectedDiscItem;
-                    AnteriorMusic = GetMusicByItem(SelectedDiscItem);
-                    SelectedDiscItem = ActualSongData;
-                    if (SelectedDiscItem == null)
-                        StopPlayList();
-                    Room.SendMessage(new SetJukeboxNowPlayingComposer(Room));
-                    //Console.WriteLine("Jukebox on");
+                    StopPlayList();
+                    return;
                 }
 
+                Room.SendMessage(new SetJukeboxNowPlayingComposer(Room));
             }
         }
 
+        // ─────────────────────────────────────
+        //  Playlist management
+        // ─────────────────────────────────────
         public void ClearPlayList()
         {
             if (IsPlaying)
@@ -83,104 +108,16 @@ namespace Polar.HabboHotel.Rooms.TraxMachine
             Playlist.Clear();
         }
 
-        public int TimestampSinceStarted
-        {
-            get
-            {
-                return (int)PolarEnvironment.GetUnixTimestamp() - StartedPlayTimestamp;
-            }
-        }
-
-        public int TotalPlayListLength
-        {
-            get
-            {
-                int e = 0;
-                foreach (var item in Playlist)
-                {
-                    var music = TraxSoundManager.GetMusic(item.ExtradataInt);
-                    if (music == null)
-                        continue;
-
-                    e += music.Length;
-                }
-                return e;
-            }
-        }
-
-        public Item ActualSongData
-        {
-            get
-            {
-                var line = GetPlayLine().Reverse();
-                var now = TimestampSinceStarted;
-                if (now > TotalPlayListLength)
-                    return null;
-                foreach (var item in line)
-                {
-                    if (item.Key <= now)
-                        return item.Value;
-                }
-
-                //IsPlaying = false;//??
-                return null;
-            }
-        }
-
-        public int ActualSongTimePassed
-        {
-            get
-            {
-                var line = GetPlayLine();
-                int indextime = 0;
-                foreach (var music in line)
-                {
-                    if (music.Value == ActualSongData)
-                        indextime = music.Key;
-                }
-                return TimestampSinceStarted - indextime;
-            }
-        }
-
-        public Dictionary<int, Item> GetPlayLine()
-        {
-            var i = 0;
-            var e = new Dictionary<int, Item>();
-            foreach (var item in Playlist)
-            {
-                var music = GetMusicByItem(item);
-                if (music == null)
-                    continue;
-                e.Add(i, item);
-                i += music.Length;
-            }
-            return e;
-        }
-
-        public TraxMusicData GetMusicByItem(Item item)
-        {
-            return item != null ? TraxSoundManager.GetMusic(item.ExtradataInt) : null;
-        }
-
-        public int GetMusicIndex(Item item)
-        {
-            for (var i = 0; i < Playlist.Count; i++)
-            {
-                if (Playlist[i] == item)
-                    return i;
-            }
-
-            return 0;
-        }
-
         public void PlayPlaylist()
         {
             if (Playlist.Count == 0)
                 return;
+
             StartedPlayTimestamp = (int)PolarEnvironment.GetUnixTimestamp();
             SelectedDiscItem = null;
             IsPlaying = true;
-            Room.SendMessage(new SetJukeboxNowPlayingComposer(Room));//?
+
+            Room.SendMessage(new SetJukeboxNowPlayingComposer(Room));
             SetJukeboxesState();
         }
 
@@ -189,6 +126,7 @@ namespace Polar.HabboHotel.Rooms.TraxMachine
             IsPlaying = false;
             StartedPlayTimestamp = 0;
             SelectedDiscItem = null;
+
             Room.SendMessage(new SetJukeboxNowPlayingComposer(Room));
             SetJukeboxesState();
         }
@@ -204,24 +142,28 @@ namespace Polar.HabboHotel.Rooms.TraxMachine
         public void SetJukeboxesState()
         {
             foreach (var item in Room.GetRoomItemHandler().GetFloor)
+            {
                 if (item.GetBaseItem().InteractionType == InteractionType.JUKEBOX)
                 {
                     item.ExtraData = IsPlaying ? "1" : "0";
                     item.UpdateState();
                 }
+            }
         }
 
+        // ─────────────────────────────────────
+        //  Añadir / quitar discos
+        // ─────────────────────────────────────
         public bool AddDisc(Item item)
         {
+            if (item == null)
+                return false;
+
             if (item.GetBaseItem().InteractionType != InteractionType.MUSIC_DISC)
                 return false;
 
-            int musicId;
-            if (!int.TryParse(item.ExtraData, out musicId))
-                return false;
-
-            var music = TraxSoundManager.GetMusic(musicId);
-
+            // FIX: usa ExtradataInt consistentemente (antes mezclaba ExtraData string con ExtradataInt)
+            var music = TraxSoundManager.GetMusic(item.ExtradataInt);
             if (music == null)
                 return false;
 
@@ -229,6 +171,9 @@ namespace Polar.HabboHotel.Rooms.TraxMachine
                 return false;
 
             if (IsPlaying)
+                return false;
+
+            if (Playlist.Count >= Capacity)
                 return false;
 
             using (var adap = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
@@ -254,26 +199,37 @@ namespace Polar.HabboHotel.Rooms.TraxMachine
             if (IsPlaying)
                 return false;
 
+            // FIX: query parametrizada — antes concatenaba item.Id directamente (SQL injection)
             using (var adap = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                adap.RunQuery("DELETE FROM room_jukebox_songs WHERE item_id = '" + item.Id + "'");
+                adap.SetQuery("DELETE FROM room_jukebox_songs WHERE item_id = @itemId");
+                adap.AddParameter("itemId", item.Id);
+                adap.RunQuery();
             }
-            Playlist.Remove(item);
 
+            Playlist.Remove(item);
             Room.SendMessage(new SetJukeboxPlayListComposer(Room));
             Room.SendMessage(new LoadJukeboxUserMusicItemsComposer(Room));
-
             return true;
         }
 
         public bool RemoveDisc(Item item)
         {
+            if (item == null)
+                return false;
+
             return RemoveDisc(item.Id);
         }
 
+        // ─────────────────────────────────────
+        //  Helpers de consulta
+        // ─────────────────────────────────────
         public List<Item> GetAvaliableSongs()
         {
-            return Room.GetRoomItemHandler().GetFloor.Where(c => c.GetBaseItem().InteractionType == InteractionType.MUSIC_DISC && !Playlist.Contains(c)).ToList();
+            return Room.GetRoomItemHandler().GetFloor
+                .Where(c => c.GetBaseItem().InteractionType == InteractionType.MUSIC_DISC
+                         && !Playlist.Contains(c))
+                .ToList();
         }
 
         public Item GetDiscItem(int id)
@@ -285,6 +241,108 @@ namespace Polar.HabboHotel.Rooms.TraxMachine
             return null;
         }
 
+        public TraxMusicData GetMusicByItem(Item item)
+        {
+            return item != null ? TraxSoundManager.GetMusic(item.ExtradataInt) : null;
+        }
 
+        // FIX: retorna -1 cuando no se encuentra (antes retornaba 0, igual que posición 0)
+        public int GetMusicIndex(Item item)
+        {
+            for (var i = 0; i < Playlist.Count; i++)
+            {
+                if (Playlist[i] == item)
+                    return i;
+            }
+            return -1;
+        }
+
+        // ─────────────────────────────────────
+        //  Línea de tiempo de reproducción
+        // ─────────────────────────────────────
+
+        // FIX: SortedDictionary garantiza orden por key (tiempo acumulado)
+        // El Dictionary original no garantizaba orden en la iteración
+        public SortedDictionary<int, Item> GetPlayLine()
+        {
+            var result = new SortedDictionary<int, Item>();
+            int elapsed = 0;
+
+            foreach (var item in Playlist)
+            {
+                var music = GetMusicByItem(item);
+                if (music == null)
+                    continue;
+
+                result.Add(elapsed, item);
+                elapsed += music.Length;
+            }
+
+            return result;
+        }
+
+        // ─────────────────────────────────────
+        //  Propiedades calculadas de tiempo
+        // ─────────────────────────────────────
+        public int TimestampSinceStarted
+        {
+            get { return (int)PolarEnvironment.GetUnixTimestamp() - StartedPlayTimestamp; }
+        }
+
+        public int TotalPlayListLength
+        {
+            get
+            {
+                int total = 0;
+                foreach (var item in Playlist)
+                {
+                    var music = GetMusicByItem(item);
+                    if (music == null)
+                        continue;
+                    total += music.Length;
+                }
+                return total;
+            }
+        }
+
+        public Item ActualSongData
+        {
+            get
+            {
+                var now = TimestampSinceStarted;
+                if (now > TotalPlayListLength)
+                    return null;
+
+                // FIX: SortedDictionary ya viene ordenado — Reverse() es seguro
+                var line = GetPlayLine();
+                foreach (var entry in line.Reverse())
+                {
+                    if (entry.Key <= now)
+                        return entry.Value;
+                }
+
+                return null;
+            }
+        }
+
+        public int ActualSongTimePassed
+        {
+            get
+            {
+                // FIX: calcula ActualSongData una sola vez (antes se recalculaba por propiedad interna)
+                var current = ActualSongData;
+                if (current == null)
+                    return 0;
+
+                var line = GetPlayLine();
+                foreach (var entry in line)
+                {
+                    if (entry.Value == current)
+                        return TimestampSinceStarted - entry.Key;
+                }
+
+                return 0;
+            }
+        }
     }
 }

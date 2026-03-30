@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -62,8 +62,15 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                 return false;
             }
 
-            int Time = (StringData != null ? int.Parse(StringData.Split(';')[0]) : 0);
-            string Message = (StringData != null ? (StringData.Split(';')[1]) : "No message!");
+            // FIX: int.Parse reemplazado por TryParse para evitar FormatException
+            int Time = 0;
+            string Message = "No message!";
+
+            if (!string.IsNullOrEmpty(StringData) && StringData.Contains(';'))
+            {
+                int.TryParse(StringData.Split(';')[0], out Time);
+                Message = StringData.Split(';')[1];
+            }
 
             if (Time > 0)
             {

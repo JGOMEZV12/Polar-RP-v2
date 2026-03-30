@@ -1,25 +1,24 @@
 ﻿using log4net;
 using Polar.Core;
-using Polar.HabboHotel.Items;
-using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Polar.HabboHotel.Rooms.TraxMachine
 {
     public class TraxSoundManager
     {
-        public static List<TraxMusicData> Songs = new List<TraxMusicData>();
+        // FIX: Dictionary para búsqueda O(1) por Id — antes era List con foreach O(n)
+        private static Dictionary<int, TraxMusicData> _songs = new Dictionary<int, TraxMusicData>();
 
-        //public static Dictionary<int, Item> RoomsMusicItems = new Dictionary<int, Item>();
+        // FIX: readonly — este campo nunca se reasigna
+        private static readonly ILog Log = LogManager.GetLogger("Polar.HabboHotel.Rooms.TraxMachine");
 
-        private static ILog Log = LogManager.GetLogger("Polar.HabboHotel.Rooms.TraxMachine");
+        // Exposición de solo lectura para los casos que necesiten iterar la colección
+        public static IReadOnlyCollection<TraxMusicData> Songs => _songs.Values;
+
         public static void Init()
         {
-            Songs.Clear();
+            _songs.Clear();
 
             DataTable table;
             using (var adap = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
@@ -28,33 +27,34 @@ namespace Polar.HabboHotel.Rooms.TraxMachine
                 table = adap.getTable();
             }
 
-            foreach (DataRow row in table.Rows)
+            // FIX: null check — getTable() puede retornar null y reventar el foreach
+            if (table == null)
             {
-                Songs.Add(TraxMusicData.Parse(row));
-            }
-
-            /*using (var adap = DatabaseManager.GetQueryReactor())
-            {
-                adap.RunQuery("SELECT * FROM room_jukebox_songs");
-                table = adap.getTable();
+                Log.Warn("jukebox_songs_data returned a null DataTable — no songs loaded.");
+                return;
             }
 
             foreach (DataRow row in table.Rows)
             {
-                var roomid = int.Parse(row["room_id"].ToString());
-                var itemid = int.Parse(row["item_id"].ToString());
-            }*/
+                var music = TraxMusicData.Parse(row);
+                if (music == null)
+                    continue;
 
-            Log.Info("Loaded " + Songs.Count + " Jukebox Songs.");
+                // FIX: evitar duplicados por Id
+                if (!_songs.ContainsKey(music.Id))
+                    _songs.Add(music.Id, music);
+                else
+                    Log.Warn("Duplicate jukebox song Id: " + music.Id + " — skipped.");
+            }
+
+            Log.Info("Loaded " + _songs.Count + " Jukebox Songs.");
         }
 
+        // FIX: O(1) con Dictionary en lugar de O(n) con foreach sobre List
         public static TraxMusicData GetMusic(int id)
         {
-            foreach (var item in Songs)
-                if (item.Id == id)
-                    return item;
-
-            return null;
+            _songs.TryGetValue(id, out TraxMusicData music);
+            return music;
         }
     }
 }

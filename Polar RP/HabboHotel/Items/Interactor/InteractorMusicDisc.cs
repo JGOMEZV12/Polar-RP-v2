@@ -11,20 +11,19 @@ namespace Polar.HabboHotel.Items.Interactor
         public void OnRemove(GameClient Session, Item Item)
         {
             var room = Item.GetRoom();
-            var cd = Item.GetRoom().GetTraxManager().GetDiscItem(Item.Id);
+            var cd = room.GetTraxManager().GetDiscItem(Item.Id);
+
             if (cd != null)
             {
                 room.GetTraxManager().StopPlayList();
                 room.GetTraxManager().RemoveDisc(Item);
             }
-            //else
-            {
-                var Items = room.GetTraxManager().GetAvaliableSongs();
-                Items.Remove(Item);
-                room.SendMessage(new LoadJukeboxUserMusicItemsComposer(Items));
-            }
-        }
 
+            // Siempre actualizar la lista visual
+            var Items = room.GetTraxManager().GetAvaliableSongs();
+            Items.Remove(Item);
+            room.SendMessage(new LoadJukeboxUserMusicItemsComposer(Items));
+        }
         public void OnPlace(GameClient Session, Item Item)
         {
             Room room = Item.GetRoom();

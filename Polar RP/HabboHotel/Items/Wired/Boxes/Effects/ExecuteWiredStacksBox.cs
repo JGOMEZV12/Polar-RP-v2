@@ -1,16 +1,15 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Collections;
 
 using Polar.Communication.Packets.Incoming;
 using Polar.HabboHotel.Rooms;
 using Polar.HabboHotel.Users;
-using System.Collections;
-using Polar.Communication.Packets.Incoming;
 using Polar.HabboHotel.Items.Wired;
 using Polar.HabboHotel.Items;
-using Polar.HabboHotel.Rooms;
-using Polar.HabboHotel.Users;
+
+// FIX: Eliminados los using duplicados de Packets.Incoming, Rooms, Users
 
 namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
 {
@@ -102,24 +101,21 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
                 {
                     if (WiredItem.Type == WiredBoxType.EffectExecuteWiredStacks)
                         continue;
-                    else
+
+                    ICollection<IWiredItem> Effects = Instance.GetWired().GetEffects(WiredItem);
+                    if (Effects.Count > 0)
                     {
-                        ICollection<IWiredItem> Effects = Instance.GetWired().GetEffects(WiredItem);
-                        if (Effects.Count > 0)
+                        foreach (IWiredItem EffectItem in Effects.ToList())
                         {
-                            foreach (IWiredItem EffectItem in Effects.ToList())
-                            {
-                                if (SetItems.ContainsKey(EffectItem.Item.Id) && EffectItem.Item.Id != Item.Id)
-                                    continue;
-                                else if (EffectItem.Type == WiredBoxType.EffectExecuteWiredStacks)
-                                    continue;
-                                else
-                                    EffectItem.Execute(Player);
-                            }
+                            if (SetItems.ContainsKey(EffectItem.Item.Id) && EffectItem.Item.Id != Item.Id)
+                                continue;
+                            else if (EffectItem.Type == WiredBoxType.EffectExecuteWiredStacks)
+                                continue;
+                            else
+                                EffectItem.Execute(Player);
                         }
                     }
                 }
-                else continue;
             }
         }
     }

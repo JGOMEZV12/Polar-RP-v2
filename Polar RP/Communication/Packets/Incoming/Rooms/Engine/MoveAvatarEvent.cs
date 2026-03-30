@@ -93,7 +93,7 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Engine
             }
 
 
-            if (Session.GetRoleplay().IsFuelCharging || Session.GetRoleplay().IsCamLoading || Session.GetRoleplay().IsMecLoading || Session.GetRoleplay().TurfCapturing || Session.GetRoleplay().Robbery || Session.GetRoleplay().BankCapturing || Session.GetRoleplay().ATMRobbery)
+            if (Session.GetRoleplay().IsFuelCharging || Session.GetRoleplay().IsCamLoading || Session.GetRoleplay().IsMecLoading || Session.GetRoleplay().TurfCapturing || /*Session.GetRoleplay().Robbery || Session.GetRoleplay().BankCapturing || */Session.GetRoleplay().ATMRobbery)
                 Session.GetRoleplay().BreakGeneralTimer = true;
 
             if (Session.GetRoleplay().TogglingPSV)

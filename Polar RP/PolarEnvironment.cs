@@ -73,28 +73,47 @@ namespace Polar
                 return client2;
             }
         }
-        public static void SendMs(string message = "")
+        // En PolarEnvironment.cs
+       /* public static void SendMs(string message = "")
         {
-            var WebHookId = ExtraSettings.WEBHOOK_ID_COMBAT;
-            var WebHookToken = ExtraSettings.WEBHOOK_TOKEN_COMBAT;
-            string EndPoint = string.Format("https://discordapp.com/api/webhooks/{0}/{1}", WebHookId, WebHookToken);
-            var content = new StringContent(JsonConvert.SerializeObject(string.Empty), Encoding.UTF8, "application/json");
-            const string colorGreen = "80E61F";
-            const string colorPurple = "C61FE6";
-
-            var SuccessWebHook = new
+            try
             {
-                username = "⭐ Bot | HetosRP ⭐",
-                content = message,
-                avatar_url = "https://cdn.shopify.com/s/files/1/0185/5092/products/persons-0041_large.png?v=1369543932"
-            };
+                var WebHookId = ExtraSettings.WEBHOOK_ID_COMBAT;
+                var WebHookToken = ExtraSettings.WEBHOOK_TOKEN_COMBAT;
+                string EndPoint = string.Format("https://discordapp.com/api/webhooks/{0}/{1}", WebHookId, WebHookToken);
 
-            content = new StringContent(JsonConvert.SerializeObject(SuccessWebHook), Encoding.UTF8, "application/json");
+                var SuccessWebHook = new
+                {
+                    username = "⭐ Bot | HetosRP ⭐",
+                    content = message,
+                    avatar_url = "https://cdn.shopify.com/s/files/1/0185/5092/products/persons-0041_large.png?v=1369543932"
+                };
 
-            //Console.WriteLine(JsonConvert.SerializeObject(SuccessWebHook));
+                var content = new StringContent(JsonConvert.SerializeObject(SuccessWebHook), Encoding.UTF8, "application/json");
 
-            Client2.PostAsync(EndPoint, content).Wait();
-        }
+                // Usar Task.Run para evitar bloqueos y establecer timeout
+                Task.Run(async () =>
+                {
+                    using (var client = new HttpClient())
+                    {
+                        client.Timeout = TimeSpan.FromSeconds(3);
+                        await client.PostAsync(EndPoint, content);
+                    }
+                }).Wait(TimeSpan.FromSeconds(3)); // Timeout máximo de 3 segundos
+            }
+            catch (AggregateException ex)
+            {
+                // Manejar errores de timeout
+                if (ex.InnerException is TaskCanceledException)
+                    Console.WriteLine("[SendMs] Timeout al enviar a Discord");
+                else
+                    Console.WriteLine($"[SendMs] Error: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SendMs] Error: {ex.Message}");
+            }
+        }*/
         public static void SendMs2(string message = "", string imagex = "", string Desc = "", string oFooter = "", string Figure = "", bool isEmbeds = false)
         {
             var WebHookId = ExtraSettings.WEBHOOK_ID;

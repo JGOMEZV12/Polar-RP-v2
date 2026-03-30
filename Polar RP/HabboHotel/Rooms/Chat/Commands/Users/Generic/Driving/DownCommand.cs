@@ -30,7 +30,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Interactions.Self
 
         public string Description
         {
-            get { return ":bajar Permite bajarte del Vehículo donde vas de pasajero. | :bajar [pasajero] Permite bajar a alguien de tu vehículo."; }
+            get { return "Permite bajarte del Vehículo donde vas de pasajero o [pasajero] Permite bajar a alguien de tu vehículo."; }
         }
 
         public async Task Execute(GameClients.GameClient Session, Rooms.Room Room, string[] Params)

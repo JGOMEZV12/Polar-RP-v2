@@ -37,13 +37,14 @@ namespace Polar.HabboRoleplay.Weapons
         public int WLife;
         public bool isVip;
         public int BaulCar;
+        public WeaponCategory Category;
 
         #endregion
 
         /// <summary>
         /// Weapon constructor
         /// </summary>
-        public Weapon(uint ID, string Name, string PublicName, string FiringText, string EquipText, string UnEquipText, string ReloadText, int Energy, int EffectID, int HandItem, int Range, int MinDamage, int MaxDamage, int ClipSize, int ReloadTime, int Cost, int CostFine, int Stock, int LevelRequirement, bool CanUse, int totalBullets, int wLife, bool Vip, int BaulCar)
+        public Weapon(uint ID, string Name, string PublicName, string FiringText, string EquipText, string UnEquipText, string ReloadText, int Energy, int EffectID, int HandItem, int Range, int MinDamage, int MaxDamage, int ClipSize, int ReloadTime, int Cost, int CostFine, int Stock, int LevelRequirement, bool CanUse, int totalBullets, int wLife, bool Vip, int BaulCar, WeaponCategory category)
         {
             this.ID = ID;
             this.Name = Name;
@@ -72,6 +73,7 @@ namespace Polar.HabboRoleplay.Weapons
             this.WLife = wLife;
             this.isVip = Vip;
             this.BaulCar = BaulCar;
+            this.Category = category;
         }
 
         /// <summary>

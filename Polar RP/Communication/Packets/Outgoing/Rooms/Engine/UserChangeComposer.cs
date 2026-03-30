@@ -14,7 +14,6 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
 
         public RoomBot BotData { get; }
         public int VirtualId { get; }
-
         public UserChangeComposer(RoomUser User, bool Self)
             : base(ServerPacketHeader.UserChangeMessageComposer)
         {
@@ -40,6 +39,12 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                 packet.WriteString(User.GetClient().GetHabbo().Gender);
                 packet.WriteString(User.GetClient().GetHabbo().Motto);
                 packet.WriteInteger(User.GetClient().GetHabbo().GetStats().AchievementPoints);
+                packet.WriteInteger(User.GetClient().GetHabbo().BackgroundId);
+                packet.WriteInteger(User.GetClient().GetHabbo().StandId);
+                packet.WriteInteger(User.GetClient().GetHabbo().OverlayId);
+                packet.WriteBoolean(User.GetClient().GetHabbo().VIPRank > 0 ? true : false);
+                packet.WriteInteger(User.GetClient().GetRoleplay().Level);
+                packet.WriteInteger(User.GetClient().GetRoleplay().ChalecoPor);
             }
             else
             {
@@ -47,6 +52,12 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                 packet.WriteString(BotData.Look);
                 packet.WriteString(BotData.Gender);
                 packet.WriteString(BotData.Motto);
+                packet.WriteInteger(0);
+                packet.WriteInteger(0);
+                packet.WriteInteger(0);
+                packet.WriteInteger(0);
+                packet.WriteBoolean(false);
+                packet.WriteInteger(1);
                 packet.WriteInteger(0);
             }
 

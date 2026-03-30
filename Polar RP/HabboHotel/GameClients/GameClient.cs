@@ -81,17 +81,13 @@ namespace Polar.HabboHotel.GameClients
 
         private void PolicyRequest()
         {
-            _connection.SendData(PolarEnvironment.GetDefaultEncoding().GetBytes("<?xml version=\"1.0\"?>\r\n" +
+            byte[] bytes = PolarEnvironment.GetDefaultEncoding().GetBytes("<?xml version=\"1.0\"?>\r\n" +
                    "<!DOCTYPE cross-domain-policy SYSTEM \"/xml/dtds/cross-domain-policy.dtd\">\r\n" +
                    "<cross-domain-policy>\r\n" +
                    "<allow-access-from domain=\"*\" to-ports=\"1-31111\" />\r\n" +
                    "<allow-intent href=\"wss://*/*\" />\r\n" +
-                   "</cross-domain-policy>\x0"));
-        }
-
-        internal void SendNotification(string v1, string v2, string v3)
-        {
-            throw new NotImplementedException();
+                   "</cross-domain-policy>\x0");
+            _connection.SendData(bytes, 0, bytes.Length);
         }
 
         /*public void StartConnection()
@@ -160,42 +156,52 @@ namespace Polar.HabboHotel.GameClients
                 #region Roleplay Data
                 using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                 {
-                    dbClient.SetQuery("SELECT `id` FROM `rp_products_owned` WHERE `product_id` = '" + RoleplayManager.BidonID + "' AND `user_id` = '" + userData.userID + "' LIMIT 1");
-                    if (dbClient.getRow() == null)
-                        dbClient.RunQuery("INSERT INTO `rp_products_owned` (`product_id`,`user_id`,`extradata`) VALUES ('" + RoleplayManager.BidonID + "', '" + userData.userID + "', '0')");
-
-                    dbClient.SetQuery("SELECT `id` FROM `rp_products_owned` WHERE `product_id` = '" + RoleplayManager.MecPartsID + "' AND `user_id` = '" + userData.userID + "' LIMIT 1");
-                    if (dbClient.getRow() == null)
-                        dbClient.RunQuery("INSERT INTO `rp_products_owned` (`product_id`,`user_id`,`extradata`) VALUES ('" + RoleplayManager.MecPartsID + "', '" + userData.userID + "', '0')");
-
-                    dbClient.SetQuery("SELECT `id` FROM `rp_products_owned` WHERE `product_id` = '" + RoleplayManager.ArmMatID + "' AND `user_id` = '" + userData.userID + "' LIMIT 1");
-                    if (dbClient.getRow() == null)
-                        dbClient.RunQuery("INSERT INTO `rp_products_owned` (`product_id`,`user_id`,`extradata`) VALUES ('" + RoleplayManager.ArmMatID + "', '" + userData.userID + "', '0')");
-
-                    dbClient.SetQuery("SELECT `id` FROM `rp_products_owned` WHERE `product_id` = '" + RoleplayManager.ArmPiecesID + "' AND `user_id` = '" + userData.userID + "' LIMIT 1");
-                    if (dbClient.getRow() == null)
-                        dbClient.RunQuery("INSERT INTO `rp_products_owned` (`product_id`,`user_id`,`extradata`) VALUES ('" + RoleplayManager.ArmPiecesID + "', '" + userData.userID + "', '0')");
+                    // FIX: INSERT IGNORE elimina las 8 queries (4 SELECT + 4 INSERT condicional) → 1 sola query
+                    // FIX: parámetros en lugar de concatenación directa (seguridad + consistencia)
+                    dbClient.SetQuery(
+                        "INSERT IGNORE INTO `rp_products_owned` (`product_id`,`user_id`,`extradata`) VALUES " +
+                        "(@bid,@uid,'0'),(@mid,@uid,'0'),(@amid,@uid,'0'),(@apid,@uid,'0')");
+                    dbClient.AddParameter("bid",  RoleplayManager.BidonID);
+                    dbClient.AddParameter("mid",  RoleplayManager.MecPartsID);
+                    dbClient.AddParameter("amid", RoleplayManager.ArmMatID);
+                    dbClient.AddParameter("apid", RoleplayManager.ArmPiecesID);
+                    dbClient.AddParameter("uid",  userData.userID);
+                    dbClient.RunQuery();
                     
-                    dbClient.SetQuery("SELECT * FROM `rp_stats` WHERE `id` = '" + userData.userID + "' LIMIT 1");
+                    // FIX: parámetros en lugar de concatenación directa
+                    dbClient.SetQuery("SELECT * FROM `rp_stats` WHERE `id` = @uid LIMIT 1");
+                    dbClient.AddParameter("uid", userData.userID);
                     DataRow UserRPRow = dbClient.getRow();
 
-                    dbClient.SetQuery("SELECT * FROM `rp_stats_cooldowns` WHERE `id` = '" + userData.userID + "' LIMIT 1");
+                    dbClient.SetQuery("SELECT * FROM `rp_stats_cooldowns` WHERE `id` = @uid LIMIT 1");
+                    dbClient.AddParameter("uid", userData.userID);
                     DataRow UserRPCooldowns = dbClient.getRow();
 
                     if (UserRPCooldowns == null)
                     {
-                        dbClient.RunQuery("INSERT INTO `rp_stats_cooldowns` (`id`) VALUES ('" + userData.userID + "')");
-                        dbClient.SetQuery("SELECT * FROM `rp_stats_cooldowns` WHERE `id` = '" + userData.userID + "' LIMIT 1");
+                        // ✅ SetQuery primero, luego parámetro, luego ejecutar
+                        dbClient.SetQuery("INSERT INTO `rp_stats_cooldowns` (`id`) VALUES (@uid)");
+                        dbClient.AddParameter("uid", userData.userID);
+                        dbClient.RunQuery();
+
+                        dbClient.SetQuery("SELECT * FROM `rp_stats_cooldowns` WHERE `id` = @uid LIMIT 1");
+                        dbClient.AddParameter("uid", userData.userID);
                         UserRPCooldowns = dbClient.getRow();
                     }
 
-                    dbClient.SetQuery("SELECT * FROM `rp_stats_farming` WHERE `id` = '" + userData.userID + "' LIMIT 1");
+                    dbClient.SetQuery("SELECT * FROM `rp_stats_farming` WHERE `id` = @uid LIMIT 1");
+                    dbClient.AddParameter("uid", userData.userID);
                     DataRow UserRPFarming = dbClient.getRow();
 
                     if (UserRPFarming == null)
                     {
-                        dbClient.RunQuery("INSERT INTO `rp_stats_farming` (`id`) VALUES ('" + userData.userID + "')");
-                        dbClient.SetQuery("SELECT * FROM `rp_stats_farming` WHERE `id` = '" + userData.userID + "' LIMIT 1");
+                        // ✅ igual aquí
+                        dbClient.SetQuery("INSERT INTO `rp_stats_farming` (`id`) VALUES (@uid)");
+                        dbClient.AddParameter("uid", userData.userID);
+                        dbClient.RunQuery();
+
+                        dbClient.SetQuery("SELECT * FROM `rp_stats_farming` WHERE `id` = @uid LIMIT 1");
+                        dbClient.AddParameter("uid", userData.userID);
                         UserRPFarming = dbClient.getRow();
                     }
 
@@ -233,7 +239,7 @@ namespace Polar.HabboHotel.GameClients
                     }
                     SendMessage(new AuthenticationOKComposer());
                     SendMessage(new AvatarEffectsComposer(_habbo.Effects().GetAllEffects));
-                    //SendMessage(new NavigatorSettingsComposer(_habbo.HomeRoom));
+                    SendMessage(new NavigatorSettingsComposer(_habbo.HomeRoom));
                     SendMessage(new RoomForwardComposer(GetHabbo().HomeRoom == 0 ? 1 : GetHabbo().HomeRoom));
                     //SendMessage(new RoomForwardComposer(_habbo.HomeRoom == 0 ? 1 : _habbo.HomeRoom));
 
@@ -315,10 +321,13 @@ namespace Polar.HabboHotel.GameClients
                     _habbo.InitSearches();
                     this.AuthTicket = AuthTicket;
 
-                   
+
 
                     if (GetRoleplay().OriginalOutfit == null)
+                    {
                         GetRoleplay().OriginalOutfit = GetHabbo().Look;
+                        GetRoleplay().OriginalMotto = GetHabbo().Motto;
+                    }
 
                     DeathCheck(this);
                     CuffCheck(this);
@@ -356,7 +365,7 @@ namespace Polar.HabboHotel.GameClients
             else
             {
                 //Client.SendMessage(new BroadcastMessageAlertComposer("¡Los WebSockets NO. conectaron!\nEstos son necesarios para que pueas visualizar Ventanas Roleplay, tus stats, y muchas más herramientas dentro del servidor.\nIntenta reiniciar el Client para intentar reconectar.\nSi el problema persiste, asegurate de no teneer algún programa externo que lo bloquee."));
-                SocketConnection(Client);
+                //SocketConnection(Client);
                 Logging.WriteLine(Client.GetHabbo().Username + " se ha conectado. (+WS)", ConsoleColor.DarkGreen);
             }
         }
@@ -391,7 +400,8 @@ namespace Polar.HabboHotel.GameClients
             if (!Client.GetRoleplay().IsDead)
                 return;
 
-            string MyCity = "heticosrp";
+            // FIX: ciudad desde config en lugar de hardcodeada
+            string MyCity = PolarEnvironment.GetConfig().data.ContainsKey("roleplay.city") ? PolarEnvironment.GetConfig().data["roleplay.city"] : "heticosrp";
 
             HabboRoleplay.RPRoom.RPRoom Data;
             int HospitalRID = PolarEnvironment.GetGame().GetRPRoomManager().TryToGetHospital(MyCity, out Data);
@@ -432,7 +442,8 @@ namespace Polar.HabboHotel.GameClients
                 Client.GetRoleplay().WantedTimeLeft = 0;
             }
 
-            string MyCity = "heticosrp";
+            // FIX: ciudad desde config en lugar de hardcodeada
+            string MyCity = PolarEnvironment.GetConfig().data.ContainsKey("roleplay.city") ? PolarEnvironment.GetConfig().data["roleplay.city"] : "heticosrp";
 
             HabboRoleplay.RPRoom.RPRoom Data;
             int ToRoomId = PolarEnvironment.GetGame().GetRPRoomManager().TryToGetJail(MyCity, out Data);
@@ -524,16 +535,16 @@ namespace Polar.HabboHotel.GameClients
         }
         #endregion
 
-        public void SendWhisper(string Message, int Colour = 0)
+        public void SendWhisper(string Message, int Bubble = 0, string Colour = "black")
         {
-            if (this == null || GetHabbo() == null || GetHabbo().CurrentRoom == null)
+            if (GetHabbo() == null || GetHabbo().CurrentRoom == null)
                 return;
 
             RoomUser User = GetHabbo().CurrentRoom.GetRoomUserManager().GetRoomUserByHabbo(GetHabbo().Id);
             if (User == null)
                 return;
 
-            SendMessage(new WhisperComposer(User.VirtualId, Message, 0, (Colour == 0 ? User.LastBubble : Colour)));
+            SendMessage(new WhisperComposer(User.VirtualId, Message, 0, (Bubble == 0 ? User.LastBubble : Bubble), Colour));
         }
 
         internal void SendNotifWithScroll(string Message)
@@ -552,15 +563,15 @@ namespace Polar.HabboHotel.GameClients
 
         public void SendMessage(IServerPacket Message)
         {
-            byte[] bytes = Message.GetBytes();
-
+            // FIX: null check antes de llamar GetBytes() — antes crasheaba si Message era null
             if (Message == null)
                 return;
 
             if (GetConnection() == null)
                 return;
 
-            GetConnection().SendData(bytes);
+            byte[] bytes = Message.GetBytes();
+            GetConnection().SendData(bytes, 0, bytes.Length);
         }
 
         public void SendSimple(int result, string message)
@@ -600,7 +611,7 @@ namespace Polar.HabboHotel.GameClients
             RoomUser RUser = null;
             try
             {
-                if (this == null || GetHabbo() == null || GetHabbo().CurrentRoom == null)
+                if (GetHabbo() == null || GetHabbo().CurrentRoom == null)
                     return null;
 
                 RUser = GetHabbo().CurrentRoom.GetRoomUserManager().GetRoomUserByHabbo(GetHabbo().Id);
@@ -615,10 +626,12 @@ namespace Polar.HabboHotel.GameClients
 
         public void Disconnect(bool ForcedDisconnect)
         {
-            if (LoggingOut)
-                return;
-
+            if (LoggingOut) return;
             LoggingOut = true;
+
+            // ← AGREGAR ESTA LÍNEA:
+            PolarEnvironment.GetGame()?.GetWebEventManager()
+                ?.CloseSocketByGameClient(GetHabbo()?.Id ?? 0);
 
             if (!_disconnected)
             {
@@ -627,6 +640,7 @@ namespace Polar.HabboHotel.GameClients
                 _disconnected = true;
             }
         }
+        
 
 
         /* public void Disconnect(bool ForcedDisconnect)
@@ -771,7 +785,7 @@ namespace Polar.HabboHotel.GameClients
                 if (GetHabbo() != null)
                 GetHabbo().OnDisconnect();
 
-            PolarEnvironment.GetGame().GetClientManager().removeConnection(ClientId);
+            // FIX: el manager llama Dispose — el objeto no debe removerse a sí mismo del manager
             this.MachineId = string.Empty;
             if (!_disconnected)
             {

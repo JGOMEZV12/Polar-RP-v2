@@ -49,6 +49,10 @@ namespace Polar.HabboHotel.Subscriptions
         }
         internal void TimeExpired(string SubscriptionId, int DurationSeconds, GameClient Session)
         {
+            // Add null check for Session and Habbo
+            if (Session?.GetHabbo() == null)
+                return;
+
             // Declare two dates
             var prevDate = new DateTime(1970, 1, 1).AddSeconds(DurationSeconds).ToLocalTime();
             var today = DateTime.Now;
@@ -56,19 +60,33 @@ namespace Polar.HabboHotel.Subscriptions
             //get difference of two dates
             var diffOfDates = prevDate - today;
 
-            //Console.WriteLine(diffOfDates.Days);
-            if(diffOfDates.Days == 0)
+            if (diffOfDates.Days == 0)
             {
-                using (var dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor()) {
+                using (var dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+                {
                     dbClient.RunQuery("UPDATE `users` SET `rank_vip` = '0', `colour` = '' WHERE `id` = '" + Session.GetHabbo().Id + "'");
                     dbClient.RunQuery("DELETE FROM `user_subscriptions` WHERE `user_id` = '" + Session.GetHabbo().Id + "'");
                 }
+
                 ReloadSubscription(Session);
                 Session.GetHabbo().VIPRank = 0;
                 Session.GetHabbo().Colour = "";
-                Session.SendMessage(new UserNameChangeComposer(Session.GetRoomUser().GetRoom().Id, Session.GetRoomUser().VirtualId, Session.GetHabbo().Username));
-                Session.GetRoleplay().MaxHealth = Session.GetRoleplay().MaxHealth - 150;
-                Session.GetRoleplay().MaxEnergy = Session.GetRoleplay().MaxEnergy - 150;
+
+                // Add null check for room user
+                var roomUser = Session.GetRoomUser();
+                if (roomUser?.GetRoom() != null)
+                {
+                    Session.SendMessage(new UserNameChangeComposer(Session.GetRoomUser().GetRoom().Id, Session.GetRoomUser().VirtualId, Session.GetHabbo().Username));
+                }
+
+                // Add null check for roleplay
+                var roleplay = Session.GetRoleplay();
+                if (roleplay != null)
+                {
+                    Session.GetRoleplay().MaxHealth = Session.GetRoleplay().MaxHealth - 150;
+                    Session.GetRoleplay().MaxEnergy = Session.GetRoleplay().MaxEnergy - 150;
+                }
+
                 Session.GetHabbo().GetPermissions().Init(Session.GetHabbo());
                 Session.SendMessage(new ScrSendUserInfoComposer(Session.GetHabbo()));
                 PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Session, "event_purse", "hc");

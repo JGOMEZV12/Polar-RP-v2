@@ -58,25 +58,13 @@ namespace Polar.HabboRoleplay.Bots.Types
 
         }
 
+        // FIX Bug 4: OnAttacked simplificado — CreateTimer ya maneja deduplicación
         public override void OnAttacked(GameClient Client)
         {
-
             GetBotRoleplay().UserAttacking = Client;
-
-            if (!GetBotRoleplay().ActiveTimers.ContainsKey("attack"))
-            {
-
-                GetBotRoleplay().ActiveTimers.TryAdd("attack", GetBotRoleplay().TimerManager.CreateTimer("attack", GetBotRoleplay(), 10, true, Client.GetHabbo().Id));
-
-                if (GetBotRoleplay().UserAttacking == null)
-                    GetRoomUser().Chat("Bastarto, te voy agarrar y te daré una paliza " + Client.GetHabbo().Username + "!", true, 4);
-            }
-            else
-            {
-                if (GetBotRoleplay().ActiveTimers["attack"] == null)
-                    GetBotRoleplay().ActiveTimers["attack"] = GetBotRoleplay().TimerManager.CreateTimer("attack", GetBotRoleplay(), 10, true, Client.GetHabbo().Id);
-            }
-
+            GetBotRoleplay().TimerManager.CreateTimer("attack", GetBotRoleplay(), 10, true, Client.GetHabbo().Id);
+            if (GetBotRoleplay().UserAttacking == null)
+                GetRoomUser().Chat("Bastarto, te voy agarrar y te daré una paliza " + Client.GetHabbo().Username + "!", true, 4);
         }
 
         public override void OnUserLeaveRoom(GameClient Client)

@@ -184,7 +184,7 @@ namespace Polar.HabboRoleplay.Bots.Manager.TimerHandlers.Types
 
                     if (Odds == Odds2)
                     {
-                        RoleplayBot.Chat("*Golpea a " + Client.GetHabbo().Username + ", pero falla*", true, 6);
+                        RoleplayBot.Chat("*" + (RoleplayBot.GetBotRoleplay().IsPet ? "Ataca" : "Golpea") + " a " + Client.GetHabbo().Username + ", pero falla*", true, 6);
                         RoleplayBot.GetBotRoleplay().CooldownManager.CreateCooldown("fist", 1000, 3);
                     }
                 }
@@ -209,7 +209,7 @@ namespace Polar.HabboRoleplay.Bots.Manager.TimerHandlers.Types
             if ((Client.GetRoleplay().CurHealth - Damage) <= 0)
             {
                 Client.GetRoleplay().CurHealth = 0;
-                RoleplayBot.Chat("*Golpea a " + Client.GetHabbo().Username + ", noqueandolo*", true, 6);
+                RoleplayBot.Chat("*" + (RoleplayBot.GetBotRoleplay().IsPet ? "Ataca" : "Golpea") + " a " + Client.GetHabbo().Username + ", noqueandolo*", true, 6);
                 Died = true;
 
                 if (!this.FindNewTarget())
@@ -218,7 +218,7 @@ namespace Polar.HabboRoleplay.Bots.Manager.TimerHandlers.Types
             else
             {
                 Client.GetRoleplay().CurHealth -= Damage;
-                RoleplayBot.Chat("*Golpea a " + Client.GetHabbo().Username + ", causando " + Damage + " de daño*", true, 6);
+                RoleplayBot.Chat("*" + (RoleplayBot.GetBotRoleplay().IsPet ? "Ataca" : "Golpea") + " a " + Client.GetHabbo().Username + ", causando " + Damage + " de daño*", true, 6);
             }
 
             RoleplayBot.GetBotRoleplay().CooldownManager.CreateCooldown("fist", 1000, 3);

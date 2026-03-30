@@ -1,10 +1,5 @@
-﻿using System;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Fleck;
-using Polar.HabboHotel.Items;
+using ConnectionManager;
+using Polar.Net;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Rooms;
 using System.IO;
@@ -39,7 +34,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -95,7 +90,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         string SendData = "";
                         SendData += CarFuel + ";";
                         SendData += CarMaxFuel + ";";
-                        Socket.Send("compose_fuel|open|" + SendData);
+                        Socket.SendWS( "compose_fuel|open|" + SendData);
                     }
                     break;
                 #endregion
@@ -103,7 +98,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Close
                 case "close":
                     {
-                        Socket.Send("compose_fuel|close|");
+                        Socket.SendWS( "compose_fuel|close|");
                         break;
                     }
                 #endregion
@@ -114,7 +109,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         Client.GetRoleplay().ViewBaul = true;
                         string SendData = "";
                         SendData += Client.GetRoleplay().CarWSBaul + ";";
-                        Socket.Send("compose_vehicle|baul|" + SendData);
+                        Socket.SendWS( "compose_vehicle|baul|" + SendData);
                         break;
                     }
                 #endregion
@@ -124,7 +119,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                     {
                         Client.GetRoleplay().ViewBaul = false;
                         Client.GetRoleplay().CarWSBaul = "";
-                        Socket.Send("compose_vehicle|closebaul|");
+                        Socket.SendWS( "compose_vehicle|closebaul|");
                         break;
                     }
                 #endregion
@@ -147,7 +142,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         }
                         #endregion
 
-                        #region Comodin Conditions
+                       /* #region Comodin Conditions
                         Item BTile = null;
                         BTile = Room.GetRoomItemHandler().GetFloor.FirstOrDefault(x => x.GetBaseItem().ItemName.ToLower() == "comodin_carro" && x.Coordinate == Client.GetRoomUser().Coordinate);
                         if (BTile == null)
@@ -155,7 +150,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             Client.SendWhisper("Debes acercarte a un despacho para comprar un vehículo.", 1);
                             return;
                         }
-                        #endregion
+                        #endregion*/
                         #endregion
 
                         Client.GetRoleplay().ViewCarList = true;
@@ -191,7 +186,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         string SendData = "";
                         SendData += html;
-                        Socket.Send("compose_vehicle|openshop|" + SendData);
+                        Socket.SendWS( "compose_vehicle|openshop|" + SendData);
                         Client.GetRoleplay().CooldownManager.CreateCooldown("openshopcar", 1000, 1);
                         break;
                     }
@@ -201,7 +196,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 case "closeshop":
                     {
                         Client.GetRoleplay().ViewCarList = false;
-                        Socket.Send("compose_vehicle|closeshop|");
+                        Socket.SendWS( "compose_vehicle|closeshop|");
                         break;
                     }
                 #endregion
@@ -224,7 +219,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         }
                         #endregion
 
-                        #region Comodin Conditions
+                        /*#region Comodin Conditions
                         Item BTile = null;
                         BTile = Room.GetRoomItemHandler().GetFloor.FirstOrDefault(x => x.GetBaseItem().ItemName.ToLower() == "comodin_carro" && x.Coordinate == Client.GetRoomUser().Coordinate);
                         if (BTile == null)
@@ -232,11 +227,11 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             Client.SendWhisper("Debes acercarte a un despacho para comprar un vehículo.", 1);
                             return;
                         }
-                        #endregion
+                        #endregion*/
 
                         if (Client.GetRoleplay().DrivingInCar)
                         {
-                            Socket.Send("compose_vehicle|shopmsg|Primero debes detener el vehículo que tienes afuera.");
+                            Socket.SendWS( "compose_vehicle|shopmsg|Primero debes detener el vehículo que tienes afuera.");
                             return;
                         }
                         if (Client.GetRoleplay().InTutorial && Client.GetRoleplay().TutorialStep < 23)
@@ -250,7 +245,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         string GetCarModel = ReceivedData[2];
                         if (!int.TryParse(ReceivedData[1], out GetEffect))
                         {
-                            Socket.Send("compose_vehicle|shopmsg|Ha ocurrido un problema al obtener la Información del Vehículo.");
+                            Socket.SendWS( "compose_vehicle|shopmsg|Ha ocurrido un problema al obtener la Información del Vehículo.");
                             return;
                         }
                         GetCarModel = Regex.Replace(GetCarModel, "<(.|\\n)*?>", string.Empty);
@@ -258,14 +253,14 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         Vehicle vehicle = VehicleManager.getVehicle(GetCarModel);
                         if (vehicle == null)
                         {
-                            Socket.Send("compose_vehicle|shopmsg|Ha ocurrido un problema al obtener la Información del Vehículo. [2]");
+                            Socket.SendWS( "compose_vehicle|shopmsg|Ha ocurrido un problema al obtener la Información del Vehículo. [2]");
                             return;
                         }
                         if (vehicle.Price > 100)
                         {
                             if (Client.GetHabbo().Credits < vehicle.Price)
                             {
-                                Socket.Send("compose_vehicle|shopmsg|No tienes dinero suficiente para comprar ese vehículo.");
+                                Socket.SendWS( "compose_vehicle|shopmsg|No tienes dinero suficiente para comprar ese vehículo.");
                                 return;
                             }
                         }
@@ -273,7 +268,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         {
                             if (Client.GetHabbo().Diamonds < vehicle.Price)
                             {
-                                Socket.Send("compose_vehicle|shopmsg|No tienes los Rubies suficientes para comprar ese vehículo.");
+                                Socket.SendWS( "compose_vehicle|shopmsg|No tienes los Rubies suficientes para comprar ese vehículo.");
                                 return;
                             }
                         }
@@ -287,7 +282,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (MyCars >= 2)
                         {
-                            Socket.Send("compose_vehicle|shopmsg|¡Ya tienes " + MyCars + " Vehículos! Usuarios VIP pueden tener más de dos.");
+                            Socket.SendWS( "compose_vehicle|shopmsg|¡Ya tienes " + MyCars + " Vehículos! Usuarios VIP pueden tener más de dos.");
                             #region Tutorial Step Check
                             if (Client.GetRoleplay().TutorialStep == 23 && Room.BuyCarEnabled && Room.Type.Equals("public"))
                             {
@@ -299,7 +294,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         }
                         /*else if (MyCars >= 3 && Client.GetHabbo().VIPRank != 1)
                         {
-                            Socket.Send("compose_vehicle|shopmsg|¡Ya tienes "+MyCars+" Vehículos! Usuarios VIP pueden tener hasta 4 autos.");
+                            Socket.SendWS( "compose_vehicle|shopmsg|¡Ya tienes "+MyCars+" Vehículos! Usuarios VIP pueden tener hasta 4 autos.");
                             #region Tutorial Step Check
                             if (Client.GetRoleplay().TutorialStep == 23 && Room.BuyCarEnabled && Room.Type.Equals("public"))
                             {
@@ -311,7 +306,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         }
                         else if (MyCars >= 4)
                         {
-                            Socket.Send("compose_vehicle|shopmsg|¡Ya tienes " + MyCars + " Vehículos! Solo es posible tener hasta 4 autos.");
+                            Socket.SendWS( "compose_vehicle|shopmsg|¡Ya tienes " + MyCars + " Vehículos! Solo es posible tener hasta 4 autos.");
                             #region Tutorial Step Check
                             if (Client.GetRoleplay().TutorialStep == 23 && Room.BuyCarEnabled && Room.Type.Equals("public"))
                             {
@@ -327,7 +322,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         VehiclesOwned nVO = null;
                         if (!PolarEnvironment.GetGame().GetVehiclesOwnedManager().TryCreateVehicleOwned(Client, 0, vehicle.ItemID, Client.GetHabbo().Id, Client.GetHabbo().Id, vehicle.Model, vehicle.MaxFuel, 0, 0, false, false, Client.GetRoomUser().RoomId, 0, 0, 0, string.Empty.ToString().Split(';'), false, out nVO))
                         {
-                            Socket.Send("compose_vehicle|shopmsg|No se pudo autorizar el registro de papeles para tu nuevo vehículo. Inténtalo de nuevo.");
+                            Socket.SendWS( "compose_vehicle|shopmsg|No se pudo autorizar el registro de papeles para tu nuevo vehículo. Inténtalo de nuevo.");
                             return;
                         }
 
@@ -365,7 +360,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         }
 
                         Client.SendWhisper("¡Tu vehículo se encuentra estacionado afuera! Sal del Establecimiento para conducirlo.", 1);
-                        Socket.Send("compose_vehicle|shopmsg_green|¡Felicitaciones! Tu nuevo vehículo se encuentra afuera.");
+                        Socket.SendWS( "compose_vehicle|shopmsg_green|¡Felicitaciones! Tu nuevo vehículo se encuentra afuera.");
                         Client.GetRoleplay().CooldownManager.CreateCooldown("buy", 1000, 15);
                         #region Tutorial Step Check
                         if (Client.GetRoleplay().TutorialStep == 23 && Room.BuyCarEnabled && Room.Type.Equals("public"))
@@ -381,5 +376,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

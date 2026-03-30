@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections;
@@ -58,7 +58,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
             if (this._next == 0 || this._next < DateTime.UtcNow.Ticks)
                 this._next = DateTime.UtcNow.Ticks + this.Delay;
 
-
             this.Requested = true;
             this.TickCount = Delay;
             return true;
@@ -88,10 +87,8 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                 }
 
                 Requested = false;
-
                 this._next = 0;
                 this.TickCount = Delay;
-        
             }
             return true;
         }

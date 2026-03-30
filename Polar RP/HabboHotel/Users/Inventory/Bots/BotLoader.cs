@@ -1,36 +1,38 @@
-﻿using System;
-using System.Linq;
-using System.Text;
+using System;
 using System.Data;
 using System.Collections.Generic;
-
 using Polar.Database.Interfaces;
-
 
 namespace Polar.HabboHotel.Users.Inventory.Bots
 {
-    class BotLoader
+    internal static class BotLoader
     {
-        public static List<Bot> GetBotsForUser(int UserId)
+        public static List<Bot> GetBotsForUser(int userId)
         {
-            List<Bot> B = new List<Bot>();
+            var bots = new List<Bot>();
 
-            DataTable dBots = null;
-            using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+            using IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor();
+            dbClient.SetQuery(
+                "SELECT `id`,`user_id`,`name`,`motto`,`look`,`gender` " +
+                "FROM `bots` " +
+                "WHERE `user_id` = @uid AND `room_id` = '0' AND `ai_type` != 'pet'");
+            dbClient.AddParameter("uid", userId);
+
+            DataTable table = dbClient.getTable();
+            if (table == null) return bots;
+
+            foreach (DataRow row in table.Rows)
             {
-                dbClient.SetQuery("SELECT `id`,`user_id`,`name`,`motto`,`look`,`gender`FROM `bots` WHERE `user_id` = '" + UserId + "' AND `room_id` = '0' AND `ai_type` != 'pet'");
-                dBots = dbClient.getTable();
-
-                if (dBots != null)
-                {
-                    foreach (DataRow dRow in dBots.Rows)
-                    {
-                        B.Add(new Bot(Convert.ToInt32(dRow["id"]), Convert.ToInt32(dRow["user_id"]), Convert.ToString(dRow["name"]), 
-                            Convert.ToString(dRow["motto"]),  Convert.ToString(dRow["look"]), Convert.ToString(dRow["gender"])));
-                    }
-                }
+                bots.Add(new Bot(
+                    Convert.ToInt32(row["id"]),
+                    Convert.ToInt32(row["user_id"]),
+                    Convert.ToString(row["name"]),
+                    Convert.ToString(row["motto"]),
+                    Convert.ToString(row["look"]),
+                    Convert.ToString(row["gender"])));
             }
-            return B;
+
+            return bots;
         }
     }
 }

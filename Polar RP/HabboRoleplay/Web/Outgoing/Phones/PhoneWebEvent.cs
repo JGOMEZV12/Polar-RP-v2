@@ -1,24 +1,15 @@
+using ConnectionManager;
 ﻿using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using Fleck;
 using Polar.HabboHotel.Items;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Rooms;
 using System.IO;
 using Polar.HabboRoleplay.Misc;
-using Polar.Communication.Packets.Incoming.Groups;
-using Polar.Communication.Packets.Outgoing;
-using Polar.Communication.Packets.Incoming;
-using Polar.Communication.Packets.Outgoing.Groups;
-using Polar.Communication.Packets.Outgoing.Catalog;
-using Polar.Communication.Packets.Outgoing.Messenger;
-using System.Collections.Generic;
-using Polar.HabboHotel.Groups;
-using Polar.HabboHotel.Cache;
-using Polar.Communication.Packets.Outgoing.Rooms.Permissions;
+using Polar.Net;
 using Polar.Database.Interfaces;
 using System.Text.RegularExpressions;
 using Polar.Communication.Packets.Outgoing.Rooms.Notifications;
@@ -50,7 +41,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -84,7 +75,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 case "close_shop":
                     {
                         Client.GetRoleplay().ViewShopPhones = false;
-                        Socket.Send("compose_phone|close_shop|");
+                        Socket.SendWS( "compose_phone|close_shop|");
                     }
                     break;
                 #endregion
@@ -108,12 +99,12 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         #region Comodin Conditions
                         Item BTile = null;
-                        BTile = Room.GetRoomItemHandler().GetFloor.FirstOrDefault(x => x.GetBaseItem().ItemName.ToLower() == "comodin_carro" && x.Coordinate == Client.GetRoomUser().Coordinate);
+                        /*BTile = Room.GetRoomItemHandler().GetFloor.FirstOrDefault(x => x.GetBaseItem().ItemName.ToLower() == "comodin_carro" && x.Coordinate == Client.GetRoomUser().Coordinate);
                         if (BTile == null)
                         {
                             Client.SendWhisper("Debes acercarte al mostrador para comprar un teléfono.", 1);
                             return;
-                        }
+                        }*/
                         if (Client.GetRoleplay().InTutorial && Client.GetRoleplay().TutorialStep < 18)
                         {
                             Client.SendWhisper("¡Hey, no tan rápido! Ve siguiendo el Tutorial paso a paso para guiarte de la mejor manera.", 1);
@@ -127,7 +118,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         string GetPhoneModel = ReceivedData[2];
                         if (!int.TryParse(ReceivedData[1], out GetPhoneID))
                         {
-                            Socket.Send("compose_phone|shopmsg|Ha ocurrido un problema al obtener la Información del Teléfono.");
+                            Socket.SendWS( "compose_phone|shopmsg|Ha ocurrido un problema al obtener la Información del Teléfono.");
                             return;
                         }
                         GetPhoneModel = Regex.Replace(GetPhoneModel, "<(.|\\n)*?>", string.Empty);
@@ -135,13 +126,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         Phone phone = PhoneManager.getPhone(GetPhoneModel);
                         if (phone == null)
                         {
-                            Socket.Send("compose_phone|shopmsg|Ha ocurrido un problema al obtener la Información del Teléfono. [2]");
+                            Socket.SendWS( "compose_phone|shopmsg|Ha ocurrido un problema al obtener la Información del Teléfono. [2]");
                             return;
                         }
                         
                         if (Client.GetRoleplay().PhoneModelId == phone.ID)
                         {
-                            Socket.Send("compose_phone|shopmsg|¡Ya tienes comprado ese teléfono!");
+                            Socket.SendWS( "compose_phone|shopmsg|¡Ya tienes comprado ese teléfono!");
 
                             #region Tutorial Step Check
                             if (Client.GetRoleplay().TutorialStep == 18 && Room.PhoneStoreEnabled && Room.Type.Equals("public"))
@@ -155,7 +146,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (Client.GetHabbo().Credits < phone.Price)
                         {
-                            Socket.Send("compose_phone|shopmsg|No tienes dinero suficiente.");
+                            Socket.SendWS( "compose_phone|shopmsg|No tienes dinero suficiente.");
                             return;
                         }
                         #endregion
@@ -172,7 +163,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             PhonesOwned nPO;
                             if (!PolarEnvironment.GetGame().GetPhonesOwnedManager().TryCreatePhoneOwned(Client, phone.ID, Client.GetHabbo().Id, NewNumber, out nPO))
                             {
-                                Socket.Send("compose_phone|shopmsg|No se pudo autorizar el registro de papeles para tu nuevo teléfono. Inténtalo de nuevo.");
+                                Socket.SendWS( "compose_phone|shopmsg|No se pudo autorizar el registro de papeles para tu nuevo teléfono. Inténtalo de nuevo.");
                                 return;
                             }
 
@@ -185,7 +176,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             PhonesOwned nPO;
                             if (!PolarEnvironment.GetGame().GetPhonesOwnedManager().UpdatePhoneOwner(Client, phone.ID, true, out nPO))
                             {
-                                Socket.Send("compose_phone|shopmsg|No se pudo autorizar el registro de papeles para tu nuevo teléfono. Inténtalo de nuevo. [2]");
+                                Socket.SendWS( "compose_phone|shopmsg|No se pudo autorizar el registro de papeles para tu nuevo teléfono. Inténtalo de nuevo. [2]");
                                 return;
                             }
                         }
@@ -197,7 +188,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         Client.SendWhisper("Ahora podrás agregar contactos, enviar mensajes y realizar llamadas.", 1);
                         Client.SendWhisper(NumberInfo, 1);
 
-                        Socket.Send("compose_phone|shopmsg_green|¡Has comprado un teléfono nuevo!");
+                        Socket.SendWS( "compose_phone|shopmsg_green|¡Has comprado un teléfono nuevo!");
                         PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_phone", "load_apps");
                         PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_phone", "show_button");
                         Client.GetRoleplay().CooldownManager.CreateCooldown("buy", 1000, 5);
@@ -231,7 +222,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         }*/
                         #endregion
 
-                        #region Comodin Conditions
+                        /*#region Comodin Conditions
                         Item BTile = null;
                         BTile = Room.GetRoomItemHandler().GetFloor.FirstOrDefault(x => x.GetBaseItem().ItemName.ToLower() == "comodin_carro" && x.Coordinate == Client.GetRoomUser().Coordinate);
                         if (BTile == null)
@@ -239,7 +230,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             Client.SendWhisper("Debes acercarte al mostrador para comprar un teléfono.", 1);
                             return;
                         }
-                        #endregion
+                        #endregion*/
 
                         if (!Client.GetRoleplay().ViewShopPhones)
                             Client.GetRoleplay().ViewShopPhones = true;
@@ -267,7 +258,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         string SendData = "";
                         SendData += html;
-                        Socket.Send("compose_phone|open_shop_phone|" + SendData);
+                        Socket.SendWS( "compose_phone|open_shop_phone|" + SendData);
                         Client.GetRoleplay().CooldownManager.CreateCooldown("openshopphone", 1000, 1);
                     }
                     break;
@@ -351,7 +342,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         string SendData = "";
                         SendData += html + "|" + html2;
-                        Socket.Send("compose_phone|load_apps|" + SendData);
+                        Socket.SendWS( "compose_phone|load_apps|" + SendData);
                     }
                     break;
                 #endregion
@@ -359,7 +350,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Show Button
                 case "show_button":
                     {
-                        Socket.Send("compose_phone|show_button|");
+                        Socket.SendWS( "compose_phone|show_button|");
                     }
                     break;
                 #endregion
@@ -370,12 +361,12 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         if (Client.GetRoleplay().UsingPhone)
                         {
                             Client.GetRoleplay().UsingPhone = false;
-                            Socket.Send("compose_phone|close_phone|");
+                            Socket.SendWS( "compose_phone|close_phone|");
                         }
                         else
                         {
                             Client.GetRoleplay().UsingPhone = true;
-                            Socket.Send("compose_phone|open_phone|");
+                            Socket.SendWS( "compose_phone|open_phone|");
                         }
                     }
                     break;
@@ -387,7 +378,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         if(!Client.GetRoleplay().UsingPhone)
                             Client.GetRoleplay().UsingPhone = true;
 
-                        Socket.Send("compose_phone|open_phone|");
+                        Socket.SendWS( "compose_phone|open_phone|");
                     }
                     break;
                 #endregion
@@ -397,7 +388,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                     {
                         if (Client.GetRoleplay().UsingPhone)
                             Client.GetRoleplay().UsingPhone = false;
-                        Socket.Send("compose_phone|close_phone|");
+                        Socket.SendWS( "compose_phone|close_phone|");
                     }
                     break;
                 #endregion
@@ -431,7 +422,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                                 string iframe = "<iframe id=\"" + AI.Name + "\" src=\"" + RoleplayManager.APIUrl + "/?tkn=" + tkn + "&user_id=" + Client.GetHabbo().Id + "\" style=\"width:100%;height:100%;border:0;\"></iframe>";
 
-                                Socket.Send("compose_phone|in_app|" + AI.Name + "|" + iframe);
+                                Socket.SendWS( "compose_phone|in_app|" + AI.Name + "|" + iframe);
                             }
                             else
                                 PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_phone", "in_app_error,<b>No se ha podido abrir la aplicaci&oacute;n</b><br>No se ha obtenido informaci&oacute;n de esta Aplicaci&oacute;n.|");
@@ -463,7 +454,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             string iframe = "<iframe id=\"" + if_name + "\" src=\"" + RoleplayManager.APIUrl + "/?tkn=" + tkn + "\" style=\"width: 100%;height: calc(100% - 41px);border: 0;\"></iframe>";
 
-                            Socket.Send("compose_phone|in_web_page|" + CurPage + "|" + iframe + "|" + Client.GetRoleplay().InternetHisto);
+                            Socket.SendWS( "compose_phone|in_web_page|" + CurPage + "|" + iframe + "|" + Client.GetRoleplay().InternetHisto);
                         }
                         #endregion
 
@@ -504,7 +495,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         string[] ReceivedData = PData[1].Split('|');
                         string Msg = ReceivedData[0];
 
-                        Socket.Send("compose_phone|in_app_error|" + Msg);
+                        Socket.SendWS( "compose_phone|in_app_error|" + Msg);
                     }
                     break;
                 #endregion
@@ -589,7 +580,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             #endregion
                         }
 
-                        Socket.Send("compose_phone|open_chatrooms|" + SendData);
+                        Socket.SendWS( "compose_phone|open_chatrooms|" + SendData);
                     }
                     break;
                 #endregion
@@ -763,9 +754,9 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         SendData += DisplayName;
                         Client.GetRoleplay().LastChat = ChatName;
                         if(Client.GetRoleplay().UpdateChats)
-                            Socket.Send("compose_phone|update_messages|" + SendData);
+                            Socket.SendWS( "compose_phone|update_messages|" + SendData);
                         else
-                            Socket.Send("compose_phone|open_messages|" + SendData);
+                            Socket.SendWS( "compose_phone|open_messages|" + SendData);
                     }
                     break;
                 #endregion
@@ -888,7 +879,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         }
                         #endregion
 
-                        Socket.Send("compose_phone|open_whatsapp|" + SendData);
+                        Socket.SendWS( "compose_phone|open_whatsapp|" + SendData);
                     }
                     break;
                 #endregion
@@ -1076,9 +1067,9 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         Client.GetRoleplay().LastWhatsChat = ChatName;
                         if (Client.GetRoleplay().UpdateWhatsChats)
-                            Socket.Send("compose_phone|update_whatschats|" + SendData);
+                            Socket.SendWS( "compose_phone|update_whatschats|" + SendData);
                         else
-                            Socket.Send("compose_phone|open_whatschats|" + SendData);
+                            Socket.SendWS( "compose_phone|open_whatschats|" + SendData);
                     }
                     break;
                 #endregion
@@ -1114,7 +1105,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         }
                         #endregion
 
-                        Socket.Send("compose_phone|open_contacts|" + SendData);
+                        Socket.SendWS( "compose_phone|open_contacts|" + SendData);
                         break;
                     }
                 #endregion
@@ -1245,7 +1236,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         #endregion
 
                         Client.GetRoleplay().CooldownManager.CreateCooldown("search", 1000, 3);
-                        Socket.Send("compose_phone|open_contacts|" + SendData);
+                        Socket.SendWS( "compose_phone|open_contacts|" + SendData);
                         break;
                     }
                 #endregion
@@ -1416,11 +1407,19 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                     {
                         string SendData = "";
 
-                        Socket.Send("compose_phone|open_safari|" + SendData);
+                        Socket.SendWS( "compose_phone|open_safari|" + SendData);
                         break;
                     }
                 #endregion
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

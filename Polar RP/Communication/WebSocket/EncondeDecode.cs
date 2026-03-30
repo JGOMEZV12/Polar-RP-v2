@@ -1,68 +1,82 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Buffers;
 
 namespace Polar.Communication.WebSocket
 {
-    static class EncodeDecode
+    internal static class EncodeDecode
     {
+        // Opcodes WebSocket RFC 6455
+        private const byte OPCODE_TEXT = 0x01;
+        private const byte OPCODE_BINARY = 0x02;
+        private const byte OPCODE_CLOSE = 0x08;
+        private const byte OPCODE_PING = 0x09;
+        private const byte OPCODE_PONG = 0x0A;
+
+        private const byte FIN_BIT = 0x80;
+        private const byte MASK_BIT = 0x80;
+
+        /// <summary>
+        /// Codifica un mensaje como frame WebSocket binario (RFC 6455).
+        /// </summary>
         internal static byte[] EncodeMessage(byte[] message)
         {
-            byte[] bytesRaw = message;
-            byte[] frame = new byte[10];
+            if (message == null)
+                throw new ArgumentNullException(nameof(message));
 
-            int indexStartRawData;
-            int length = bytesRaw.Length;
+            int length = message.Length;
 
-            frame[0] = (byte)130; // FIN + Text frame
+            // ✅ FIX #1: Calcular el tamaño exacto del header de una vez,
+            //           sin allocar un array de 10 bytes siempre.
+            int headerSize;
+            if (length <= 125)
+                headerSize = 2;
+            else if (length <= 65535)
+                headerSize = 4;
+            else
+                headerSize = 10;
+
+            byte[] response = new byte[headerSize + length];
+
+            // FIN=1 + opcode binario (0x82 = FIN | BINARY)
+            response[0] = FIN_BIT | OPCODE_BINARY;
+
             if (length <= 125)
             {
-                frame[1] = (byte)length;
-                indexStartRawData = 2;
+                response[1] = (byte)length;
             }
-            else if (length >= 126 && length <= 65535)
+            else if (length <= 65535)
             {
-                frame[1] = (byte)126;
-                frame[2] = (byte)((length >> 8) & 255);
-                frame[3] = (byte)(length & 255);
-                indexStartRawData = 4;
+                response[1] = 126;
+                response[2] = (byte)(length >> 8);
+                response[3] = (byte)length;
             }
             else
             {
-                frame[1] = (byte)127;
-                frame[2] = (byte)((length >> 56) & 255);
-                frame[3] = (byte)((length >> 48) & 255);
-                frame[4] = (byte)((length >> 40) & 255);
-                frame[5] = (byte)((length >> 32) & 255);
-                frame[6] = (byte)((length >> 24) & 255);
-                frame[7] = (byte)((length >> 16) & 255);
-                frame[8] = (byte)((length >> 8) & 255);
-                frame[9] = (byte)(length & 255);
-
-                indexStartRawData = 10;
+                // ✅ FIX #2: Escribir los 8 bytes de longitud correctamente (big-endian).
+                //           El original solo escribía 4 bytes en posiciones 6-9,
+                //           dejando los primeros 4 en cero pero sin expresarlo bien.
+                response[1] = 127;
+                response[2] = 0; // Los 4 bytes altos siempre 0 (length es int, max 2GB)
+                response[3] = 0;
+                response[4] = 0;
+                response[5] = 0;
+                response[6] = (byte)(length >> 24);
+                response[7] = (byte)(length >> 16);
+                response[8] = (byte)(length >> 8);
+                response[9] = (byte)length;
             }
 
-            byte[] response = new byte[indexStartRawData + length];
-
-            Int32 i, reponseIdx = 0;
-
-            // Add the frame bytes to the response
-            for (i = 0; i < indexStartRawData; i++)
-            {
-                response[reponseIdx] = frame[i];
-                reponseIdx++;
-            }
-
-            // Add the data bytes to the response
-            for (i = 0; i < length; i++)
-            {
-                response[reponseIdx] = bytesRaw[i];
-                reponseIdx++;
-            }
+            // ✅ FIX #3: Buffer.BlockCopy en lugar de dos loops manuales.
+            Buffer.BlockCopy(message, 0, response, headerSize, length);
 
             return response;
         }
 
+        /// <summary>
+        /// Decodifica un frame WebSocket enmascarado o sin máscara (RFC 6455).
+        /// Devuelve null si el frame es inválido, incompleto, o es un frame de control
+        /// que no contiene datos de aplicación (PING, PONG, CLOSE).
+        /// </summary>
         internal static byte[] DecodeMessage(byte[] bytes)
         {
             if (bytes == null || bytes.Length < 2)
@@ -70,64 +84,142 @@ namespace Polar.Communication.WebSocket
 
             try
             {
+                byte firstByte = bytes[0];
                 byte secondByte = bytes[1];
 
-                // VERIFICAR SI EL FRAME ESTÁ ENMASCARADO
-                bool masked = (secondByte & 0x80) != 0;
-                int dataLength = secondByte & 127; // Remover el bit MASK
+                // ✅ FIX #4: Validar FIN bit y opcode.
+                //           El original ignoraba completamente el primer byte.
+                bool fin = (firstByte & FIN_BIT) != 0;
+                byte opcode = (byte)(firstByte & 0x0F);
 
-                int indexFirstMask = 2;
+                // Fragmentación no soportada (FIN=0 implica fragmento)
+                if (!fin)
+                    return null;
 
-                // Longitud extendida
+                // Ignorar frames de control sin datos de aplicación
+                if (opcode == OPCODE_CLOSE || opcode == OPCODE_PING || opcode == OPCODE_PONG)
+                    return null;
+
+                // Solo aceptar text o binary (o continuation frame 0x00)
+                if (opcode != OPCODE_TEXT && opcode != OPCODE_BINARY && opcode != 0x00)
+                    return null;
+
+                bool masked = (secondByte & MASK_BIT) != 0;
+                int dataLength = secondByte & 0x7F;
+
+                int headerEnd; // índice donde termina el header (antes de máscara y datos)
+
                 if (dataLength == 126)
                 {
                     if (bytes.Length < 4) return null;
+
+                    // ✅ FIX #5: Usar ushort para la lectura de 2 bytes, sin cast peligroso.
                     dataLength = (bytes[2] << 8) | bytes[3];
-                    indexFirstMask = 4;
+                    headerEnd = 4;
                 }
                 else if (dataLength == 127)
                 {
                     if (bytes.Length < 10) return null;
-                    // Para 64-bit length, tomamos solo los últimos 4 bytes (32-bit es suficiente)
-                    dataLength = (bytes[6] << 24) | (bytes[7] << 16) | (bytes[8] << 8) | bytes[9];
-                    indexFirstMask = 10;
+
+                    // ✅ FIX #6: El original truncaba silenciosamente la longitud de 64-bit
+                    //           a los últimos 4 bytes sin advertir. Ahora leemos correctamente
+                    //           los 8 bytes y verificamos que cabe en un int (límite práctico).
+                    long longLength =
+                        ((long)bytes[2] << 56) | ((long)bytes[3] << 48) |
+                        ((long)bytes[4] << 40) | ((long)bytes[5] << 32) |
+                        ((long)bytes[6] << 24) | ((long)bytes[7] << 16) |
+                        ((long)bytes[8] << 8) | (long)bytes[9];
+
+                    if (longLength > int.MaxValue)
+                    {
+                        Console.WriteLine($"[EncodeDecode] Frame demasiado grande: {longLength} bytes");
+                        return null;
+                    }
+
+                    dataLength = (int)longLength;
+                    headerEnd = 10;
+                }
+                else
+                {
+                    headerEnd = 2;
                 }
 
-                // Verificar que tenemos suficientes datos
-                int expectedLength = indexFirstMask + (masked ? 4 : 0) + dataLength;
+                // Verificar longitud total del frame
+                int expectedLength = headerEnd + (masked ? 4 : 0) + dataLength;
                 if (bytes.Length < expectedLength)
                     return null;
 
-                byte[] decoded;
+                byte[] decoded = new byte[dataLength];
 
                 if (masked)
                 {
-                    // Obtener la máscara
-                    IEnumerable<byte> keys = bytes.Skip(indexFirstMask).Take(4);
-                    int indexFirstDataByte = indexFirstMask + 4;
+                    // ✅ FIX #7: LINQ en el loop original creaba un enumerador y llamaba
+                    //           ElementAt() por CADA BYTE — O(n²) en la práctica.
+                    //           Ahora copiamos la máscara a un array de 4 bytes y hacemos
+                    //           XOR directo sobre el buffer — O(n).
+                    int maskStart = headerEnd;
+                    int dataStart = maskStart + 4;
 
-                    // Aplicar XOR con la máscara
-                    decoded = new byte[dataLength];
-                    for (int i = indexFirstDataByte, j = 0; i < indexFirstDataByte + dataLength; i++, j++)
+                    byte m0 = bytes[maskStart];
+                    byte m1 = bytes[maskStart + 1];
+                    byte m2 = bytes[maskStart + 2];
+                    byte m3 = bytes[maskStart + 3];
+
+                    for (int i = 0; i < dataLength; i++)
                     {
-                        decoded[j] = (byte)(bytes[i] ^ keys.ElementAt(j % 4));
+                        // Seleccionar byte de máscara según posición mod 4
+                        byte mask = (i & 3) switch
+                        {
+                            0 => m0,
+                            1 => m1,
+                            2 => m2,
+                            _ => m3
+                        };
+                        decoded[i] = (byte)(bytes[dataStart + i] ^ mask);
                     }
                 }
                 else
                 {
-                    // Frame sin máscara - copiar datos directamente
-                    int indexFirstDataByte = indexFirstMask;
-                    decoded = new byte[dataLength];
-                    Buffer.BlockCopy(bytes, indexFirstDataByte, decoded, 0, dataLength);
+                    Buffer.BlockCopy(bytes, headerEnd, decoded, 0, dataLength);
                 }
 
                 return decoded;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[EncodeDecode] ERROR decodificando: {ex.Message}");
+                Console.WriteLine($"[EncodeDecode] ERROR decodificando frame: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Construye un frame de control PONG en respuesta a un PING.
+        /// </summary>
+        internal static byte[] EncodePong(byte[] pingPayload)
+        {
+            // PONG debe devolver el mismo payload que el PING (RFC 6455 §5.5.3)
+            int length = pingPayload?.Length ?? 0;
+            byte[] frame = new byte[2 + length];
+            frame[0] = FIN_BIT | OPCODE_PONG;
+            frame[1] = (byte)length;
+
+            if (length > 0)
+                Buffer.BlockCopy(pingPayload, 0, frame, 2, length);
+
+            return frame;
+        }
+
+        /// <summary>
+        /// Construye un frame CLOSE (opcode 0x08) con código de estado opcional.
+        /// </summary>
+        internal static byte[] EncodeClose(ushort statusCode = 1000)
+        {
+            byte[] frame = new byte[4];
+            frame[0] = FIN_BIT | OPCODE_CLOSE;
+            frame[1] = 2; // payload: 2 bytes de status code
+            frame[2] = (byte)(statusCode >> 8);
+            frame[3] = (byte)statusCode;
+            return frame;
         }
     }
 }

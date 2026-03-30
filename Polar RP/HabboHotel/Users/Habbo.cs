@@ -157,6 +157,10 @@ namespace Polar.HabboHotel.Users
         private int _customBubbleId;
         private int _tempInt;
         private int _uniqueId;
+        private int _backgroundId;
+        private int _standId;
+        private int _overlayId;
+
 
         //Fastfood
         private int _fastfoodScore;
@@ -219,7 +223,7 @@ namespace Polar.HabboHotel.Users
         public Habbo(int Id, string Username, int Rank, string Motto, string Look, string Gender, int Credits, int ActivityPoints, int HomeRoom,
             bool HasFriendRequestsDisabled, int LastOnline, bool AppearOffline, bool HideInRoom, double CreateDate, int Diamonds,
             string machineID, string clientVolume, bool ChatPreference, bool FocusPreference, bool PetsMuted, bool BotsMuted, bool AdvertisingReportBlocked, double LastNameChange,
-            int EventPoints, bool IgnoreInvites, double TimeMuted, double TradingLock, bool AllowGifts, int FriendBarState, bool DisableForcedEffects, bool AllowMimic, int VIPRank, bool IsBot, string Colour, string citizenShip, bool nux, byte TargetedBuy, int citizenshipLevel, int onLine, string PinCliente, int UniqueId)
+            int EventPoints, bool IgnoreInvites, double TimeMuted, double TradingLock, bool AllowGifts, int FriendBarState, bool DisableForcedEffects, bool AllowMimic, int VIPRank, bool IsBot, string Colour, string citizenShip, bool nux, byte TargetedBuy, int citizenshipLevel, int onLine, string PinCliente, int UniqueId, int backgroundId, int standId, int overlayId)
         {
             this._id = Id;
             this._uniqueId = UniqueId;
@@ -243,6 +247,9 @@ namespace Polar.HabboHotel.Users
             this.UnlockedRecipes = new HashSet<CraftingRecipe>();
             this.CitizenshipLevel = citizenshipLevel;
             this._TargetedBuy = TargetedBuy;
+            this._backgroundId = backgroundId;
+            this._standId = standId;
+            this._overlayId = overlayId;
 
             if (!IsBot)
             {
@@ -485,11 +492,28 @@ namespace Polar.HabboHotel.Users
             get { return this._motto; }
             set { this._motto = value; }
         }
-
         public string Look
         {
             get { return this._look; }
             set { this._look = value; }
+        }
+
+        public int BackgroundId
+        {
+            get { return this._backgroundId; }
+            set { this._backgroundId = value; }
+        }
+
+        public int StandId
+        {
+            get { return this._standId; }
+            set { this._standId = value; }
+        }
+
+        public int OverlayId
+        {
+            get { return this._overlayId; }
+            set { this._overlayId = value; }
         }
 
         public string Gender

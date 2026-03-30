@@ -166,7 +166,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.General
                                    "Medicinas: " + String.Format("{0:N0}", Session.GetRoleplay().Medicina) + " Gramos\n" +
                                    "Pildoras: " + String.Format("{0:N0}", Session.GetRoleplay().Pildoras) + " Gramos\n" +
                                    "Caramelos: " + String.Format("{0:N0}", Session.GetRoleplay().Caramelos) + " Unidades\n\n" +
-
+                                   "Chaleco: " + String.Format("{0:N0}", Session.GetRoleplay().ChalecoPor) + " Unidades\n\n" +
 
                                    "--- Estadísticas Agrícolas ---\n" +
                                    "Utilice el comando :farming para ver sus estadísticas de cultivo\n\n" +

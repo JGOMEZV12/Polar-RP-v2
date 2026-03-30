@@ -1,11 +1,10 @@
-﻿using System;
+using ConnectionManager;
+using System;
 using System.Linq;
 using System.Text;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Polar.Net;
 using Newtonsoft.Json;
-using Fleck;
-using Polar.Core;
+using Polar.Net;
 using Polar.HabboHotel.GameClients;
 using System.IO;
 using Polar.HabboRoleplay.Misc;
@@ -23,7 +22,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.Others
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
 
@@ -43,7 +42,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.Others
                         StringBuilder Message = new StringBuilder();
                         int WantedStar = 0;
                         if (RoleplayManager.WantedList.Count <= 0)
-                            Socket.Send("compose_buscado|none|[]");
+                            Socket.SendWS( "compose_buscado|none|[]");
 
                         Message.Append("[");
                         lock (RoleplayManager.WantedList.Values)
@@ -72,7 +71,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.Others
                         Message.Replace(",]", "]");
 
                         //System.IO.File.WriteAllText(@"C:\patients.json", Message.ToString());
-                        Socket.Send("compose_buscado|" + Message);
+                        Socket.SendWS( "compose_buscado|" + Message);
                     }
                     break;
                #endregion
@@ -86,5 +85,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.Others
         public string look { get; set; }
         public int stars { get; set; }
         public string last_seen { get; set; }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

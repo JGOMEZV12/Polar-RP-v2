@@ -59,9 +59,19 @@ namespace Polar.HabboRoleplay.Timers.Types
 
                 TimeCount = 0;
 
+                // Verificar si la higiene ya está completa, si es así quitar el efecto
+                if (base.Client.GetRoleplay().Hygiene >= 100)
+                {
+                    if (base.Client.GetRoomUser().CurrentEffect == 10)
+                    {
+                        base.Client.GetRoomUser().ApplyEffect(0);
+                    }
+                    return;
+                }
+
                 if (base.Client.GetRoleplay().Hygiene == 0)
                 {
-                    if (base.Client.GetRoomUser() != null)
+                    if (base.Client.GetRoomUser() != null && base.Client.GetRoomUser().CurrentEffect != 10)
                         base.Client.GetRoomUser().ApplyEffect(10);
 
                     int AmountOfEnergy = Random.Next(1, 5);
@@ -86,7 +96,7 @@ namespace Polar.HabboRoleplay.Timers.Types
                 if (base.Client.GetRoleplay().Hygiene > 0)
                     return;
 
-                if (base.Client.GetRoomUser() != null)
+                if (base.Client.GetRoomUser() != null && base.Client.GetRoomUser().CurrentEffect != 10)
                     base.Client.GetRoomUser().ApplyEffect(10);
                 //base.Client.SendWhisper("You start to really stink! You've got to do something about this smell!", 1);
                 base.Client.SendMessage(new RoomBubbleNotificationComposer("bathroom_shower1_icon", "¡Te estás volviendo loco! Visite el gimnasio o vaya a su casa, para obtener una ducha y rellenar su higiene.", ""));

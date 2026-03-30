@@ -30,7 +30,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Criminal
 
         public string Description
         {
-            get { return "Roba cajeros automaticos."; }
+            get { return "Dejar o robar tiendas."; }
         }
 
         public RobartiendaCommand(bool stopRobCommand = false)

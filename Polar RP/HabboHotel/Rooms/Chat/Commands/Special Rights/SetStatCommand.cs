@@ -1,11 +1,12 @@
 ﻿using Polar.Communication.Packets.Outgoing.Rooms.Chat;
+using Polar.Communication.Packets.Outgoing.Rooms.Engine;
+using Polar.HabboRoleplay.Misc;
+using Polar.HabboRoleplay.RoleplayUsers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Polar.HabboRoleplay.Misc;
-using Polar.HabboRoleplay.RoleplayUsers;
 
 namespace Polar.HabboHotel.Rooms.Chat.Commands.SpecialRights
 {
@@ -76,6 +77,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.SpecialRights
             {
                 #region Health
                 case "hp":
+                case "vida":
                 case "health":
                     {
                         string Amount = Params[0].ToLower() == "sethp" ? Params[2] : Params[3];
@@ -138,6 +140,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.SpecialRights
 
                 #region MaxHealth
                 case "maxhp":
+                case "maxvida":
                 case "maxhealth":
                     {
                         string Amount = Params[0].ToLower() == "setmhp" ? Params[2] : Params[3];
@@ -310,7 +313,15 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.SpecialRights
 
                             TargetClient.GetRoleplay().Level = Amount;
                             TargetClient.GetRoleplay().LevelEXP = LevelManager.Levels[TargetClient.GetRoleplay().Level];
-
+                            if (TargetClient.GetHabbo().CurrentRoom != null)
+                            {
+                                var currentRoomUser = TargetClient.GetHabbo().CurrentRoom.GetRoomUserManager()?.GetRoomUserByHabbo(TargetClient.GetHabbo().Id);
+                                if (currentRoomUser != null)
+                                {
+                                    TargetClient.SendMessage(new UserChangeComposer(currentRoomUser, true));
+                                    TargetClient.GetHabbo().CurrentRoom.SendMessage(new UserChangeComposer(currentRoomUser, false));
+                                }
+                            }
                             Session.SendWhisper("Se le ha establecido con éxito el nivel: " + Amount + " a " + TargetClient.GetHabbo().Username + " !", 1);
                             TargetClient.SendWhisper("Un administrador establece el nivel de tu personaje en " + Amount + "!", 1);
 
@@ -467,6 +478,15 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.SpecialRights
                             {
                                 Session.SendWhisper("El monto no puede contener -", 1);
                                 return;
+                            }
+                            if (TargetClient.GetHabbo().CurrentRoom != null)
+                            {
+                                var currentRoomUser = TargetClient.GetHabbo().CurrentRoom.GetRoomUserManager()?.GetRoomUserByHabbo(TargetClient.GetHabbo().Id);
+                                if (currentRoomUser != null)
+                                {
+                                    TargetClient.SendMessage(new UserChangeComposer(currentRoomUser, true));
+                                    TargetClient.GetHabbo().CurrentRoom.SendMessage(new UserChangeComposer(currentRoomUser, false));
+                                }
                             }
                             TargetClient.GetRoleplay().ChalecoPor = HygieneAmount;
                             Session.SendWhisper("Establecido con éxito " + TargetClient.GetHabbo().Username + "'s chaleco" + HygieneAmount + "!", 1);

@@ -1,4 +1,4 @@
-﻿using Polar.Communication.Packets.Outgoing;
+using Polar.Communication.Packets.Outgoing;
 using Polar.Database.Interfaces;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Groups;
@@ -11,386 +11,257 @@ using System.Linq;
 
 namespace Polar.HabboHotel.Navigator
 {
-    static class NavigatorHandler
+    internal static class NavigatorHandler
     {
         public static void Search(ServerPacket Message, SearchResultList SearchResult, string SearchData, GameClient Session, int FetchLimit)
         {
-            //Switching by categorys.
             switch (SearchResult.CategoryType)
             {
                 default:
                     Message.WriteInteger(0);
                     break;
 
+                // ── Búsqueda por texto / filtros ──────────────────────────────
                 case NavigatorCategoryType.QUERY:
-                    {
-                        #region Query
-                        if (SearchData.ToLower().StartsWith("owner:"))
-                        {
-                            if (SearchData.Length > 0)
-                            {
-                                /*int UserId = 0;
-                                DataTable GetRooms = null;
-                                using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-                                {
-                                    if (SearchData.ToLower().StartsWith("owner:"))
-                                    {
-                                        dbClient.SetQuery("SELECT `id` FROM `users` WHERE `username` = @username LIMIT 1");
-                                        dbClient.AddParameter("username", SearchData.Remove(0, 6));
-                                        UserId = dbClient.getInteger();
-
-                                        dbClient.SetQuery("SELECT * FROM `rooms` WHERE `owner` = '" + UserId + "' and `state` != 'invisible' ORDER BY `users_now` DESC LIMIT 50");
-                                        GetRooms = dbClient.getTable();
-                                    }
-                                }*/
-
-                                int UserId = 0;
-                                DataTable GetRooms = null;
-                                using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-                                {
-                                    if (SearchData.ToLower().StartsWith("owner:"))
-                                    {
-                                        dbClient.SetQuery("SELECT r.* FROM rooms r, users u WHERE u.username = @username AND r.owner = u.id AND r.state != 'invisible' ORDER BY r.users_now DESC LIMIT 50;");
-                                        dbClient.AddParameter("username", SearchData.Remove(0, 6));
-                                        GetRooms = dbClient.getTable();
-                                    }
-                                }
-
-                                List<RoomData> Results = new List<RoomData>();
-                                if (GetRooms != null)
-                                {
-                                    foreach (DataRow Row in GetRooms.Rows)
-                                    {
-                                        using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-                                        {
-                                            dbClient.SetQuery("SELECT * FROM `rp_rooms` WHERE `id` = " + Convert.ToInt32(Row["id"]) + " LIMIT 1");
-                                            DataRow RPRow = dbClient.getRow();
-
-                                            RoomData RoomData = PolarEnvironment.GetGame().GetRoomManager().FetchRoomData(Convert.ToInt32(Row["id"]), Row, RPRow);
-                                            if (RoomData != null && !Results.Contains(RoomData))
-                                                Results.Add(RoomData);
-                                        }
-                                    }
-                                }
-
-                                Message.WriteInteger(Results.Count);
-                                foreach (RoomData Data in Results.ToList())
-                                {
-                                    RoomAppender.WriteRoom(Message, Data, Data.Promotion);
-                                }
-                            }
-                        }
-                        else if (SearchData.ToLower().StartsWith("tag:"))
-                        {
-                            SearchData = SearchData.Remove(0, 4);
-                            ICollection<RoomData> TagMatches = PolarEnvironment.GetGame().GetRoomManager().SearchTaggedRooms(SearchData);
-
-                            Message.WriteInteger(TagMatches.Count);
-                            foreach (RoomData Data in TagMatches.ToList())
-                            {
-                                RoomAppender.WriteRoom(Message, Data, Data.Promotion);
-                            }
-                        }
-                        else if (SearchData.ToLower().StartsWith("group:"))
-                        {
-                            SearchData = SearchData.Remove(0, 6);
-                            ICollection<RoomData> GroupRooms = PolarEnvironment.GetGame().GetRoomManager().SearchGroupRooms(SearchData);
-
-                            Message.WriteInteger(GroupRooms.Count);
-                            foreach (RoomData Data in GroupRooms.ToList())
-                            {
-                                RoomAppender.WriteRoom(Message, Data, Data.Promotion);
-                            }
-                        }
-                        else
-                        {
-                            if (SearchData.Length > 0)
-                            {
-                                DataTable Table = null;
-                                using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-                                {
-                                    dbClient.SetQuery("SELECT `id`,`caption`,`description`,`roomtype`,`owner`,`state`,`category`,`users_now`,`users_max`,`model_name`,`score`,`allow_pets`,`allow_pets_eat`,`room_blocking_disabled`,`allow_hidewall`,`password`,`wallpaper`,`floor`,`landscape`,`floorthick`,`wallthick`,`mute_settings`,`kick_settings`,`ban_settings`,`chat_mode`,`chat_speed`,`chat_size`,`trade_settings`,`group_id`,`tags`,`push_enabled`,`pull_enabled`,`enables_enabled`,`respect_notifications_enabled`,`pet_morphs_allowed`,`spush_enabled`,`spull_enabled` FROM rooms WHERE `caption` LIKE @query ORDER BY `users_now` DESC LIMIT 50");
-                                    if (SearchData.ToLower().StartsWith("roomname:"))
-                                    {
-                                        dbClient.AddParameter("query", "%" + SearchData.Split(new char[] { ':' }, 2)[1] + "%");
-                                    }
-                                    else
-                                    {
-                                        dbClient.AddParameter("query", "%" + SearchData + "%");
-                                    }
-                                    Table = dbClient.getTable();
-                                }
-                                /* Original Algorithm
-                                List<RoomData> Results = new List<RoomData>();
-                                if (Table != null)
-                                {
-                                    foreach (DataRow Row in Table.Rows)
-                                    {
-                                        if (Convert.ToString(Row["state"]) == "invisible")
-                                            continue;
-
-                                        RoomData RData = PlusEnvironment.GetGame().GetRoomManager().FetchRoomData(Convert.ToInt32(Row["id"]), Row);
-                                        if (RData != null && !Results.Contains(RData))
-                                            Results.Add(RData);
-                                    }
-                                }
-                                */
-                                List<RoomData> Results = new List<RoomData>();
-                                if (Table != null)
-                                {
-                                    foreach (DataRow Row in Table.Rows)
-                                    {
-                                        if (Convert.ToString(Row["state"]) == "invisible")
-                                            continue;
-                                        using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-                                        {
-                                            dbClient.SetQuery("SELECT * FROM `rp_rooms` WHERE `id` = " + Convert.ToInt32(Row["id"]) + " LIMIT 1");
-                                            DataRow RPRow = dbClient.getRow();
-
-                                            RoomData RData = PolarEnvironment.GetGame().GetRoomManager().FetchRoomData(Convert.ToInt32(Row["id"]), Row, RPRow);
-                                            if (RData != null && !Results.Contains(RData))
-                                                Results.Add(RData);
-                                        }
-                                    }
-                                }
-
-                                Message.WriteInteger(Results.Count);
-                                foreach (RoomData Data in Results.ToList())
-                                {
-                                    RoomAppender.WriteRoom(Message, Data, Data.Promotion);
-                                }
-                            }
-                            /* if (SearchData.Length > 0)
-                             {
-                                 //int UserId = 0;
-                                 DataTable Table = null;
-                                 using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-                                 {
-
-                                     dbClient.SetQuery("SELECT * FROM rooms WHERE caption LIKE @query OR username LIKE @query2 ORDER BY users_now DESC LIMIT 50");
-                                     dbClient.AddParameter("query", "%" + SearchData + "%");
-                                     dbClient.AddParameter("query2", "%" + SearchData + "%");
-                                     Table = dbClient.getTable();
-                                 }
-
-                                 List<RoomData> Results = new List<RoomData>();
-                                 if (Table != null)
-                                 {
-                                     foreach (DataRow Row in Table.Rows)
-                                     {
-                                         if (Convert.ToString(Row["state"]) == "invisible")
-                                             continue;
-                                         using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-                                         {
-                                             dbClient.SetQuery("SELECT * FROM `rp_rooms` WHERE `id` = " + Convert.ToInt32(Row["id"]) + " LIMIT 1");
-                                             DataRow RPRow = dbClient.getRow();
-
-                                             RoomData RData = PolarEnvironment.GetGame().GetRoomManager().FetchRoomData(Convert.ToInt32(Row["id"]), Row, RPRow);
-                                             if (RData != null && !Results.Contains(RData))
-                                                 Results.Add(RData);
-                                         }
-                                     }
-                                 }
-
-                                 Message.WriteInteger(Results.Count);
-                                 foreach (RoomData Data in Results.ToList())
-                                 {
-                                     RoomAppender.WriteRoom(Message, Data, Data.Promotion);
-                                 }
-                             }*/
-                        }
-                        #endregion
-
-                        break;
-                    }
-
-                case NavigatorCategoryType.FEATURED:
-                    #region Featured
-                    List<RoomData> Rooms = new List<RoomData>();
-                    ICollection<FeaturedRoom> Featured = PolarEnvironment.GetGame().GetNavigator().GetFeaturedRooms();
-                    foreach (FeaturedRoom FeaturedItem in Featured.ToList())
-                    {
-                        if (FeaturedItem == null)
-                            continue;
-
-                        RoomData Data = PolarEnvironment.GetGame().GetRoomManager().GenerateRoomData(FeaturedItem.RoomId);
-                        if (Data == null)
-                            continue;
-
-                        if (!Rooms.Contains(Data))
-                            Rooms.Add(Data);
-                    }
-
-                    Message.WriteInteger(Rooms.Count);
-                    foreach (RoomData Data in Rooms.ToList())
-                    {
-                        RoomAppender.WriteRoom(Message, Data, Data.Promotion);
-                    }
-                    #endregion
+                    HandleQuery(Message, SearchData);
                     break;
 
-                case NavigatorCategoryType.POPULAR:
-                    {
-                        List<RoomData> PopularRooms = PolarEnvironment.GetGame().GetRoomManager().GetPopularRooms(-1, FetchLimit);
+                // ── Salas destacadas ──────────────────────────────────────────
+                case NavigatorCategoryType.FEATURED:
+                {
+                    var rooms = PolarEnvironment.GetGame().GetNavigator()
+                        .GetFeaturedRooms()
+                        .Select(f => PolarEnvironment.GetGame().GetRoomManager().GenerateRoomData(f.RoomId))
+                        .Where(d => d != null)
+                        .Distinct()
+                        .ToList();
+                    WriteRooms(Message, rooms);
+                    break;
+                }
 
-                        Message.WriteInteger(PopularRooms.Count);
-                        foreach (RoomData Data in PopularRooms.ToList())
-                        {
-                            RoomAppender.WriteRoom(Message, Data, Data.Promotion);
-                        }
-                        break;
-                    }
+                case NavigatorCategoryType.POPULAR:
+                {
+                    var rooms = PolarEnvironment.GetGame().GetRoomManager().GetPopularRooms(-1, FetchLimit);
+                    WriteRooms(Message, rooms);
+                    break;
+                }
 
                 case NavigatorCategoryType.RECOMMENDED:
-                    {
-                        List<RoomData> RecommendedRooms = PolarEnvironment.GetGame().GetRoomManager().GetRecommendedRooms(FetchLimit);
-
-                        Message.WriteInteger(RecommendedRooms.Count);
-                        foreach (RoomData Data in RecommendedRooms.ToList())
-                        {
-                            RoomAppender.WriteRoom(Message, Data, Data.Promotion);
-                        }
-                        break;
-                    }
+                {
+                    var rooms = PolarEnvironment.GetGame().GetRoomManager().GetRecommendedRooms(FetchLimit);
+                    WriteRooms(Message, rooms);
+                    break;
+                }
 
                 case NavigatorCategoryType.CATEGORY:
-                    {
-                        List<RoomData> GetRoomsByCategory = PolarEnvironment.GetGame().GetRoomManager().GetRoomsByCategory(SearchResult.Id, FetchLimit);
+                {
+                    var rooms = PolarEnvironment.GetGame().GetRoomManager().GetRoomsByCategory(SearchResult.Id, FetchLimit);
+                    WriteRooms(Message, rooms);
+                    break;
+                }
 
-                        Message.WriteInteger(GetRoomsByCategory.Count);
-                        foreach (RoomData Data in GetRoomsByCategory.ToList())
-                        {
-                            RoomAppender.WriteRoom(Message, Data, Data.Promotion);
-                        }
-                        break;
-                    }
-
+                // ── Salas del usuario ─────────────────────────────────────────
                 case NavigatorCategoryType.MY_ROOMS:
-
-                    Message.WriteInteger(Session.GetHabbo().UsersRooms.Count);
-                    foreach (RoomData Data in Session.GetHabbo().UsersRooms.ToList())
-                    {
-                        RoomAppender.WriteRoom(Message, Data, Data.Promotion);
-                    }
+                    WriteRooms(Message, Session.GetHabbo().UsersRooms);
                     break;
 
                 case NavigatorCategoryType.MY_FAVORITES:
-                    List<RoomData> Favourites = new List<RoomData>();
-                    foreach (var Id in Session.GetHabbo().FavoriteRooms.ToArray())
-                    {
-                        RoomData Room = PolarEnvironment.GetGame().GetRoomManager().GenerateRoomData(Convert.ToInt32(Id));
-                        if (Room == null)
-                            continue;
-
-                        if (!Favourites.Contains(Room))
-                            Favourites.Add(Room);
-                    }
-
-                    Favourites = Favourites.Take(FetchLimit).ToList();
-
-                    Message.WriteInteger(Favourites.Count);
-                    foreach (RoomData Data in Favourites.ToList())
-                    {
-                        RoomAppender.WriteRoom(Message, Data, Data.Promotion);
-                    }
+                {
+                    var rooms = Session.GetHabbo().FavoriteRooms
+                        .Cast<int>()
+                        .Select(id => PolarEnvironment.GetGame().GetRoomManager().GenerateRoomData(id))
+                        .Where(d => d != null)
+                        .Distinct()
+                        .Take(FetchLimit)
+                        .ToList();
+                    WriteRooms(Message, rooms);
                     break;
+                }
 
                 case NavigatorCategoryType.MY_GROUPS:
-                    List<RoomData> MyGroups = new List<RoomData>();
-
-                    foreach (Group Group in PolarEnvironment.GetGame().GetGroupManager().GetGroupsForUser(Session.GetHabbo().Id).ToList())
-                    {
-                        if (Group == null)
-                            continue;
-
-                        RoomData Data = PolarEnvironment.GetGame().GetRoomManager().GenerateRoomData(Group.RoomId);
-                        if (Data == null)
-                            continue;
-
-                        if (!MyGroups.Contains(Data))
-                            MyGroups.Add(Data);
-                    }
-
-                    MyGroups = MyGroups.Take(FetchLimit).ToList();
-
-                    Message.WriteInteger(MyGroups.Count);
-                    foreach (RoomData Data in MyGroups.ToList())
-                    {
-                        RoomAppender.WriteRoom(Message, Data, Data.Promotion);
-                    }
+                {
+                    var rooms = PolarEnvironment.GetGame().GetGroupManager()
+                        .GetGroupsForUser(Session.GetHabbo().Id)
+                        .Where(g => g != null)
+                        .Select(g => PolarEnvironment.GetGame().GetRoomManager().GenerateRoomData(g.RoomId))
+                        .Where(d => d != null)
+                        .Distinct()
+                        .Take(FetchLimit)
+                        .ToList();
+                    WriteRooms(Message, rooms);
                     break;
+                }
 
                 case NavigatorCategoryType.MY_FRIENDS_ROOMS:
-                    List<RoomData> MyFriendsRooms = new List<RoomData>();
-                    foreach (MessengerBuddy buddy in Session.GetHabbo().GetMessenger().GetFriends().Where(p => p.InRoom))
-                    {
-                        if (buddy == null || !buddy.InRoom || buddy.UserId == Session.GetHabbo().Id)
-                            continue;
-
-                        if (!MyFriendsRooms.Contains(buddy.CurrentRoom.RoomData))
-                            MyFriendsRooms.Add(buddy.CurrentRoom.RoomData);
-                    }
-
-                    Message.WriteInteger(MyFriendsRooms.Count);
-                    foreach (RoomData Data in MyFriendsRooms.ToList())
-                    {
-                        RoomAppender.WriteRoom(Message, Data, Data.Promotion);
-                    }
+                {
+                    var rooms = Session.GetHabbo().GetMessenger()
+                        .GetFriends()
+                        .Where(b => b != null && b.InRoom && b.UserId != Session.GetHabbo().Id)
+                        .Select(b => b.CurrentRoom?.RoomData)
+                        .Where(d => d != null)
+                        .Distinct()
+                        .ToList();
+                    WriteRooms(Message, rooms);
                     break;
+                }
 
                 case NavigatorCategoryType.MY_RIGHTS:
-                    List<RoomData> MyRights = new List<RoomData>();
-
-                    DataTable GetRights = null;
+                {
+                    var rooms = new List<RoomData>();
                     using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                     {
-                        dbClient.SetQuery("SELECT `room_id` FROM `room_rights` WHERE `user_id` = @UserId LIMIT @FetchLimit");
-                        dbClient.AddParameter("UserId", Session.GetHabbo().Id);
-                        dbClient.AddParameter("FetchLimit", FetchLimit);
-                        GetRights = dbClient.getTable();
-
-                        foreach (DataRow Row in GetRights.Rows)
+                        dbClient.SetQuery("SELECT `room_id` FROM `room_rights` WHERE `user_id` = @uid LIMIT @limit");
+                        dbClient.AddParameter("uid", Session.GetHabbo().Id);
+                        dbClient.AddParameter("limit", FetchLimit);
+                        DataTable table = dbClient.getTable();
+                        if (table != null)
                         {
-                            RoomData Data = PolarEnvironment.GetGame().GetRoomManager().GenerateRoomData(Convert.ToInt32(Row["room_id"]));
-                            if (Data == null)
-                                continue;
-
-                            if (!MyRights.Contains(Data))
-                                MyRights.Add(Data);
+                            foreach (DataRow row in table.Rows)
+                            {
+                                RoomData data = PolarEnvironment.GetGame().GetRoomManager()
+                                    .GenerateRoomData(Convert.ToInt32(row["room_id"]));
+                                if (data != null && !rooms.Contains(data))
+                                    rooms.Add(data);
+                            }
                         }
                     }
-
-                    Message.WriteInteger(MyRights.Count);
-                    foreach (RoomData Data in MyRights.ToList())
-                    {
-                        RoomAppender.WriteRoom(Message, Data, Data.Promotion);
-                    }
+                    WriteRooms(Message, rooms);
                     break;
+                }
 
                 case NavigatorCategoryType.TOP_PROMOTIONS:
-                    {
-                        List<RoomData> GetPopularPromotions = PolarEnvironment.GetGame().GetRoomManager().GetOnGoingRoomPromotions(16, FetchLimit);
-
-                        Message.WriteInteger(GetPopularPromotions.Count);
-                        foreach (RoomData Data in GetPopularPromotions.ToList())
-                        {
-                            RoomAppender.WriteRoom(Message, Data, Data.Promotion);
-                        }
-                        break;
-                    }
+                {
+                    var rooms = PolarEnvironment.GetGame().GetRoomManager().GetOnGoingRoomPromotions(16, FetchLimit);
+                    WriteRooms(Message, rooms);
+                    break;
+                }
 
                 case NavigatorCategoryType.PROMOTION_CATEGORY:
-                    {
-                        List<RoomData> GetPromotedRooms = PolarEnvironment.GetGame().GetRoomManager().GetPromotedRooms(SearchResult.Id, FetchLimit);
-
-                        Message.WriteInteger(GetPromotedRooms.Count);
-                        foreach (RoomData Data in GetPromotedRooms.ToList())
-                        {
-                            RoomAppender.WriteRoom(Message, Data, Data.Promotion);
-                        }
-                        break;
-                    }
+                {
+                    var rooms = PolarEnvironment.GetGame().GetRoomManager().GetPromotedRooms(SearchResult.Id, FetchLimit);
+                    WriteRooms(Message, rooms);
+                    break;
+                }
             }
+        }
+
+        // ─── Helpers ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Escribe la lista de salas en el paquete.
+        /// </summary>
+        private static void WriteRooms(ServerPacket msg, ICollection<RoomData> rooms)
+        {
+            msg.WriteInteger(rooms.Count);
+            foreach (RoomData data in rooms)
+                RoomAppender.WriteRoom(msg, data, data.Promotion);
+        }
+
+        /// <summary>
+        /// Maneja los distintos tipos de búsqueda por texto (owner:, tag:, group:, roomname:, texto libre).
+        /// Una sola conexión a DB por búsqueda usando JOIN con rp_rooms.
+        /// </summary>
+        private static void HandleQuery(ServerPacket msg, string searchData)
+        {
+            if (string.IsNullOrWhiteSpace(searchData))
+            {
+                msg.WriteInteger(0);
+                return;
+            }
+
+            string lower = searchData.ToLower();
+
+            if (lower.StartsWith("owner:"))
+            {
+                string owner = searchData.Substring(6);
+                var results = FetchRoomsWithRP(
+                    "SELECT r.* FROM rooms r " +
+                    "JOIN users u ON u.id = r.owner " +
+                    "WHERE u.username = @p AND r.state != 'invisible' " +
+                    "ORDER BY r.users_now DESC LIMIT 50",
+                    ("p", owner));
+                WriteRooms(msg, results);
+            }
+            else if (lower.StartsWith("tag:"))
+            {
+                string tag = searchData.Substring(4);
+                var matches = PolarEnvironment.GetGame().GetRoomManager().SearchTaggedRooms(tag);
+                WriteRooms(msg, matches.ToList());
+            }
+            else if (lower.StartsWith("group:"))
+            {
+                string group = searchData.Substring(6);
+                var matches = PolarEnvironment.GetGame().GetRoomManager().SearchGroupRooms(group);
+                WriteRooms(msg, matches.ToList());
+            }
+            else
+            {
+                // roomname: o texto libre
+                string query = lower.StartsWith("roomname:")
+                    ? "%" + searchData.Split(new[] { ':' }, 2)[1] + "%"
+                    : "%" + searchData + "%";
+
+                var results = FetchRoomsWithRP(
+                    "SELECT r.id,r.caption,r.description,r.roomtype,r.owner,r.state,r.category," +
+                    "r.users_now,r.users_max,r.model_name,r.score,r.allow_pets,r.allow_pets_eat," +
+                    "r.room_blocking_disabled,r.allow_hidewall,r.password,r.wallpaper,r.floor," +
+                    "r.landscape,r.floorthick,r.wallthick,r.mute_settings,r.kick_settings," +
+                    "r.ban_settings,r.chat_mode,r.chat_speed,r.chat_size,r.trade_settings," +
+                    "r.group_id,r.tags,r.push_enabled,r.pull_enabled,r.enables_enabled," +
+                    "r.respect_notifications_enabled,r.pet_morphs_allowed,r.spush_enabled,r.spull_enabled " +
+                    "FROM rooms r " +
+                    "WHERE r.caption LIKE @p AND r.state != 'invisible' " +
+                    "ORDER BY r.users_now DESC LIMIT 50",
+                    ("p", query));
+                WriteRooms(msg, results);
+            }
+        }
+
+        /// <summary>
+        /// Ejecuta una query sobre rooms y carga los datos de rp_rooms en una sola conexión
+        /// usando un LEFT JOIN, eliminando la query por-sala que antes abría N conexiones.
+        /// </summary>
+        private static List<RoomData> FetchRoomsWithRP(string sql, params (string name, object value)[] parameters)
+        {
+            var results = new List<RoomData>();
+            DataTable roomTable = null;
+            DataTable rpTable   = null;
+
+            using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+            {
+                dbClient.SetQuery(sql);
+                foreach (var (name, value) in parameters)
+                    dbClient.AddParameter(name, value);
+                roomTable = dbClient.getTable();
+
+                if (roomTable == null || roomTable.Rows.Count == 0)
+                    return results;
+
+                // Cargar todos los rp_rooms de una vez con IN (ids)
+                var ids = string.Join(",",
+                    roomTable.Rows.Cast<DataRow>().Select(r => Convert.ToInt32(r["id"])));
+
+                dbClient.SetQuery($"SELECT * FROM `rp_rooms` WHERE `id` IN ({ids})");
+                rpTable = dbClient.getTable();
+            }
+
+            // Indexar rp_rooms por id para O(1) lookup
+            var rpIndex = new Dictionary<int, DataRow>();
+            if (rpTable != null)
+                foreach (DataRow row in rpTable.Rows)
+                    rpIndex[Convert.ToInt32(row["id"])] = row;
+
+            foreach (DataRow row in roomTable.Rows)
+            {
+                int id = Convert.ToInt32(row["id"]);
+                rpIndex.TryGetValue(id, out DataRow rpRow);
+
+                RoomData data = PolarEnvironment.GetGame().GetRoomManager().FetchRoomData(id, row, rpRow);
+                if (data != null && !results.Contains(data))
+                    results.Add(data);
+            }
+
+            return results;
         }
     }
 }

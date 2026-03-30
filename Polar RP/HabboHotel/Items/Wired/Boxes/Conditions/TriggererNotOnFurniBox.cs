@@ -1,14 +1,13 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Polar.Communication.Packets.Incoming;
 using Polar.HabboHotel.Rooms;
 using Polar.HabboHotel.Users;
-using Polar.Communication.Packets.Incoming;
 using Polar.HabboHotel.Items.Wired;
 using Polar.HabboHotel.Items;
-using Polar.HabboHotel.Rooms;
-using Polar.HabboHotel.Users;
+
+// FIX: Eliminados using duplicados de Packets.Incoming, Rooms, Users
 
 namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
 {

@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+using System;
+using System.Collections.Concurrent;
 using System.Drawing;
 using Polar.Communication.Packets.Outgoing.Rooms.Engine;
 using Polar.HabboHotel.GameClients;
@@ -38,48 +39,69 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
         {
             if (Instance == null || !_requested || _next == 0)
                 return false;
+
             var now = DateTime.UtcNow.Ticks;
             if (_next < now)
             {
+                // FIX: Validar StringData antes de Split para evitar NullReferenceException
+                if (string.IsNullOrEmpty(StringData) || !StringData.Contains(';'))
+                    return false;
+
+                var parts = StringData.Split(';');
+                if (parts.Length < 2)
+                    return false;
+
                 foreach (var item in SetItems.Values.ToList())
                 {
                     if (item == null)
                         continue;
+
                     if (!Instance.GetRoomItemHandler().GetFloor.Contains(item))
                         continue;
+
                     Item toRemove = null;
                     if (Instance.GetWired().OtherBoxHasItem(this, item.Id))
                         SetItems.TryRemove(item.Id, out toRemove);
-                    var point = HandleMovement(Convert.ToInt32(StringData.Split(';')[0]), new(item.GetX, item.GetY));
-                    var newRot = HandleRotation(Convert.ToInt32(StringData.Split(';')[1]), item.Rotation);
+
+                    var point = HandleMovement(Convert.ToInt32(parts[0]), new Point(item.GetX, item.GetY));
+                    var newRot = HandleRotation(Convert.ToInt32(parts[1]), item.Rotation);
+
                     Instance.GetWired().OnUserFurniCollision(Instance, item);
+
                     if (!Instance.GetGameMap().ItemCanMove(item, point))
                         continue;
+
                     if (Instance.GetGameMap().CanRollItemHere(point.X, point.Y) && !Instance.GetGameMap().SquareHasUsers(point.X, point.Y))
                     {
                         var newZ = Instance.GetGameMap().GetHeightForSquareFromData(point);
                         var canBePlaced = true;
                         var coordinatedItems = Instance.GetGameMap().GetCoordinatedItems(point);
+
                         foreach (var coordinatedItem in coordinatedItems.ToList())
                         {
                             if (coordinatedItem == null || coordinatedItem.Id == item.Id)
                                 continue;
+
                             if (!coordinatedItem.GetBaseItem().Walkable)
                             {
                                 _next = 0;
                                 canBePlaced = false;
                                 break;
                             }
+
                             if (coordinatedItem.TotalHeight > newZ)
                                 newZ = coordinatedItem.TotalHeight;
+
                             if (canBePlaced && !coordinatedItem.GetBaseItem().Stackable)
                                 canBePlaced = false;
                         }
+
                         if (newRot != item.Rotation)
                         {
                             item.Rotation = newRot;
                             item.UpdateState(false, true);
                         }
+
                         if (canBePlaced && point != item.Coordinate)
                         {
                             Instance.SendMessage(new SlideObjectBundleComposer(item.GetX, item.GetY, item.GetZ, point.X,
@@ -88,6 +110,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                         }
                     }
                 }
+
                 _next = 0;
                 return true;
             }
@@ -108,17 +131,20 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
         {
             if (SetItems.Count > 0)
                 SetItems.Clear();
+
             var unknown = packet.PopInt();
             var movement = packet.PopInt();
             var rotation = packet.PopInt();
             var unknown1 = packet.PopString();
             var furniCount = packet.PopInt();
+
             for (var i = 0; i < furniCount; i++)
             {
                 var selectedItem = Instance.GetRoomItemHandler().GetItem(packet.PopInt());
                 if (selectedItem != null && !Instance.GetWired().OtherBoxHasItem(this, selectedItem.Id))
                     SetItems.TryAdd(selectedItem.Id, selectedItem);
             }
+
             StringData = $"{movement};{rotation}";
             Delay = packet.PopInt();
         }
@@ -127,8 +153,10 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
         {
             if (SetItems.Count == 0)
                 return false;
+
             if (_next == 0 || _next < DateTime.UtcNow.Ticks)
                 _next = DateTime.UtcNow.Ticks + Delay;
+
             if (!_requested)
             {
                 TickCount = Delay;
@@ -139,7 +167,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
 
         private int HandleRotation(int mode, int rotation)
         {
-            if (rotation < 0 || rotation > 6) rotation = 0; // Asegurarse de que la rotación sea válida
+            if (rotation < 0 || rotation > 6) rotation = 0;
             switch (mode)
             {
                 case 1:
@@ -169,8 +197,8 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
         private Point HandleMovement(int mode, Point position)
         {
             var newPos = new Point();
-            int maxX = Instance.GetGameMap().Model.MapSizeX; // Límite X del mapa
-            int maxY = Instance.GetGameMap().Model.MapSizeY; // Límite Y del mapa
+            int maxX = Instance.GetGameMap().Model.MapSizeX;
+            int maxY = Instance.GetGameMap().Model.MapSizeY;
 
             switch (mode)
             {
@@ -180,18 +208,10 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                 case 1:
                     switch (Random.Shared.Next(1, 5))
                     {
-                        case 1:
-                            newPos = new Point(position.X + 1, position.Y);
-                            break;
-                        case 2:
-                            newPos = new Point(position.X - 1, position.Y);
-                            break;
-                        case 3:
-                            newPos = new Point(position.X, position.Y + 1);
-                            break;
-                        case 4:
-                            newPos = new Point(position.X, position.Y - 1);
-                            break;
+                        case 1: newPos = new Point(position.X + 1, position.Y); break;
+                        case 2: newPos = new Point(position.X - 1, position.Y); break;
+                        case 3: newPos = new Point(position.X, position.Y + 1); break;
+                        case 4: newPos = new Point(position.X, position.Y - 1); break;
                     }
                     break;
                 case 2:
@@ -204,25 +224,14 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                         ? new Point(position.X, position.Y - 1)
                         : new Point(position.X, position.Y + 1);
                     break;
-                case 4:
-                    newPos = new Point(position.X, position.Y - 1);
-                    break;
-                case 5:
-                    newPos = new Point(position.X + 1, position.Y);
-                    break;
-                case 6:
-                    newPos = new Point(position.X, position.Y + 1);
-                    break;
-                case 7:
-                    newPos = new Point(position.X - 1, position.Y);
-                    break;
+                case 4: newPos = new Point(position.X, position.Y - 1); break;
+                case 5: newPos = new Point(position.X + 1, position.Y); break;
+                case 6: newPos = new Point(position.X, position.Y + 1); break;
+                case 7: newPos = new Point(position.X - 1, position.Y); break;
             }
 
-            // Verificar que las nuevas coordenadas estén dentro del mapa
             if (newPos.X < 0 || newPos.Y < 0 || newPos.X >= maxX || newPos.Y >= maxY)
-            {
-                return position;  // No mover si fuera del rango
-            }
+                return position;
 
             return newPos;
         }

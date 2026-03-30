@@ -1,33 +1,12 @@
-﻿using System;
+using ConnectionManager;
+using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using Fleck;
 using Polar.HabboHotel.Items;
 using Polar.HabboHotel.GameClients;
-using Polar.HabboHotel.Rooms;
-using System.IO;
-using Polar.HabboRoleplay.Misc;
-using Polar.Communication.Packets.Incoming.Groups;
-using Polar.Communication.Packets.Outgoing;
-using Polar.Communication.Packets.Incoming;
-using Polar.Communication.Packets.Outgoing.Groups;
-using Polar.Communication.Packets.Outgoing.Catalog;
-using Polar.Communication.Packets.Outgoing.Messenger;
-using System.Collections.Generic;
-using Polar.HabboHotel.Groups;
-using Polar.HabboHotel.Cache;
-using Polar.Communication.Packets.Outgoing.Rooms.Permissions;
-using Polar.Database.Interfaces;
-using System.Text.RegularExpressions;
-using Polar.Communication.Packets.Outgoing.Rooms.Notifications;
-using Polar.HabboRoleplay.Vehicles;
-using System.Data;
-using Polar.HabboRoleplay.VehicleOwned;
-using Polar.HabboRoleplay.Weapons;
-using Polar.HabboRoleplay.RoleplayUsers.Offers;
-using Polar.HabboHotel.Global;
+using Polar.Net;
 
 namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Purse
 {
@@ -42,7 +21,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Purse
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -56,7 +35,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Purse
                 #region Credits
                 case "credits":
                     {
-                        Socket.Send("compose_update_purse|credits|" + (Client.GetHabbo().Credits < 0 ? 0 : Client.GetHabbo().Credits));
+                        Socket.SendWS( "compose_update_purse|credits|" + (Client.GetHabbo().Credits < 0 ? 0 : Client.GetHabbo().Credits));
                         break;
                     }
                 #endregion
@@ -64,7 +43,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Purse
                 #region Duckets
                 case "duckets":
                     {
-                        Socket.Send("compose_update_purse|duckets|" + (Client.GetHabbo().Duckets < 0 ? 0 : Client.GetHabbo().Duckets));
+                        Socket.SendWS( "compose_update_purse|duckets|" + (Client.GetHabbo().Duckets < 0 ? 0 : Client.GetHabbo().Duckets));
                         break;
                     }
                 #endregion
@@ -72,7 +51,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Purse
                 #region Diamonds
                 case "diamonds":
                     {
-                        Socket.Send("compose_update_purse|diamonds|" + (Client.GetHabbo().Diamonds < 0 ? 0 : Client.GetHabbo().Diamonds));
+                        Socket.SendWS( "compose_update_purse|diamonds|" + (Client.GetHabbo().Diamonds < 0 ? 0 : Client.GetHabbo().Diamonds));
                         break;
                     }
                 #endregion
@@ -84,12 +63,20 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Purse
                         Double TimeLeft = Expire - PolarEnvironment.GetUnixTimestamp();
                         int TotalDaysLeft = (int)Math.Ceiling(TimeLeft / 86400);
                         future = DateTime.Now.AddDays(TotalDaysLeft);
-                        Socket.Send("compose_update_purse|hc|" + TotalDaysLeft);
+                        Socket.SendWS( "compose_update_purse|hc|" + TotalDaysLeft);
                         break;
                     }
                     #endregion
 
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

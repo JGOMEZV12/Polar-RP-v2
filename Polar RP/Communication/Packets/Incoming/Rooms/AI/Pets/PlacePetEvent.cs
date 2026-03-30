@@ -88,7 +88,7 @@ namespace Polar.Communication.Packets.Incoming.Rooms.AI.Pets
             Room.GetRoomUserManager().DeployBot(RoomBot, Pet);
 
             Pet.DbState = PetDatabaseUpdateState.NeedsUpdate;
-            Room.GetRoomUserManager().UpdatePets();
+            Pet.Save();
 
             Pet ToRemove = null;
             if (!Session.GetHabbo().GetInventoryComponent().TryRemovePet(Pet.PetId, out ToRemove))

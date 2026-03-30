@@ -1,9 +1,9 @@
+using ConnectionManager;
 ﻿using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
-using Fleck;
+using Polar.Net;
 
 using Polar.HabboHotel.GameClients;
 using System.IO;
@@ -22,7 +22,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -46,7 +46,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         SendData += Client.GetRoleplay().BankAccount + ",";
                         SendData += Client.GetRoleplay().BankChequings + ",";
                         SendData += Client.GetRoleplay().BankSavings + ",";
-                        Socket.Send("compose_atm|open|" + SendData);
+                        Socket.SendWS( "compose_atm|open|" + SendData);
                     }
                     break;
                 #endregion
@@ -68,7 +68,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (!int.TryParse(ReceivedData[1], out Amount))
                         {
-                            Socket.Send("compose_atm|error|solo numeros");
+                            Socket.SendWS( "compose_atm|error|solo numeros");
                             return;
                         }
 
@@ -82,13 +82,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (WithdrawAmount <= 0)
                         {
-                            Socket.Send("compose_atm|error|Invalid amount!");
+                            Socket.SendWS( "compose_atm|error|Invalid amount!");
                             return;
                         }
 
                         if (WithdrawAmount > ActualAmount || ActualAmount - WithdrawAmount <= -10000)
                         {
-                            Socket.Send("compose_atm|error|Usted no tiene ese tipo de dinero para retirar");
+                            Socket.SendWS( "compose_atm|error|Usted no tiene ese tipo de dinero para retirar");
                             return;
                         }
 
@@ -98,13 +98,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         {
                             if (Client.GetRoleplay().BankAccount < 1)
                             {
-                                Socket.Send("compose_atm|error|¡No tienes una cuenta corriente!");
+                                Socket.SendWS( "compose_atm|error|¡No tienes una cuenta corriente!");
                                 return;
                             }
 
                             if (Client.GetRoleplay().BankTarget < 1)
                             {
-                                Socket.Send("compose_atm|error|¡Usted no tiene tarjeta de debito, vaya al banco y pida la suya escribiendo: tarjeta!");
+                                Socket.SendWS( "compose_atm|error|¡Usted no tiene tarjeta de debito, vaya al banco y pida la suya escribiendo: tarjeta!");
                                 return;
                             }
 
@@ -118,25 +118,25 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             Client.GetHabbo().UpdateCreditsBalance();
                             Client.GetRoleplay().CooldownManager.CreateCooldown("withdraw", 1000, 5);
 
-                            Socket.Send("compose_atm|change_balance_1|" + Client.GetRoleplay().BankChequings);
+                            Socket.SendWS( "compose_atm|change_balance_1|" + Client.GetRoleplay().BankChequings);
                         }
                         else
                         {
                             if (Client.GetRoleplay().BankAccount < 2)
                             {
-                                Socket.Send("compose_atm|error|¡No tienes una cuenta de ahorros!");
+                                Socket.SendWS( "compose_atm|error|¡No tienes una cuenta de ahorros!");
                                 return;
                             }
 
                             if (Client.GetRoleplay().ATMAmount.IndexOf(WithdrawAmount) != -1)
                             {
-                                Socket.Send("compose_atm|error|Ya retiraste $" + WithdrawAmount + "!");
+                                Socket.SendWS( "compose_atm|error|Ya retiraste $" + WithdrawAmount + "!");
                                 return;
                             }
 
                             if (Client.GetRoleplay().BankTarget < 1)
                             {
-                                Socket.Send("compose_atm|error|¡Usted no tiene tarjeta de debito, vaya al banco y pida la suya!");
+                                Socket.SendWS( "compose_atm|error|¡Usted no tiene tarjeta de debito, vaya al banco y pida la suya!");
                                 return;
                             }
 
@@ -152,7 +152,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             Client.GetRoleplay().ATMAmount.Add(WithdrawAmount);
                             Client.GetRoleplay().CooldownManager.CreateCooldown("withdraw", 1000, 5);
 
-                            Socket.Send("compose_atm|change_balance_2|" + Client.GetRoleplay().BankSavings);
+                            Socket.SendWS( "compose_atm|change_balance_2|" + Client.GetRoleplay().BankSavings);
                         }
                     }
                     break;
@@ -167,7 +167,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (!int.TryParse(ReceivedData[1], out Amount))
                         {
-                            Socket.Send("compose_atm|error|Solo numeros");
+                            Socket.SendWS( "compose_atm|error|Solo numeros");
                             return;
                         }
 
@@ -181,13 +181,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (DepositAmount <= 0)
                         {
-                            Socket.Send("compose_atm|error|Monto invalido");
+                            Socket.SendWS( "compose_atm|error|Monto invalido");
                             return;
                         }
 
                         if (DepositAmount > ActualAmount || ActualAmount - DepositAmount <= -10000)
                         {
-                            Socket.Send("compose_atm|error|El monto minimo para depositar es 10.000!");
+                            Socket.SendWS( "compose_atm|error|El monto minimo para depositar es 10.000!");
                             return;
                         }
 
@@ -195,7 +195,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         {
                             if (Client.GetRoleplay().BankAccount < 1)
                             {
-                                Socket.Send("compose_atm|error|¡No tienes una cuenta de corriente!");
+                                Socket.SendWS( "compose_atm|error|¡No tienes una cuenta de corriente!");
                                 return;
                             }
 
@@ -210,14 +210,14 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             //RoleplayManager.GiveMoneyFromCompanyNoRight(9, DepositAmount, Client, true);
                             RoleplayManager.GiveMoneyToCompany(9, Client, "bank", true, 100);
 
-                            Socket.Send("compose_atm|change_balance_1|" + Client.GetRoleplay().BankChequings);
+                            Socket.SendWS( "compose_atm|change_balance_1|" + Client.GetRoleplay().BankChequings);
                         }
                         else
                         {
 
                             if (Client.GetRoleplay().BankAccount < 2)
                             {
-                                Socket.Send("compose_atm|error|¡No tienes una cuenta de ahorros!");
+                                Socket.SendWS( "compose_atm|error|¡No tienes una cuenta de ahorros!");
                                 return;
                             }
 
@@ -230,7 +230,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             //RoleplayManager.GiveMoneyFromCompanyNoRight(9, DepositAmount, Client, true);
                             RoleplayManager.GiveMoneyToCompany(9, Client, "bank", true, 100);
 
-                            Socket.Send("compose_atm|change_balance_2|" + Client.GetRoleplay().BankSavings);
+                            Socket.SendWS( "compose_atm|change_balance_2|" + Client.GetRoleplay().BankSavings);
                         }
 
                         Client.GetRoleplay().CooldownManager.CreateCooldown("deposit", 1000, 5);
@@ -239,5 +239,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                     #endregion
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

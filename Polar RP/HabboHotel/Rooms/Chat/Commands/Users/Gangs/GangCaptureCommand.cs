@@ -39,6 +39,13 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Gangs
 
             Item item = Room.GetRoomItemHandler().GetFloor.FirstOrDefault(x => x.GetBaseItem().ItemName.ToLower() == "army_c15_groupflag");
 
+            // ✅ FIX: FirstOrDefault devuelve null si no hay ninguna flag en la sala
+            if (item == null)
+            {
+                Session.SendWhisper("No se encontró ninguna bandera de territorio en esta sala.", 1);
+                return;
+            }
+
             if (!item.GetRoom().TurfEnabled)
             {
                 Session.SendWhisper("Este no es un territorio.", 1);

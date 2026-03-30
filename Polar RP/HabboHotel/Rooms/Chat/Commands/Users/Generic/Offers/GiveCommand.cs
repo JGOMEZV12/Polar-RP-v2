@@ -61,9 +61,9 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
                 return;
             }
 
-            if (Session.GetHabbo().Credits < 2000)
+            if (Session.GetHabbo().Credits < 2)
             {
-                Session.SendWhisper("El monto minimo para dar es de 2.000$", 1);
+                Session.SendWhisper("El monto minimo para dar es de 2$", 1);
                 return;
             }
 
@@ -81,9 +81,9 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
 
             if (int.TryParse((Params[2]), out Amount))
             {
-                if (Amount <= 1999)
+                if (Amount <= 1)
                 {
-                    Session.SendWhisper("Introduzca una cantidad de dinero válida MÍNIMO: 2000$", 1);
+                    Session.SendWhisper("Introduzca una cantidad de dinero válida MÍNIMO: 2$", 1);
                     return;
                 }
 

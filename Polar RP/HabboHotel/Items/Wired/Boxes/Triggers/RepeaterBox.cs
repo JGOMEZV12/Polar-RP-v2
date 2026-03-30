@@ -1,12 +1,10 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Polar.Communication.Packets.Incoming;
 using Polar.HabboHotel.Rooms;
-using Polar.Communication.Packets.Incoming;
 using Polar.HabboHotel.Items.Wired;
 using Polar.HabboHotel.Items;
-using Polar.HabboHotel.Rooms;
 
 namespace Polar.HabboHotel.Items.Wired.Boxes.Triggers
 {
@@ -84,21 +82,19 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Triggers
 
             success = false;
 
-            //Check the ICollection to find the random addon effect.
-            bool hasRandomEffectAddon = effects.Count(x => x.Type == WiredBoxType.AddonRandomEffect) > 0;
+            // FIX: Any() en lugar de .Count() > 0
+            bool hasRandomEffectAddon = effects.Any(x => x.Type == WiredBoxType.AddonRandomEffect);
             if (hasRandomEffectAddon)
             {
-                //Okay, so we have a random addon effect, now lets get the IWiredItem and attempt to execute it.
+                // FIX: null-check en randomBox antes de ejecutar
                 IWiredItem randomBox = effects.FirstOrDefault(x => x.Type == WiredBoxType.AddonRandomEffect);
-                if (!randomBox.Execute())
+                if (randomBox == null || !randomBox.Execute())
                     return false;
 
-                //Success! Let's get our selected box and continue.
                 IWiredItem selectedBox = Instance.GetWired().GetRandomEffect(effects.ToList());
-                if (!selectedBox.Execute())
+                if (selectedBox == null || !selectedBox.Execute())
                     return false;
 
-                //Woo! Almost there captain, now lets broadcast the update to the room instance.
                 if (Instance != null)
                 {
                     Instance.GetWired().OnEvent(randomBox.Item);
@@ -112,11 +108,9 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Triggers
                     if (!effect.Execute())
                         continue;
 
+                    // FIX: Eliminada la condición muerta "if (!success) return false"
+                    // success siempre sería true en este punto, la condición nunca podía cumplirse
                     success = true;
-
-                    if (!success)
-                        return false;
-
                     Instance?.GetWired().OnEvent(effect.Item);
                 }
             }

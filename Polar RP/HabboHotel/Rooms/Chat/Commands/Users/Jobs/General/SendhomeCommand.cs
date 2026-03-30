@@ -101,15 +101,15 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.General
                 }
 
                 TargetClient.GetRoleplay().SendHomeTimeLeft = SendHomeTime;
-                TargetClient.SendWhisper("YTe han enviado a casa por " + SendHomeTime + " minutos, ¡No puedes trabajar hasta que tu duración de sendhome haya sido completada!", 1);
+                TargetClient.SendWhisper("Te han puesto en suspensión por " + SendHomeTime + " minutos, ¡No puedes trabajar hasta que suspensión haya sido completada!", 1);
 
                 if (!TargetClient.GetRoleplay().TimerManager.ActiveTimers.ContainsKey("sendhome"))
                     TargetClient.GetRoleplay().TimerManager.CreateTimer("sendhome", 1000, false);
 
                 if (Bubble == 4)
-                    Session.Shout("*Envía " + TargetClient.GetHabbo().Username + " a casa for " + SendHomeTime + " minutos*", Bubble);
+                    Session.Shout("*Le pone suspensión a " + TargetClient.GetHabbo().Username + " por " + SendHomeTime + " minutos*", Bubble);
                 else
-                    Session.Shout("*Utiliza sus poderes divinos para enviar" + TargetClient.GetHabbo().Username + " a casa for " + SendHomeTime + " minutos*", Bubble);
+                    Session.Shout("*Utiliza sus poderes divinos para enviar a " + TargetClient.GetHabbo().Username + " por suspensión por " + SendHomeTime + " minutos*", Bubble);
 
                 Session.GetRoleplay().CooldownManager.CreateCooldown("sendhome", 1000, 5);
             }

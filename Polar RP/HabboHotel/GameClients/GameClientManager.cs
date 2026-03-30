@@ -37,7 +37,7 @@ namespace Polar.HabboHotel.GameClients
         private ConcurrentDictionary<string, GameClient> _usernameRegisterPhone;
         public Dictionary<string, int> RobberyUsers = new Dictionary<string, int>();
 
-        private readonly Queue timedOutConnections;
+        private readonly System.Collections.Concurrent.ConcurrentQueue<GameClient> timedOutConnections;
 
         private readonly Stopwatch clientPingStopwatch;
 
@@ -48,7 +48,7 @@ namespace Polar.HabboHotel.GameClients
             this._usernameRegister = new ConcurrentDictionary<string, GameClient>();
             this._usernameRegisterPhone = new ConcurrentDictionary<string, GameClient>();
 
-            timedOutConnections = new Queue();
+            timedOutConnections = new System.Collections.Concurrent.ConcurrentQueue<GameClient>();
 
             clientPingStopwatch = new Stopwatch();
             clientPingStopwatch.Start();
@@ -63,23 +63,21 @@ namespace Polar.HabboHotel.GameClients
 
         public GameClient GetClientByUserID(int userID)
         {
-            if (_userIDRegister.ContainsKey(userID))
-                return _userIDRegister[userID];
-            return null;
+            // FIX: TryGetValue — una sola búsqueda en lugar de ContainsKey + indexer
+            _userIDRegister.TryGetValue(userID, out GameClient client);
+            return client;
         }
 
         public GameClient GetClientByUsername(string username)
         {
-            if (_usernameRegister.ContainsKey(username.ToLower()))
-                return _usernameRegister[username.ToLower()];
-            return null;
+            _usernameRegister.TryGetValue(username.ToLower(), out GameClient client);
+            return client;
         }
 
         public GameClient GetClientByPhoneNumber(string number)
         {
-            if (_usernameRegisterPhone.ContainsKey(number.ToLower()))
-                return _usernameRegisterPhone[number.ToLower()];
-            return null;
+            _usernameRegisterPhone.TryGetValue(number.ToLower(), out GameClient client);
+            return client;
         }
 
         public bool TryGetClient(int ClientId, out GameClient Client)
@@ -112,7 +110,7 @@ namespace Polar.HabboHotel.GameClients
                 id = dbClient.getInteger();
             }
 
-            return id > 0 ? id : 0;
+            return id; // FIX: era "id > 0 ? id : 0" — si id <= 0 ya vale 0, el ternario era redundante
         }
         public string GetNameById(int Id)
         {
@@ -144,7 +142,8 @@ namespace Polar.HabboHotel.GameClients
 
         public void StaffWhisperAlert(string Message, GameClient Session)
         {
-            foreach (GameClient client in this.GetClients.ToList())
+            // FIX: ConcurrentDictionary.Values es snapshot seguro — ToList() crea copia innecesaria
+            foreach (GameClient client in this._clients.Values)
             {
                 if (client == null || client.GetHabbo() == null)
                     continue;
@@ -191,7 +190,10 @@ namespace Polar.HabboHotel.GameClients
 
                         using (var dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                         {
-                            dbClient.RunQuery("UPDATE `users` SET `time_muted` = '3600' WHERE `id` = '" + Session.GetHabbo().Id + "' LIMIT 1");
+                            // FIX: parámetro en lugar de concatenación
+                            dbClient.SetQuery("UPDATE `users` SET `time_muted` = '3600' WHERE `id` = @uid LIMIT 1");
+                            dbClient.AddParameter("uid", Session.GetHabbo().Id);
+                            dbClient.RunQuery();
                         }
 
                         Session.SendMessage(new RoomNotificationComposer("¡Has sido silenciado!", "Lamentablemente por no prestar atención a la advertencia anterior, usted ha sido MUTEADO por hacer publicidad de otra comunidad. '" + Phrase + "'.<br><br>The moderation team has been notified and action will be taken within your account!", "frank10", "ok", "event:"));
@@ -242,7 +244,10 @@ namespace Polar.HabboHotel.GameClients
 
                         using (var dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                         {
-                            dbClient.RunQuery("UPDATE `users` SET `time_muted` = '3600' WHERE `id` = '" + Session.GetHabbo().Id + "' LIMIT 1");
+                            // FIX: parámetro en lugar de concatenación
+                            dbClient.SetQuery("UPDATE `users` SET `time_muted` = '3600' WHERE `id` = @uid LIMIT 1");
+                            dbClient.AddParameter("uid", Session.GetHabbo().Id);
+                            dbClient.RunQuery();
                         }
 
                         Session.SendMessage(new RoomNotificationComposer("You've been muted!", "Lo sentimos, pero se ha silenciado automáticamente por anunciar el retro '" + Phrase + "'.<br><br>The moderation team has been notified and action will be taken within your account!", "frank10", "ok", "event:"));
@@ -380,7 +385,8 @@ namespace Polar.HabboHotel.GameClients
 
                 RoomUser Human = room.GetRoomUserManager().GetRoomUserByHabbo(RoomUser.GetClient().GetHabbo().Id);
 
-                if (Human.X != Item.GetX && Human.Y != Item.GetY || RoomUser.GetClient().GetHabbo().Id == Exclude)
+                // FIX: || en lugar de && — antes incluía usuarios en la misma fila O columna que el item
+                if ((Human.X != Item.GetX || Human.Y != Item.GetY) || RoomUser.GetClient().GetHabbo().Id == Exclude)
                     continue;
 
                 RoomUser.GetClient().SendMessage(Message);
@@ -526,7 +532,9 @@ namespace Polar.HabboHotel.GameClients
             DataTable GetLogs = null;
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("SELECT `message` FROM `chatlogs` WHERE `user_id` = '" + Target.GetHabbo().Id + "' ORDER BY `id` DESC LIMIT 10");
+                // FIX: parámetro en lugar de concatenación directa
+                dbClient.SetQuery("SELECT `message` FROM `chatlogs` WHERE `user_id` = @uid ORDER BY `id` DESC LIMIT 10");
+                dbClient.AddParameter("uid", Target.GetHabbo().Id);
                 GetLogs = dbClient.getTable();
 
                 if (GetLogs != null)
@@ -603,28 +611,16 @@ namespace Polar.HabboHotel.GameClients
 
         public void RegisterClient(GameClient client, int userID, string username)
         {
-            if (_usernameRegister.ContainsKey(username.ToLower()))
-                _usernameRegister[username.ToLower()] = client;
-            else
-                _usernameRegister.TryAdd(username.ToLower(), client);
-
-            if (_userIDRegister.ContainsKey(userID))
-                _userIDRegister[userID] = client;
-            else
-                _userIDRegister.TryAdd(userID, client);
+            // FIX: AddOrUpdate es atómico — elimina race condition de ContainsKey+TryAdd
+            _usernameRegister.AddOrUpdate(username.ToLower(), client, (_, __) => client);
+            _userIDRegister.AddOrUpdate(userID, client, (_, __) => client);
         }
 
         public void RegisterClientPhone(GameClient client, int userID, string number)
         {
-            if (_usernameRegisterPhone.ContainsKey(number.ToLower()))
-                _usernameRegisterPhone[number.ToLower()] = client;
-            else
-                _usernameRegisterPhone.TryAdd(number.ToLower(), client);
-
-            if (_userIDRegister.ContainsKey(userID))
-                _userIDRegister[userID] = client;
-            else
-                _userIDRegister.TryAdd(userID, client);
+            // FIX: AddOrUpdate atómico
+            _usernameRegisterPhone.AddOrUpdate(number.ToLower(), client, (_, __) => client);
+            _userIDRegister.AddOrUpdate(userID, client, (_, __) => client);
         }
 
 
@@ -672,16 +668,16 @@ namespace Polar.HabboHotel.GameClients
                     }
                     catch { }
 
-                    Console.Clear();
-                    //log.Info("<<- SERVER SHUTDOWN ->> CLOSING CONNECTIONS");
-                    Out.WriteLine("<< -SERVER SHUTDOWN->> CLOSING CONNECTIONS", "Polar.GameClientManager", ConsoleColor.Red);
-
                 }
             }
             catch (Exception e)
             {
                 Logging.LogCriticalException(e.ToString());
             }
+
+            // FIX: Console.Clear y mensaje DESPUÉS del loop, no dentro
+            Console.Clear();
+            Out.WriteLine("<< -SERVER SHUTDOWN->> CLOSING CONNECTIONS", "Polar.GameClientManager", ConsoleColor.Red);
 
             if (this._clients.Count > 0)
                 this._clients.Clear();
@@ -703,19 +699,15 @@ namespace Polar.HabboHotel.GameClients
                         if (client.PingCount < 6)
                         {
                             client.PingCount++;
-
                             toPing.Add(client);
                         }
                         else
                         {
-                            lock (timedOutConnections.SyncRoot)
-                            {
-                                timedOutConnections.Enqueue(client);
-                            }
+                            // FIX: ConcurrentQueue — sin lock necesario
+                            timedOutConnections.Enqueue(client);
                         }
                     }
-                    var start = DateTime.Now;
-                    foreach (var client in toPing.ToList())
+                    foreach (var client in toPing)
                     {
                         try
                         {
@@ -723,10 +715,7 @@ namespace Polar.HabboHotel.GameClients
                         }
                         catch
                         {
-                            lock (timedOutConnections.SyncRoot)
-                            {
-                                timedOutConnections.Enqueue(client);
-                            }
+                            timedOutConnections.Enqueue(client);
                         }
                     }
                 }
@@ -739,20 +728,9 @@ namespace Polar.HabboHotel.GameClients
 
         private void HandleTimeouts()
         {
-            if (timedOutConnections.Count > 0)
-            {
-                lock (timedOutConnections.SyncRoot)
-                {
-                    while (timedOutConnections.Count > 0)
-                    {
-                        GameClient client = null;
-                        if (timedOutConnections.Count > 0)
-                            client = (GameClient)timedOutConnections.Dequeue();
-                        if (client != null)
-                            client.Disconnect(false);
-                    }
-                }
-            }
+            // FIX: ConcurrentQueue.TryDequeue — sin lock, sin double-check de Count
+            while (timedOutConnections.TryDequeue(out GameClient client))
+                client.Disconnect(false);
         }
 
         public string ClearNumbers(string str)

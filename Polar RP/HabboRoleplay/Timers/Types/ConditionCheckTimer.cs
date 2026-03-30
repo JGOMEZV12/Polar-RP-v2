@@ -1,18 +1,19 @@
-﻿using System;
-using System.Linq;
-using System.Drawing;
-using System.Collections.Generic;
-using System.Text;
-using Polar.HabboHotel.GameClients;
-using Polar.HabboRoleplay.Misc;
-using Polar.HabboRoleplay.Weapons;
+﻿using Polar.Communication.Packets.Outgoing.Inventory.Weapons;
 using Polar.Core;
+using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Groups;
-using Polar.HabboHotel.Users.Effects;
 using Polar.HabboHotel.Rooms;
-using Polar.HabboRoleplay.Vehicles;
-using Polar.HabboRoleplay.VehicleOwned;
+using Polar.HabboHotel.Users.Effects;
+using Polar.HabboRoleplay.Misc;
 using Polar.HabboRoleplay.RPRoom;
+using Polar.HabboRoleplay.VehicleOwned;
+using Polar.HabboRoleplay.Vehicles;
+using Polar.HabboRoleplay.Weapons;
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Text;
 
 namespace Polar.HabboRoleplay.Timers.Types
 {
@@ -58,8 +59,6 @@ namespace Polar.HabboRoleplay.Timers.Types
                 int Item = base.Client.GetRoomUser().CarryItemID;
                 #endregion
 
-                
-
                 #region Random Checks
                 if (base.Client.GetRoleplay().IsWorking || base.Client.GetRoleplay().IsWorkingOut || base.Client.GetRoleplay().BankAccount <= 2 && !base.Client.GetRoomUser().IsAsleep)
                 {
@@ -72,10 +71,13 @@ namespace Polar.HabboRoleplay.Timers.Types
                     if (Equipped)
                     {
                         base.Client.GetRoleplay().EquippedWeapon = null;
+
                         if (base.Client.GetRoomUser().CurrentEffect != EffectsList.None)
                             base.Client.GetRoomUser().ApplyEffect(EffectsList.None);
                         if (base.Client.GetRoomUser().CarryItemID != 0)
                             base.Client.GetRoomUser().CarryItem(0);
+
+                        base.Client.SendMessage(new WeaponsComposer(base.Client));
                     }
                 }
                 if (!Equipped)
@@ -86,7 +88,7 @@ namespace Polar.HabboRoleplay.Timers.Types
                     if (Item > 0 && WeaponManager.Weapons.Values.Where(x => x.HandItem == Item).ToList().Count > 0)
                         base.Client.GetRoomUser().CarryItem(EffectsList.None);
                 }
-                //Al salir a la Calle, recolocar el auto si entró antes sin estacionar.
+                // Al salir a la Calle, recolocar el auto si entró antes sin estacionar.
                 if (base.Client.GetHabbo().CurrentRoom.DriveEnabled && !base.Client.GetRoleplay().DrivingCar)
                 {
                     if (base.Client.GetRoleplay().DrivingInCar)
@@ -98,7 +100,6 @@ namespace Polar.HabboRoleplay.Timers.Types
                         // Abrimos ventana de combustible
                         PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(base.Client, "event_vehicle", "open");
                         PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(base.Client, "compose_carnew|open");
-                        //PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(base.Client, "compose_carnew|stop");// Sum 6 para 90
                     }
                 }
                 #endregion
@@ -128,18 +129,10 @@ namespace Polar.HabboRoleplay.Timers.Types
                 // Healing check
                 if (Effect == EffectsList.GreenGlow && !Healing)
                     base.Client.GetRoomUser().ApplyEffect(EffectsList.None);
-                // Staff On Duty Check
-                /*
-                if (Effect == EffectsList.Staff && !base.Client.GetRoleplay().StaffOnDuty)
-                    base.Client.GetRoomUser().ApplyEffect(EffectsList.None);
-                // Ambassador On Duty Check
-                if (Effect == EffectsList.Ambassador && !base.Client.GetRoleplay().AmbassadorOnDuty)
-                    base.Client.GetRoomUser().ApplyEffect(EffectsList.None);
-                */
                 // Police On Duty Check
                 if (Effect == EffectsList.HoloRPPolice && (!base.Client.GetRoleplay().IsWorking || !GroupManager.HasJobCommand(base.Client, "guide")))
                     base.Client.GetRoomUser().ApplyEffect(EffectsList.None);
-                // Hosptial On Duty Check
+                // Hospital On Duty Check
                 if (Effect == EffectsList.Medic && (!base.Client.GetRoleplay().IsWorking || !GroupManager.HasJobCommand(base.Client, "heal")))
                     base.Client.GetRoomUser().ApplyEffect(EffectsList.None);
                 // Car Driving Check
@@ -151,21 +144,16 @@ namespace Polar.HabboRoleplay.Timers.Types
                 // Taxi Check (Police)
                 if (Effect == EffectsList.PoliceTaxi && !base.Client.GetRoleplay().InsideTaxi)
                     base.Client.GetRoomUser().ApplyEffect(EffectsList.None);
-
                 // Passive Check
                 if (Effect == EffectsList.Passive && !base.Client.GetRoleplay().PassiveMode)
                     base.Client.GetRoomUser().ApplyEffect(EffectsList.None);
-
                 #endregion
 
                 #region Main Checks
 
                 if (base.Client.GetRoleplay().DrivingCar)
                 {
-                    //base.Client.GetRoleplay().CarTimer++;
-
                     // Si God == true detenemos inmunidad 
-                    /* agregar verificacion de que tipo de carro maneja para darle el beneficio de GodMode */
                     if (base.Client.GetRoleplay().SexTimer > 0)
                     {
                         base.Client.GetRoleplay().SexTimer = 0;
@@ -177,10 +165,11 @@ namespace Polar.HabboRoleplay.Timers.Types
                         base.Client.GetRoleplay().ChalecoPor = 0;
                         base.Client.GetHabbo().Poof(true);
                     }
+
                     // No consume combustible mientras esté llenando
                     if (!base.Client.GetRoleplay().IsFuelCharging)
                         base.Client.GetRoleplay().CarTimer++;
-                    
+
                     if (!base.Client.GetRoomUser().FastWalking)
                         base.Client.GetRoomUser().FastWalking = true;
 
@@ -204,20 +193,17 @@ namespace Polar.HabboRoleplay.Timers.Types
                             }
                         }
 
-                        //Si Conduce en un lugar donde no es DRIVING
+                        // Si conduce en un lugar donde no es DRIVING
                         if (!base.Client.GetHabbo().CurrentRoom.DriveEnabled && base.Client.GetRoleplay().DrivingCar)
                         {
-                            bool VipCar = base.Client.GetRoleplay().CarEnableId == EffectsList.HoverBoardWhite;
-
-                            base.Client.GetRoleplay().DrivingInCar = true;//"Guardar auto para colocarlo al salir"
+                            base.Client.GetRoleplay().DrivingInCar = true; // "Guardar auto para colocarlo al salir"
                             base.Client.GetRoleplay().DrivingCar = false;
                             base.Client.GetRoleplay().CarEnableId = EffectsList.None;
                             RoleplayManager.Shout(base.Client, "*Estaciona su vehículo afuera y entra al lugar*", 5);
                             base.Client.GetRoomUser().FastWalking = false;
 
-                            //Si lleva pasajeros
+                            // Si lleva pasajeros
                             #region Pasajeros
-                            //Vars
                             string Pasajeros = base.Client.GetRoleplay().Pasajeros;
                             string[] stringSeparators = new string[] { ";" };
                             string[] result;
@@ -232,13 +218,26 @@ namespace Polar.HabboRoleplay.Timers.Types
                                     {
                                         RoleplayManager.Shout(PJ, "*Baja del vehículo de " + base.Client.GetHabbo().Username + "*", 5);
 
-                                        // Por seguridad: TP => Chofer
-                                        if (!RoleplayManager.GenerateRoom(base.Client.GetRoomUser().RoomId, out Room Room))
-                                            return;
-                                        int NewX = PJ.GetRoomUser().X;
-                                        int NewY = PJ.GetRoomUser().Y;
-                                        Room.SendMessage(Room.GetRoomItemHandler().UpdateUserOnRoller(base.Client.GetRoomUser(), new Point(NewX, NewY), 0, Room.GetGameMap().SqAbsoluteHeight(NewX, NewY)));
+                                        // FIX #1: Verificar GetRoomUser() del pasajero antes de acceder a X/Y
+                                        if (PJ.GetRoomUser() != null)
+                                        {
+                                            if (!RoleplayManager.GenerateRoom(base.Client.GetRoomUser().RoomId, out Room Room))
+                                                return;
+                                            int NewX = PJ.GetRoomUser().X;
+                                            int NewY = PJ.GetRoomUser().Y;
+
+                                            // FIX #2: Verificar GetRoomItemHandler() y GetGameMap() antes de usarlos
+                                            if (Room != null && Room.GetRoomItemHandler() != null && Room.GetGameMap() != null)
+                                            {
+                                                Room.SendMessage(Room.GetRoomItemHandler().UpdateUserOnRoller(
+                                                    base.Client.GetRoomUser(),
+                                                    new Point(NewX, NewY),
+                                                    0,
+                                                    Room.GetGameMap().SqAbsoluteHeight(NewX, NewY)));
+                                            }
+                                        }
                                     }
+
                                     // PASAJERO
                                     PJ.GetRoleplay().Pasajero = false;
                                     PJ.GetRoleplay().ChoferName = "";
@@ -262,14 +261,13 @@ namespace Polar.HabboRoleplay.Timers.Types
                                     if (PJ.GetRoleplay().IsBasuPasaj)
                                         PJ.GetRoleplay().IsBasuPasaj = false;
 
-                                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(PJ, "event_vehicle", "close");// WS FUEL
+                                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(PJ, "event_vehicle", "close");
                                 }
                             }
                             #endregion
 
                             // Cerramos ventana de combustible
                             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(base.Client, "event_vehicle", "close");
-
                         }
                     }
 
@@ -295,30 +293,17 @@ namespace Polar.HabboRoleplay.Timers.Types
                             }
                         }
                         #endregion
+
                         // 60 segs. (30 mins aprox con vehículo encendido)
                         if (base.Client.GetRoleplay().CarTimer >= 60)
                         {
                             if (base.Client.GetRoleplay().CarType == 3)
-                            {
                                 base.Client.GetRoleplay().CarFuel -= 3;
-                                /*if (base.Client.GetRoleplay().CarEnableId != EffectsList.CarPolice)
-                                    base.Client.GetRoleplay().CarLife -= 2;*/
-                                //base.Client.SendWhisper("-3L de Combustible - [" + base.Client.GetRoleplay().CarFuel + " / " + MaxGas + "L]", 1);
-                            }
                             else if (base.Client.GetRoleplay().CarType == 2)
-                            {
                                 base.Client.GetRoleplay().CarFuel -= 2;
-                                /*if (base.Client.GetRoleplay().CarEnableId != EffectsList.CarPolice)
-                                    base.Client.GetRoleplay().CarLife -= 1;*/
-                                //base.Client.SendWhisper("-2L de Combustible - [" + base.Client.GetRoleplay().CarFuel + " / " + MaxGas + "L]", 1);
-                            }
                             else
-                            {
                                 base.Client.GetRoleplay().CarFuel -= 1;
-                                /*if (base.Client.GetRoleplay().CarEnableId != EffectsList.CarPolice)
-                                    base.Client.GetRoleplay().CarLife -= 3;*/
-                                //base.Client.SendWhisper("-1L de Combustible - [" + base.Client.GetRoleplay().CarFuel + " / " + MaxGas + "L]", 1);
-                            }
+
                             base.Client.GetRoleplay().CarTimer = 0;
                             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(base.Client, "event_vehicle", "open");
                         }
@@ -330,36 +315,6 @@ namespace Polar.HabboRoleplay.Timers.Types
 
                             if (base.Client.GetRoleplay().CarLife < 0)
                                 base.Client.GetRoleplay().CarLife = 0;
-
-                            /*if (base.Client.GetRoleplay().CarLife <= 0)
-                            {
-                                #region Set Vehicle State
-                                List<VehiclesOwned> VO = PolarEnvironment.GetGame().GetVehiclesOwnedManager().getVehiclesOwnedList(base.Client.GetRoleplay().DrivingCarId);
-                                if (VO != null && VO.Count > 0)
-                                {
-                                    if (VO[0].State == 0 || VO[0].State == 1)
-                                    {
-                                        if (VO[0].State == 0)
-                                            VO[0].State = 2;// averiado y sin traba
-                                        else
-                                            VO[0].State = 3;// averiado y con traba
-                                    }
-
-                                    #region Messages
-                                    if (VO[0].Fuel <= 0)
-                                    {
-                                        RoleplayManager.Shout(base.Client, "* se puede apreciar cómo el vehículo de " + base.Client.GetHabbo().Username + " se apaga debido a que se quedó sin combustible.", 4);
-                                        base.Client.SendWhisper("¡Tu vehículo se ha quedado sin combustible! Puedes :usarbidon para recargarlo. Ve a comprarlos a una Gasolinera.", 1);
-                                    }
-                                    if (VO[0].State == 2 || VO[0].State == 3)
-                                    {
-                                        RoleplayManager.Shout(base.Client, "* se puede escuchar cómo el motor del vehículo de " + base.Client.GetHabbo().Username + " cruje avieriandose.", 4);
-                                        base.Client.SendWhisper("¡Tu vehículo se ha averiado! Puedes usar el ':servicio mecanico' para llamar a un Mecánico en servicio y lo repare.", 1);
-                                    }
-                                    #endregion
-                                }
-                                #endregion
-                            }*/
 
                             #region Park
                             int ItemPlaceId = 0;
@@ -373,9 +328,10 @@ namespace Polar.HabboRoleplay.Timers.Types
                                     RoleplayManager.Shout(base.Client, "* Una Grúa se ha llevado el vehículo que " + base.Client.GetHabbo().Username + " conducía por encontrarse mal estacionado y sin combustible.", 4);
                                 else
                                     RoleplayManager.Shout(base.Client, "* Una Grúa se ha llevado el vehículo que " + base.Client.GetHabbo().Username + " conducía por encontrarse mal estacionado y averiado", 4);
+
                                 // Actualizamos datos del auto en el diccionario y DB
                                 PolarEnvironment.GetGame().GetVehiclesOwnedManager().UpdateVehicleOwner(base.Client, 0, ToDB, out VOD);
-                                ItemPlaceId = VOD.Id;
+                                ItemPlaceId = VOD != null ? VOD.Id : 0;
                                 if (corp > 0)
                                 {
                                     PolarEnvironment.GetGame().GetVehiclesOwnedManager().DeleteVehicleOwned(base.Client.GetRoleplay().DrivingCarId);
@@ -384,28 +340,30 @@ namespace Polar.HabboRoleplay.Timers.Types
                             }
                             else if (base.Client.GetRoleplay().DrivingCar)
                             {
-                                /* OFF - Autos de trabajos sí pueden quedarse sin combustible y averiarse.
-                                if (corp > 0)
-                                {
-                                    if (base.Client.GetRoleplay().CarFuel <= 0)
-                                        RoleplayManager.Shout(Client, "* Una Grúa se ha llevado el vehículo que " + Client.GetHabbo().Username + " conducía por encontrarse mal estacionado y sin combustible.", 4);
-                                    else
-                                        RoleplayManager.Shout(Client, "* Una Grúa se ha llevado el vehículo que " + Client.GetHabbo().Username + " conducía por encontrarse mal estacionado y averiado.", 4);
+                                // FIX #3: Verificar que PutItemToRoom no retorne null antes de acceder a .Id
+                                base.Client.GetRoleplay().isParking = true;
+                                HabboHotel.Items.Item ItemPlace = RoleplayManager.PutItemToRoom(
+                                    base.Client,
+                                    base.Client.GetRoleplay().DrivingCarItem,
+                                    base.Client.GetRoomUser().RoomId,
+                                    vehicle != null ? vehicle.ItemID : 0,
+                                    base.Client.GetRoomUser().X,
+                                    base.Client.GetRoomUser().Y,
+                                    base.Client.GetRoomUser().RotBody,
+                                    ToDB);
+                                base.Client.GetRoleplay().isParking = false;
 
-                                    PolarEnvironment.GetGame().GetVehiclesOwnedManager().DeleteVehicleOwned(Client.GetRoleplay().DrivingCarId);
-                                    RoleplayManager.CheckCorpCarp(Client);
+                                if (ItemPlace != null)
+                                {
+                                    ItemPlaceId = ItemPlace.Id;
+                                    // Actualizamos datos del auto en el diccionario y DB
+                                    PolarEnvironment.GetGame().GetVehiclesOwnedManager().UpdateVehicleOwner(base.Client, ItemPlaceId, ToDB, out VOD);
                                 }
                                 else
-                                {*/
-                                // Colocamos Furni en Sala
-                                base.Client.GetRoleplay().isParking = true;
-                                HabboHotel.Items.Item ItemPlace = RoleplayManager.PutItemToRoom(base.Client, base.Client.GetRoleplay().DrivingCarItem, base.Client.GetRoomUser().RoomId, vehicle.ItemID, base.Client.GetRoomUser().X, base.Client.GetRoomUser().Y, base.Client.GetRoomUser().RotBody, ToDB);
-                                //Item ItemPlace = RoleplayManager.PlaceItemToRoom(base.Client, vehicle.ItemID, 0, base.Client.GetRoomUser().X, base.Client.GetRoomUser().Y, base.Client.GetRoomUser().Z, base.Client.GetRoomUser().RotBody, false, Room.Id, ToDB, "");
-                                base.Client.GetRoleplay().isParking = false;
-                                ItemPlaceId = ItemPlace.Id;
-                                // Actualizamos datos del auto en el diccionario y DB
-                                PolarEnvironment.GetGame().GetVehiclesOwnedManager().UpdateVehicleOwner(base.Client, ItemPlaceId, ToDB, out VOD);
-                                //}
+                                {
+                                    // Si no se pudo colocar el item, actualizamos igualmente con ID 0
+                                    PolarEnvironment.GetGame().GetVehiclesOwnedManager().UpdateVehicleOwner(base.Client, 0, ToDB, out VOD);
+                                }
                             }
 
                             #region Extra Conditions & Checks
@@ -417,7 +375,6 @@ namespace Polar.HabboRoleplay.Timers.Types
                             #endregion
 
                             #region Pasajeros (Algoritmo replicado en ConditionCheckTimer por seguridad)
-                            //Vars
                             string Pasajeros = base.Client.GetRoleplay().Pasajeros;
                             string[] stringSeparators = new string[] { ";" };
                             string[] result;
@@ -432,10 +389,13 @@ namespace Polar.HabboRoleplay.Timers.Types
                                     {
                                         RoleplayManager.Shout(PJ, "*Baja del vehículo de " + base.Client.GetHabbo().Username + "*", 5);
                                     }
+
                                     // PASAJERO
                                     PJ.GetRoleplay().Pasajero = false;
                                     PJ.GetRoleplay().ChoferName = "";
                                     PJ.GetRoleplay().ChoferID = 0;
+
+                                    // FIX #4: Verificar GetRoomUser() del pasajero antes de acceder a sus propiedades
                                     if (PJ.GetRoomUser() != null)
                                     {
                                         PJ.GetRoomUser().CanWalk = true;
@@ -457,71 +417,40 @@ namespace Polar.HabboRoleplay.Timers.Types
                                     // SI EL PASAJERO ES COMPAÑERO DE BASURERO
                                     if (PJ.GetRoleplay().IsBasuPasaj)
                                         PJ.GetRoleplay().IsBasuPasaj = false;
-                                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(PJ, "event_vehicle", "close");// WS FUEL
+
+                                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(PJ, "event_vehicle", "close");
                                 }
                             }
                             #endregion
-
                             #endregion
 
                             #region Online ParkVars
-                            //Retornamos a valores predeterminados
+                            // Retornamos a valores predeterminados
                             base.Client.GetRoleplay().DrivingCar = false;
                             base.Client.GetRoleplay().DrivingInCar = false;
-                            base.Client.GetRoleplay().DrivingCarId = 0;// Id de VehiclesOwned;
+                            base.Client.GetRoleplay().DrivingCarId = 0;
 
-                            //Combustible System
-                            base.Client.GetRoleplay().CarType = 0;// Define el gasto de combustible
+                            // Combustible System
+                            base.Client.GetRoleplay().CarType = 0;
                             base.Client.GetRoleplay().CarFuel = 0;
                             base.Client.GetRoleplay().CarMaxFuel = 0;
                             base.Client.GetRoleplay().CarTimer = 0;
                             base.Client.GetRoleplay().CarLife = 0;
 
-                            base.Client.GetRoleplay().CarEnableId = 0;//Coloca el enable para conducir
-                            base.Client.GetRoleplay().CarEffectId = 0;//Guarda el enable del último auto en conducción.
+                            base.Client.GetRoleplay().CarEnableId = 0;
+                            base.Client.GetRoleplay().CarEffectId = 0;
                             base.Client.GetRoomUser().ApplyEffect(0);
                             base.Client.GetRoomUser().FastWalking = false;
                             #endregion
 
                             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(base.Client, "event_vehicle", "close");
                             #endregion
-
                         }
                     }
-
-                   /* if (base.Client.GetRoleplay().DrivingCar && (base.Client.GetRoleplay().CarEnableId == EffectsList.HoverBoardWhite || base.Client.GetRoleplay().CarEnableId == EffectsList.CarPolice))
-                    {
-                        if (base.Client.GetRoleplay().CarTimer >= 360)
-                        {
-                            base.Client.GetRoleplay().CarTimer = 0;
-                            base.Client.GetRoleplay().DrivingCar = false;
-
-                            if (Effect != EffectsList.None)
-                                base.Client.GetRoomUser().ApplyEffect(EffectsList.None);
-
-                            if (base.Client.GetRoleplay().CarEnableId == EffectsList.HoverBoardWhite)
-                                RoleplayManager.Shout(base.Client, "*Siente su VIP hoverboard parada corta, la batería debe haber muerto*", 4);
-                            else
-                                RoleplayManager.Shout(base.Client, "*Siente su coche de policía se queda sin gasolina, tengo que ir a buscar un poco más*", 4);
-                            base.Client.GetRoleplay().CarEnableId = EffectsList.None;
-                        }
-                    }*/
 
                     if (base.Client.GetRoleplay().DrivingCar && Effect != base.Client.GetRoleplay().CarEnableId)
                         base.Client.GetRoomUser().ApplyEffect(base.Client.GetRoleplay().CarEnableId);
 
-                    /*if (!base.Client.GetRoleplay().DrivingCar)
-                    {
-                        base.Client.GetRoleplay().CarTimer = 0;
-
-                        if (Effect != EffectsList.None)
-                            base.Client.GetRoomUser().ApplyEffect(EffectsList.None);
-
-                        if (base.Client.GetRoleplay().CooldownManager.ActiveCooldowns.ContainsKey("car"))
-                            base.Client.GetRoleplay().CooldownManager.ActiveCooldowns["car"].Amount = 90;
-                        else
-                            base.Client.GetRoleplay().CooldownManager.CreateCooldown("car", 1000, 90);
-                    }*/
                     if (!base.Client.GetRoleplay().DrivingCar)
                     {
                         base.Client.GetRoleplay().CarTimer = 0;
@@ -714,18 +643,6 @@ namespace Polar.HabboRoleplay.Timers.Types
                         base.Client.GetRoomUser().ApplyEffect(EffectsList.Flies);
                     return;
                 }
-                /*else if (base.Client.GetRoleplay().StaffOnDuty)
-                {
-                    if (Effect != EffectsList.Staff)
-                        base.Client.GetRoomUser().ApplyEffect(EffectsList.Staff);
-                    return;
-                }
-                else if (base.Client.GetRoleplay().AmbassadorOnDuty)
-                {
-                    if (Effect != EffectsList.Ambassador)
-                        base.Client.GetRoomUser().ApplyEffect(EffectsList.Ambassador);
-                    return;
-                }*/
                 else if (base.Client.GetRoleplay().IsWorking && GroupManager.HasJobCommand(base.Client, "guide"))
                 {
                     if (Effect != EffectsList.HoloRPPolice)
@@ -745,6 +662,5 @@ namespace Polar.HabboRoleplay.Timers.Types
                 Logging.LogRPTimersError("Error in Execute() void: " + e);
             }
         }
-
     }
 }

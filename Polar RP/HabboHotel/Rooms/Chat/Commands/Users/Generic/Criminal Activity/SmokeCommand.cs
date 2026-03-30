@@ -101,6 +101,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Criminal
                 case "cigarettes":
                 case "cigarrillos":
                 case "cigarros":
+                case "cigarro":
                     {
                         if (Session.GetRoleplay().Cigarettes < 1)
                         {

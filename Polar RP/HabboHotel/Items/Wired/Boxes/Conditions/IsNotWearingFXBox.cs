@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -14,7 +14,8 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
     {
         public Room Instance { get; set; }
         public Item Item { get; set; }
-        public WiredBoxType Type { get { return WiredBoxType.ConditionIsWearingFX; } }
+        // FIX: WiredBoxType incorrecto — usaba ConditionIsWearingFX en vez de ConditionIsNotWearingFX
+        public WiredBoxType Type { get { return WiredBoxType.ConditionIsNotWearingFX; } }
         public ConcurrentDictionary<int, Item> SetItems { get; set; }
         public string StringData { get; set; }
         public bool BoolData { get; set; }
@@ -40,15 +41,20 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
             if (Params.Length == 0)
                 return false;
 
-            if (String.IsNullOrEmpty(this.StringData))
+            if (string.IsNullOrEmpty(this.StringData))
                 return false;
 
             Habbo Player = (Habbo)Params[0];
             if (Player == null)
                 return false;
 
+            // FIX: Effects() puede ser null
+            if (Player.Effects() == null)
+                return false;
+
             if (Player.Effects().CurrentEffect != int.Parse(this.StringData))
                 return true;
+
             return false;
         }
     }

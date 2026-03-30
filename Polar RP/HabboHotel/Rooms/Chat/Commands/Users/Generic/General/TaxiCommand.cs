@@ -33,8 +33,20 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.General
 
         public async Task Execute(GameClients.GameClient Session, Rooms.Room Room, string[] Params)
         {
-            Int32 RoomId = 0;
+            // Verificar si Room es null
+            if (Room == null)
+            {
+                Session.SendWhisper("Debes estar en una habitación para usar este comando.", 1);
+                return;
+            }
+
             RoomUser User = Session.GetRoomUser();
+            if (User == null)
+            {
+                Session.SendWhisper("Error al obtener información del usuario en la habitación.", 1);
+                return;
+            }
+            Int32 RoomId = 0;
             bool IsVip = Session.GetHabbo().VIPRank > 0 ? true : false;
             int Cost = IsVip ? 0 : 3;
             int Time = IsVip ? 2 : (4 + DayNightManager.GetTaxiTime()); //Vip: 2s & Normal: 4s
@@ -169,7 +181,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.General
                     Session.GetRoomUser().ApplyEffect(0);
             }
 
-            if (!Room.TaxiFromEnabled && !OnDuty)
+            if (Room != null && !Room.TaxiFromEnabled && !OnDuty)
             {
                 Session.SendWhisper("[TAXISTA] Sorry, No podemos usar taxi fuera de esta sala", 1);
                 return;
@@ -264,7 +276,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.General
                     if (Session.GetRoomUser() != null)
                         Session.GetRoomUser().ApplyEffect(19);
 
-                    Session.Shout("*Saque su Radio de Policía y pide una rápida recolección para " + roomData.Name + " [ID: " + RoomId + "]*", 37);
+                    Session.Shout("*Saque su Radio de Policía y pide una rápida recolección para " + roomData.Name + " [ID: " + RoomId + "]*", 4);
                     PoliceTaxi = true;
                 }
                 else
@@ -272,7 +284,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.General
                     if (Session.GetRoomUser() != null)
                         Session.GetRoomUser().ApplyEffect(805);
 
-                    Session.SendWhisper("*Llama a un Taxi" + TaxiText + " para ir a " + roomData.Name + " [ID: " + RoomId + "]*", 1);
+                    Session.Shout("*Llama a un Taxi" + TaxiText + " para ir a " + roomData.Name + " [ID: " + RoomId + "]*", 4);
                 }
 
                 Task.Run(async delegate
@@ -301,10 +313,10 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.General
                         {
                             if (Session.GetRoomUser() != null)
                                 Session.GetRoomUser().ApplyEffect(19);
-                            Session.Shout("*¡Sube al coche de policía de su socio mientras que lo ven tiran para arriba!*", 37);
+                            Session.Shout("*¡Sube al coche de policía de su socio mientras que lo ven tiran para arriba!*", 4);
                         }
                         else
-                            Session.SendWhisper("*Sube dentro de su Taxi " + TaxiText + " y se marcha*", 1);
+                            Session.Shout("*Sube dentro de su Taxi " + TaxiText + " y se marcha*", 4);
 
                         RoleplayManager.SendUserOld2(Session, roomData.Id);
                     }
@@ -317,11 +329,11 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.General
                 {
                     if (Session.GetRoomUser() != null)
                         Session.GetRoomUser().ApplyEffect(510);
-                    Session.Shout("*Salta dentro de su coche de la policía y se va a ayudar a un ciudadano en necesidad*", 4);
+                    Session.Shout("*Salta dentro de su coche de la policía y se va a ayudar a un ciudadano en necesidad*", 1);
                 }
                 else if (OnDuty)
                 {
-                    Session.Shout("*Sube dentro de su Staff Mobile y se marcha *", 23);
+                    Session.Shout("*Sube dentro de su Staff Mobile y se marcha *", 1);
                 }
                 RoleplayManager.SendUserOld2(Session, roomData.Id);
             }

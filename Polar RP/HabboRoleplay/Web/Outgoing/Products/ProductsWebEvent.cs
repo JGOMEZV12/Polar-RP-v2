@@ -1,24 +1,15 @@
-﻿using System;
+using ConnectionManager;
+using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using Fleck;
 using Polar.HabboHotel.Items;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Rooms;
 using System.IO;
 using Polar.HabboRoleplay.Misc;
-using Polar.Communication.Packets.Incoming.Groups;
-using Polar.Communication.Packets.Outgoing;
-using Polar.Communication.Packets.Incoming;
-using Polar.Communication.Packets.Outgoing.Groups;
-using Polar.Communication.Packets.Outgoing.Catalog;
-using Polar.Communication.Packets.Outgoing.Messenger;
-using System.Collections.Generic;
-using Polar.HabboHotel.Groups;
-using Polar.HabboHotel.Cache;
-using Polar.Communication.Packets.Outgoing.Rooms.Permissions;
+using Polar.Net;
 using Polar.HabboRoleplay.Vehicles;
 using System.Data;
 using Polar.HabboRoleplay.VehicleOwned;
@@ -38,7 +29,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -63,7 +54,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 case "close":
                     {
                         Client.GetRoleplay().ViewProducts = false;
-                        Socket.Send("compose_products|close_products|");
+                        Socket.SendWS( "compose_products|close_products|");
                     }
                     break;
                 #endregion
@@ -75,7 +66,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         int GetSeedID;
                         if (!int.TryParse(ReceivedData[1], out GetSeedID))
                         {
-                            Socket.Send("compose_products|productmsg|ERROR: Semilla no encontrada.");
+                            Socket.SendWS( "compose_products|productmsg|ERROR: Semilla no encontrada.");
                             return;
                         }
 
@@ -90,14 +81,14 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (Item.LevelRequired > Client.GetRoleplay().FarmingStats.Level)
                         {
-                            Socket.Send("compose_products|productmsg|ERROR: \"Lo siento, pero no tiene un nivel de cultivo lo suficientemente alto para este tipo de semilla!");
+                            Socket.SendWS( "compose_products|productmsg|ERROR: \"Lo siento, pero no tiene un nivel de cultivo lo suficientemente alto para este tipo de semilla!");
                             return;
                         }
 
                         ItemData Furni;
                         if (!PolarEnvironment.GetGame().GetItemManager().GetItem(Item.BaseItem, out Furni) || Item == null)
                         {
-                            Socket.Send("compose_products|productmsg|ERROR: \"Lo sentimos, pero no hay semilla para la venta con ese ID");
+                            Socket.SendWS( "compose_products|productmsg|ERROR: \"Lo sentimos, pero no hay semilla para la venta con ese ID");
                             return;
                         }
 
@@ -108,13 +99,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (Client.GetHabbo().Credits < Price)
                         {
-                            Socket.Send("compose_products|productmsg|No cuentas con $" + Price + " para comprar semillas.");
+                            Socket.SendWS( "compose_products|productmsg|No cuentas con $" + Price + " para comprar semillas.");
                             return;
                         }
 
                         RoleplayManager.Shout(Client, "*Compra 10 de semillas y paga $" + Price + "*", 5);
                         FarmingManager.IncreaseSatchelCount(Client, Item, 10, false);
-                        Socket.Send("compose_products|productmsg_green|Has comprado unas semillas y pagaste $" + Price + ".");
+                        Socket.SendWS( "compose_products|productmsg_green|Has comprado unas semillas y pagaste $" + Price + ".");
                         Client.GetHabbo().Credits -= Price;
                         Client.GetHabbo().UpdateCreditsBalance();
                         //Client.GetRoleplay().FarmSeeds = true;
@@ -142,7 +133,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         Product PO = ProductsManager.getProduct(pname);
                         if (PO == null)
                         {
-                            Socket.Send("compose_products|productmsg|Producto inválido. Vuelve a intentarlo.");
+                            Socket.SendWS( "compose_products|productmsg|Producto inválido. Vuelve a intentarlo.");
                             return;
                         }
 
@@ -154,7 +145,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             if (getCant >= PO.MaxCant && PO.MaxCant != -1)
                             {
-                                Socket.Send("compose_products|productmsg|¡Ya cuentas con " + PO.MaxCant + " " + PO.DisplayName + " en tu inventario! No es posible tener más a la vez.");
+                                Socket.SendWS( "compose_products|productmsg|¡Ya cuentas con " + PO.MaxCant + " " + PO.DisplayName + " en tu inventario! No es posible tener más a la vez.");
                                 return;
                             }
                         }
@@ -213,7 +204,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             if (Client.GetHabbo().Credits < price)
                             {
-                                Socket.Send("compose_products|productmsg|No tienes dinero suficiente.");
+                                Socket.SendWS( "compose_products|productmsg|No tienes dinero suficiente.");
                                 return;
                             }
 
@@ -224,7 +215,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             Client.GetHabbo().Credits -= price;
                             Client.GetHabbo().UpdateCreditsBalance();
 
-                            Socket.Send("compose_products|productmsg_green|¡Radio comprado exitosamente!");
+                            Socket.SendWS( "compose_products|productmsg_green|¡Radio comprado exitosamente!");
                             RoleplayManager.Shout(Client, "*Ha comprado un Radio comunicador*", 5);
                             Client.SendWhisper("¡Radio Comprado! Usa :radio [mensaje] para comunicarte con los miembros de tu Banda.", 1);
                             #endregion
@@ -245,7 +236,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             if (Client.GetRoleplay().DrivingInCar)
                             {
-                                Socket.Send("compose_products|productmsg|Primero debes detener el vehículo que tienes afuera.");
+                                Socket.SendWS( "compose_products|productmsg|Primero debes detener el vehículo que tienes afuera.");
                                 return;
                             }
 
@@ -259,27 +250,27 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             int GetCarID;
                             if (!int.TryParse(ReceivedData[1], out GetCarID))
                             {
-                                Socket.Send("compose_products|productmsg|ERROR: Vehículo no encontrado.");
+                                Socket.SendWS( "compose_products|productmsg|ERROR: Vehículo no encontrado.");
                                 return;
                             }
                             bool Mine = RoleplayManager.IsMyVehicle(Client, GetCarID);
                             if (!Mine)
                             {
-                                Socket.Send("compose_products|productmsg|ERROR: Vehículo no encontrado.");
+                                Socket.SendWS( "compose_products|productmsg|ERROR: Vehículo no encontrado.");
                                 return;
                             }
                             string model = "";
                             List<VehiclesOwned> VO = PolarEnvironment.GetGame().GetVehiclesOwnedManager().getVehiclesOwnedList(GetCarID);
                             if (VO == null || VO.Count <= 0)
                             {
-                                Socket.Send("compose_products|productmsg|ERROR: Vehículo no encontrado.");
+                                Socket.SendWS( "compose_products|productmsg|ERROR: Vehículo no encontrado.");
                                 return;
                             }
                             model = VO[0].Model;
                             Vehicle vehicle = VehicleManager.getVehicle(model);
                             if (vehicle == null)
                             {
-                                Socket.Send("compose_products|productmsg|ERROR: Vehículo no encontrado.");
+                                Socket.SendWS( "compose_products|productmsg|ERROR: Vehículo no encontrado.");
                                 return;
                             }
 
@@ -288,7 +279,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             if (Client.GetHabbo().Credits < price)
                             {
-                                Socket.Send("compose_products|productmsg|No tienes dinero suficiente.");
+                                Socket.SendWS( "compose_products|productmsg|No tienes dinero suficiente.");
                                 return;
                             }
                             VO[0].Traba = true;
@@ -297,7 +288,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             Client.GetHabbo().Credits -= price;
                             Client.GetHabbo().UpdateCreditsBalance();
 
-                            Socket.Send("compose_products|productmsg_green|Ahora puedes usar :abrircarro o :cerrarcarro sobre tu vehículo.");
+                            Socket.SendWS( "compose_products|productmsg_green|Ahora puedes usar :abrircarro o :cerrarcarro sobre tu vehículo.");
                             RoleplayManager.Shout(Client, "*Ha comprado una traba de seguridad para su vehículo*", 5);
                             Client.SendWhisper("¡Traba Comprada! Ahora puedes usar :abrircarro o :cerrarcarro sobre tu vehículo para hacer uso de ella.", 1);
                             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_products", "open_trabas");
@@ -327,7 +318,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             if (Client.GetRoleplay().DrivingInCar)
                             {
-                                Socket.Send("compose_products|productmsg|Primero debes detener el vehículo que tienes afuera.");
+                                Socket.SendWS( "compose_products|productmsg|Primero debes detener el vehículo que tienes afuera.");
                                 return;
                             }
 
@@ -335,27 +326,27 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             int GetCarID;
                             if (!int.TryParse(ReceivedData[1], out GetCarID))
                             {
-                                Socket.Send("compose_products|productmsg|ERROR: Vehículo no encontrado.");
+                                Socket.SendWS( "compose_products|productmsg|ERROR: Vehículo no encontrado.");
                                 return;
                             }
                             bool Mine = RoleplayManager.IsMyVehicle(Client, GetCarID);
                             if (!Mine)
                             {
-                                Socket.Send("compose_products|productmsg|ERROR: Vehículo no encontrado.");
+                                Socket.SendWS( "compose_products|productmsg|ERROR: Vehículo no encontrado.");
                                 return;
                             }
                             string model = "";
                             List<VehiclesOwned> VO = PolarEnvironment.GetGame().GetVehiclesOwnedManager().getVehiclesOwnedList(GetCarID);
                             if (VO == null || VO.Count <= 0)
                             {
-                                Socket.Send("compose_products|productmsg|ERROR: Vehículo no encontrado.");
+                                Socket.SendWS( "compose_products|productmsg|ERROR: Vehículo no encontrado.");
                                 return;
                             }
                             model = VO[0].Model;
                             Vehicle vehicle = VehicleManager.getVehicle(model);
                             if (vehicle == null)
                             {
-                                Socket.Send("compose_products|productmsg|ERROR: Vehículo no encontrado.");
+                                Socket.SendWS( "compose_products|productmsg|ERROR: Vehículo no encontrado.");
                                 return;
                             }
 
@@ -364,7 +355,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             if (Client.GetHabbo().Credits < price)
                             {
-                                Socket.Send("compose_products|productmsg|No tienes dinero suficiente.");
+                                Socket.SendWS( "compose_products|productmsg|No tienes dinero suficiente.");
                                 return;
                             }
 
@@ -374,7 +365,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             Client.GetHabbo().Credits -= price;
                             Client.GetHabbo().UpdateCreditsBalance();
 
-                            Socket.Send("compose_products|productmsg_green|Ahora recibirás una alerta cuando alguien tome tu auto.");
+                            Socket.SendWS( "compose_products|productmsg_green|Ahora recibirás una alerta cuando alguien tome tu auto.");
                             RoleplayManager.Shout(Client, "*Ha comprado una Alarma para su vehículo*", 5);
                             Client.SendWhisper("¡Alarma Comprada! Ahora recibirás una alerta cada que alguien tome tu vehículo.", 1);
                             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_products", "open_alarmas");
@@ -399,7 +390,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             if (Client.GetHabbo().Credits < price)
                             {
-                                Socket.Send("compose_products|productmsg|No tienes dinero suficiente.");
+                                Socket.SendWS( "compose_products|productmsg|No tienes dinero suficiente.");
                                 return;
                             }
 
@@ -410,7 +401,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             Client.GetHabbo().Credits -= price;
                             Client.GetHabbo().UpdateCreditsBalance();
 
-                            Socket.Send("compose_products|productmsg_green|¡Balde comprado exitosamente!");
+                            Socket.SendWS( "compose_products|productmsg_green|¡Balde comprado exitosamente!");
                             RoleplayManager.Shout(Client, "*Ha comprado un Balde*", 5);
                             Client.SendWhisper("¡Balde Comprado! Usa :ayuda marihuana para saber todo acerca sobre su plantación y uso del Balde.", 1);
                             #endregion
@@ -434,7 +425,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             if (Client.GetHabbo().Credits < price)
                             {
-                                Socket.Send("compose_products|productmsg|No tienes dinero suficiente.");
+                                Socket.SendWS( "compose_products|productmsg|No tienes dinero suficiente.");
                                 return;
                             }
 
@@ -445,7 +436,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             Client.GetHabbo().Credits -= price;
                             Client.GetHabbo().UpdateCreditsBalance();
 
-                            Socket.Send("compose_products|productmsg_green|¡Palanca comprada exitosamente!");
+                            Socket.SendWS( "compose_products|productmsg_green|¡Palanca comprada exitosamente!");
                             RoleplayManager.Shout(Client, "*Ha comprado una Palanca*", 5);
                             Client.SendWhisper("¡Palanca Comprada! Ahora puedes :robar cajero.", 1);
                             #endregion
@@ -469,7 +460,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             if (Client.GetHabbo().Credits < price)
                             {
-                                Socket.Send("compose_products|productmsg|No tienes dinero suficiente.");
+                                Socket.SendWS( "compose_products|productmsg|No tienes dinero suficiente.");
                                 return;
                             }
 
@@ -480,7 +471,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             Client.GetHabbo().Credits -= price;
                             Client.GetHabbo().UpdateCreditsBalance();
 
-                            Socket.Send("compose_products|productmsg_green|¡Destornillador comprado exitosamente!");
+                            Socket.SendWS( "compose_products|productmsg_green|¡Destornillador comprado exitosamente!");
                             RoleplayManager.Shout(Client, "*Ha comprado un Destornillador*", 5);
                             Client.SendWhisper("¡Destornillador Comprado! Ahora puedes ':forzarcerradura' en las casas de Robo. ((Usa ':ayuda trabajos'))", 1);
                             #endregion
@@ -502,27 +493,27 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             int GetCarID;
                             if (!int.TryParse(ReceivedData[1], out GetCarID))
                             {
-                                Socket.Send("compose_products|productmsg|ERROR: Vehículo no encontrado.");
+                                Socket.SendWS( "compose_products|productmsg|ERROR: Vehículo no encontrado.");
                                 return;
                             }
                             bool Mine = RoleplayManager.IsMyVehicle(Client, GetCarID);
                             if (!Mine)
                             {
-                                Socket.Send("compose_products|productmsg|ERROR: Vehículo no encontrado.");
+                                Socket.SendWS( "compose_products|productmsg|ERROR: Vehículo no encontrado.");
                                 return;
                             }
                             string model = "";
                             List<VehiclesOwned> VO = PolarEnvironment.GetGame().GetVehiclesOwnedManager().getVehiclesOwnedList(GetCarID);
                             if (VO == null || VO.Count <= 0)
                             {
-                                Socket.Send("compose_products|productmsg|ERROR: Vehículo no encontrado.");
+                                Socket.SendWS( "compose_products|productmsg|ERROR: Vehículo no encontrado.");
                                 return;
                             }
                             model = VO[0].Model;
                             Vehicle vehicle = VehicleManager.getVehicle(model);
                             if (vehicle == null)
                             {
-                                Socket.Send("compose_products|productmsg|ERROR: Vehículo no encontrado.");
+                                Socket.SendWS( "compose_products|productmsg|ERROR: Vehículo no encontrado.");
                                 return;
                             }
 
@@ -533,7 +524,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             if (Client.GetHabbo().Credits < price)
                             {
-                                Socket.Send("compose_products|productmsg|No tienes dinero suficiente.");
+                                Socket.SendWS( "compose_products|productmsg|No tienes dinero suficiente.");
                                 return;
                             }
 
@@ -650,7 +641,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             }
                             #endregion
                             Client.GetRoleplay().CooldownManager.CreateCooldown("buy", 1000, 180);
-                            Socket.Send("compose_products|productmsg_green|La Grúa ha recogido tu Vehículo.");
+                            Socket.SendWS( "compose_products|productmsg_green|La Grúa ha recogido tu Vehículo.");
                             RoleplayManager.Shout(Client, "*Ha solicitado una Grúa*", 5);
                             Client.SendWhisper("La Grúa ha dejado tu Vehículo afuera. Dirígete allá para recibirlo. Solicita un mecanico para terminar de repararlo.", 1);
                             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_products", "open_grua");
@@ -661,7 +652,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             #region Sell Car
                             if (Client.GetRoleplay().DrivingInCar)
                             {
-                                Socket.Send("compose_products|productmsg|Primero debes detener el vehículo que tienes afuera.");
+                                Socket.SendWS( "compose_products|productmsg|Primero debes detener el vehículo que tienes afuera.");
                                 return;
                             }
 
@@ -679,27 +670,27 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             int GetCarID;
                             if (!int.TryParse(ReceivedData[1], out GetCarID))
                             {
-                                Socket.Send("compose_products|productmsg|ERROR: Vehículo no encontrado.");
+                                Socket.SendWS( "compose_products|productmsg|ERROR: Vehículo no encontrado.");
                                 return;
                             }
                             bool Mine = RoleplayManager.IsMyVehicle(Client, GetCarID);
                             if (!Mine)
                             {
-                                Socket.Send("compose_products|productmsg|ERROR: Vehículo no encontrado.");
+                                Socket.SendWS( "compose_products|productmsg|ERROR: Vehículo no encontrado.");
                                 return;
                             }
                             string model = "";
                             List<VehiclesOwned> VO = PolarEnvironment.GetGame().GetVehiclesOwnedManager().getVehiclesOwnedList(GetCarID);
                             if (VO == null || VO.Count <= 0)
                             {
-                                Socket.Send("compose_products|productmsg|ERROR: Vehículo no encontrado.");
+                                Socket.SendWS( "compose_products|productmsg|ERROR: Vehículo no encontrado.");
                                 return;
                             }
                             model = VO[0].Model;
                             Vehicle vehicle = VehicleManager.getVehicle(model);
                             if (vehicle == null)
                             {
-                                Socket.Send("compose_products|productmsg|ERROR: Vehículo no encontrado.");
+                                Socket.SendWS( "compose_products|productmsg|ERROR: Vehículo no encontrado.");
                                 return;
                             }
 
@@ -803,7 +794,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             if (vehicle.Price < 100)
                                 pricedisplay = String.Format("{0:N0}", price) + " RB";
 
-                            Socket.Send("compose_products|productmsg_green|¡Vehículo vendido exitosamente!");
+                            Socket.SendWS( "compose_products|productmsg_green|¡Vehículo vendido exitosamente!");
                             RoleplayManager.Shout(Client, "*Ha vendido su " + vehicle.Model + " por " + pricedisplay + "*", 5);
                             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_products", "open_sellcar");
                             #endregion
@@ -873,7 +864,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         string SendData = "";
                         SendData += html;
                         Client.GetRoleplay().ViewProducts = true;
-                        Socket.Send("compose_products|open_mall|" + SendData);
+                        Socket.SendWS( "compose_products|open_mall|" + SendData);
                     }
                     break;
                 #endregion
@@ -927,7 +918,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             SendData += "<br><center><b style='color:red;'>No tienes ningún vehículo a tu nombre para comprar una Traba.</center></b><br><br><br><br><br><br>";
                         }                      
 
-                        Socket.Send("compose_products|open_trabas|" + SendData);
+                        Socket.SendWS( "compose_products|open_trabas|" + SendData);
                     }
                     break;
                 #endregion
@@ -972,7 +963,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         {
                             SendData += "<br><center><b style='color:red;'>No tienes ningún vehículo a tu nombre para comprar una Alarma.</b></center><br><br><br><br><br><br>";
                         }
-                        Socket.Send("compose_products|open_alarmas|" + SendData);
+                        Socket.SendWS( "compose_products|open_alarmas|" + SendData);
                     }
                     break;
                 #endregion
@@ -1023,7 +1014,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         string SendData = "";
                         SendData += html;
                         Client.GetRoleplay().ViewProducts = true;
-                        Socket.Send("compose_products|open_ferre|" + SendData);
+                        Socket.SendWS( "compose_products|open_ferre|" + SendData);
                     }
                     break;
                 #endregion
@@ -1071,7 +1062,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         }
                         
                         Client.GetRoleplay().ViewProducts = true;
-                        Socket.Send("compose_products|open_grua|" + SendData);
+                        Socket.SendWS( "compose_products|open_grua|" + SendData);
                     }
                     break;
                 #endregion
@@ -1114,7 +1105,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         }
 
                         Client.GetRoleplay().ViewProducts = true;
-                        Socket.Send("compose_products|open_sellcar|" + SendData);
+                        Socket.SendWS( "compose_products|open_sellcar|" + SendData);
                     }
                     break;
                 #endregion
@@ -1161,12 +1152,20 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             string SendData = "";
                             SendData += html;
                             Client.GetRoleplay().ViewProducts = true;
-                            Socket.Send("compose_products|open_grange|" + SendData);
+                            Socket.SendWS( "compose_products|open_grange|" + SendData);
                         }
                     }
                     break;
                     #endregion
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

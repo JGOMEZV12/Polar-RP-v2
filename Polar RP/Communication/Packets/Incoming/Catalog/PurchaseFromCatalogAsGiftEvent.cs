@@ -26,7 +26,7 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                 //Console.WriteLine($"=== PurchaseFromCatalogAsGiftEvent INICIO ===");
 
                 int PageId = Packet.PopInt();
-                int ItemId = Packet.PopInt();
+                int ItemId = Packet.PopInt(); // Este es el identificador (puede ser catalog_items.id o offer_id)
                 string Data = Packet.PopString();
                 string GiftUser = StringCharFilter.Escape(Packet.PopString());
                 string GiftMessage = StringCharFilter.Escape(Packet.PopString().Replace(Convert.ToChar(5), ' '));
@@ -47,17 +47,17 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                 CatalogItem Item = null;
                 CatalogPage Page = null;
 
-                // CASO 1: PageId = -1 (compra directa por OfferId)
+                var catalog = PolarEnvironment.GetGame().GetCatalog();
+
+                // CASO 1: PageId = -1 (compra directa por identificador)
                 if (PageId == -1)
                 {
-                    //Console.WriteLine($"Compra regalo directa por OfferId: {ItemId}");
+                    //Console.WriteLine($"Compra regalo directa por identificador: {ItemId}");
 
-                    var catalog = PolarEnvironment.GetGame().GetCatalog();
-
-                    // Buscar por OfferId
+                    // PRIMERO: Buscar por OfferId en OfferItems
                     if (catalog.OfferItems.TryGetValue(ItemId, out Item))
                     {
-                        //Console.WriteLine($"Item encontrado en OfferItems: {Item.Id} - {Item.Name}");
+                        //Console.WriteLine($"Item encontrado en OfferItems por OfferId: {Item.Id} - {Item.Name}");
 
                         // Obtener la página
                         if (catalog.TryGetPage(Item.PageId, out Page))
@@ -66,17 +66,33 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                             PageId = Item.PageId; // Actualizar PageId al real
                         }
                     }
-                    // Buscar en todas las páginas
+                    // SEGUNDO: Buscar por CatalogItem.Id (catalog_items.id)
                     else
                     {
-                        //Console.WriteLine($"Buscando item en todas las páginas...");
+                        //Console.WriteLine($"Buscando item en todas las páginas por CatalogItem.Id...");
+                        foreach (var catalogPage in catalog.GetPages())
+                        {
+                            if (catalogPage.Items.TryGetValue(ItemId, out Item))
+                            {
+                                Page = catalogPage;
+                                PageId = Page.Id;
+                                //Console.WriteLine($"Item encontrado por CatalogItem.Id en página {Page.Id}: {Item.Id} - {Item.Name}");
+                                break;
+                            }
+                        }
+                    }
+
+                    // TERCERO: Buscar por OfferId en las páginas
+                    if (Item == null)
+                    {
+                        //Console.WriteLine($"Buscando por OfferId en páginas...");
                         foreach (var catalogPage in catalog.GetPages())
                         {
                             if (catalogPage.ItemOffers.TryGetValue(ItemId, out Item))
                             {
                                 Page = catalogPage;
                                 PageId = Page.Id;
-                                //Console.WriteLine($"Item encontrado en página {Page.Id}: {Item.Id} - {Item.Name}");
+                                //Console.WriteLine($"Item encontrado por OfferId en página {Page.Id}: {Item.Id} - {Item.Name}");
                                 break;
                             }
                         }
@@ -85,7 +101,7 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                 // CASO 2: Compra normal por página
                 else
                 {
-                    if (!PolarEnvironment.GetGame().GetCatalog().TryGetPage(PageId, out Page))
+                    if (!catalog.TryGetPage(PageId, out Page))
                     {
                         //Console.WriteLine($"Página {PageId} no encontrada");
                         return;
@@ -100,23 +116,8 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                         return;
                     }
 
-                    // Buscar item
-                    if (!Page.Items.TryGetValue(ItemId, out Item))
-                    {
-                        if (Page.ItemOffers.TryGetValue(ItemId, out Item))
-                        {
-                            if (Item == null)
-                            {
-                                //Console.WriteLine($"Item null para OfferId {ItemId}");
-                                return;
-                            }
-                        }
-                        else
-                        {
-                            //Console.WriteLine($"Item {ItemId} no encontrado en página {PageId}");
-                            return;
-                        }
-                    }
+                    // Buscar item usando el método mejorado
+                    Item = FindCatalogItemInPage(Page, ItemId);
                 }
 
                 if (Item == null)
@@ -301,6 +302,38 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                 //Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 Session.SendNotification("Error al procesar el regalo");
             }
+        }
+
+        private CatalogItem FindCatalogItemInPage(CatalogPage page, int identifier)
+        {
+            //Console.WriteLine($"Buscando item en página {page.Id} con identificador: {identifier}");
+
+            // 1. Buscar por CatalogItem.Id (catalog_items.id) - Lo que el cliente probablemente envía
+            if (page.Items.TryGetValue(identifier, out CatalogItem item))
+            {
+                //Console.WriteLine($"Encontrado por CatalogItem.Id: {identifier}");
+                return item;
+            }
+
+            // 2. Buscar por OfferId (catalog_items.offer_id)
+            if (page.ItemOffers.TryGetValue(identifier, out item))
+            {
+                //Console.WriteLine($"Encontrado por OfferId: {identifier}");
+                return item;
+            }
+
+            // 3. Buscar por FurnitureId (catalog_items.item_id)
+            foreach (var catalogItem in page.Items.Values)
+            {
+                if (catalogItem.Id == identifier)
+                {
+                    //Console.WriteLine($"Encontrado por FurnitureId: {identifier}");
+                    return catalogItem;
+                }
+            }
+
+            //Console.WriteLine($"Item NO encontrado en página {page.Id}: {identifier}");
+            return null;
         }
 
         private string ProcessItemExtraData(CatalogItem item, string data, GameClient session)

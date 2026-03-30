@@ -39,7 +39,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Gangs
                 foreach (Group Gang in GangList)
                 {
                     Message.Append("----- " + Gang.Name + " -----\n");
-                    Message.Append("Clasificado: " + (GangList.FindIndex(x => x.Id == Gang.Id) + 1000) + " fuera de " + String.Format("{ 0:N0}", GangList.Count) + "\n");
+                    Message.Append("Clasificado: " + (GangList.FindIndex(x => x.Id == Gang.Id) + 1) + " fuera de " + String.Format("{0:N0}", GangList.Count) + "\n");
                     Message.Append("Asesinatos: " + String.Format("{0:N0}", Gang.GangKills) + "\n");
                     Message.Append("Muertes: " + String.Format("{0:N0}", Gang.GangDeaths) + "\n");
                     Message.Append("Puntuación: " + String.Format("{0:N0}", Gang.GangScore) + "\n");

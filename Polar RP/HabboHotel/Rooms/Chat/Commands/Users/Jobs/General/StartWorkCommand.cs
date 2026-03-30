@@ -1,14 +1,14 @@
-﻿using System;
-using System.Linq;
-using System.Text;
-using System.Collections.Generic;
-
+﻿using Polar.Communication.Packets.Outgoing.Guides;
+using Polar.HabboHotel.Groups;
 using Polar.HabboHotel.Rooms;
 using Polar.HabboHotel.Rooms.Chat.Styles;
-using Polar.HabboRoleplay.RoleplayUsers;
-using Polar.HabboHotel.Groups;
 using Polar.HabboRoleplay.Misc;
-using Polar.Communication.Packets.Outgoing.Guides;
+using Polar.HabboRoleplay.RoleplayUsers;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Sockets;
+using System.Text;
 
 namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.General
 {
@@ -31,6 +31,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.General
 
         public async Task Execute(GameClients.GameClient Session, Rooms.Room Room, string[] Params)
         {
+            Room = PolarEnvironment.GetGame().GetRoomManager().LoadRoom(Session.GetHabbo().CurrentRoomId);
             #region Conditions
             if (Session.GetRoleplay().IsWorking)
             {
@@ -171,10 +172,15 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.General
                 }
             }
             #endregion
+           
 
-            Session.GetRoleplay().IsWorking = true;
+                Session.GetRoleplay().IsWorking = true;
             RoleplayManager.GetLookAndMotto(Session);
             WorkManager.AddWorkerToList(Session);
+            if (Job.RoomId == Room.Id)
+                Session.Shout("*Comienza a trabajar en " + Room.Name + " como " + Rank.Name + "*", 4);
+            else
+                Session.Shout("*Comienza a trabajar como " + Rank.Name + "*", 4);
             Session.GetRoleplay().TimerManager.CreateTimer("work", 1000, true);
             Session.GetRoleplay().CooldownManager.CreateCooldown("startwork", 1000, 10);
             return;

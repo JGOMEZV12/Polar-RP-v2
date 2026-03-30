@@ -12,9 +12,8 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Settings
     {
         public void Parse(HabboHotel.GameClients.GameClient Session, ClientPacket Packet)
         {
-            int RoomId = Packet.PopInt();
-
-            if (!HabboRoleplay.Misc.RoleplayManager.GenerateRoom(RoomId, out var Room) || !Room.CheckRights(Session, true))
+            Room Room = PolarEnvironment.GetGame().GetRoomManager().LoadRoom(Packet.PopInt());
+            if (Room == null || !Room.CheckRights(Session, true))
                 return;
 
             Session.SendMessage(new RoomSettingsDataComposer(Room));

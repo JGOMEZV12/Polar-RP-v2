@@ -1,9 +1,5 @@
-﻿using System;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Fleck;
+using ConnectionManager;
+using Polar.Net;
 using Polar.HabboHotel.Groups;
 using Polar.HabboHotel.GameClients;
 using System.IO;
@@ -23,7 +19,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
                 return;
@@ -42,9 +38,9 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
             if (String.IsNullOrEmpty(CachedTargetString))
                 return;
 
-            Socket.Send("compose_characterbar|" + CachedTargetString);
+            Socket.SendWS( "compose_characterbar|" + CachedTargetString);
             #region Hospital
-            Socket.Send("compose_hospital|close_actionbtn|");
+            Socket.SendWS( "compose_hospital|close_actionbtn|");
             if (GroupManager.HasJobCommand(Client, "reviewhosp"))
             {
                 if (Client.GetRoleplay().IsWorking)
@@ -55,12 +51,12 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
                         // Revisar
                         if (Client.GetRoleplay().RevisPaci != TargetClient.GetHabbo().Id)
                         {
-                            Socket.Send("compose_hospital|open_actionbtn|Revisar|revisar");
+                            Socket.SendWS( "compose_hospital|open_actionbtn|Revisar|revisar");
                         }
                         // Atender
                         else
                         {
-                            Socket.Send("compose_hospital|open_actionbtn|Atender|atender");
+                            Socket.SendWS( "compose_hospital|open_actionbtn|Atender|atender");
                         }
                     }
                 }
@@ -68,5 +64,13 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
             #endregion
 
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

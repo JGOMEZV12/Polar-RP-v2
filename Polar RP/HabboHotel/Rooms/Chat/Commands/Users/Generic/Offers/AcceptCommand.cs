@@ -1,23 +1,26 @@
-﻿using System;
-using System.Linq;
-using System.Text;
-using System.Collections.Generic;
-
-using Polar.HabboHotel.Groups;
-using Polar.HabboHotel.GameClients;
-using Polar.HabboRoleplay.Misc;
-using Polar.HabboRoleplay.RoleplayUsers.Offers;
-using Polar.HabboRoleplay.Weapons;
+﻿using Polar.Communication.Packets.Outgoing.Catalog;
 using Polar.Communication.Packets.Outgoing.Groups;
-using Polar.Communication.Packets.Outgoing.Users;
-using Polar.Communication.Packets.Outgoing.Catalog;
 using Polar.Communication.Packets.Outgoing.Rooms.Engine;
+using Polar.Communication.Packets.Outgoing.Users;
+using Polar.Database.Interfaces;
+using Polar.HabboHotel.GameClients;
+using Polar.HabboHotel.Groups;
+using Polar.HabboHotel.Items;
+using Polar.HabboHotel.Users.Inventory.Bots;
 using Polar.HabboRoleplay.Bots;
 using Polar.HabboRoleplay.Farming;
-using Polar.HabboHotel.Items;
-using Polar.Database.Interfaces;
+using Polar.HabboRoleplay.Misc;
+using Polar.HabboRoleplay.PhoneOwned;
+using Polar.HabboRoleplay.Phones;
+using Polar.HabboRoleplay.RoleplayUsers.Offers;
 using Polar.HabboRoleplay.VehicleOwned;
 using Polar.HabboRoleplay.Vehicles;
+using Polar.HabboRoleplay.Weapons;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Sockets;
+using System.Text;
 
 namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
 {
@@ -73,11 +76,6 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
             if (Session.GetRoleplay().IsDead)
             {
                 Session.SendWhisper("¡No puedes hacer esto mientras estás muert@!", 1);
-                return;
-            }
-            if (Session.GetRoleplay().IsJailed)
-            {
-                Session.SendWhisper("¡No puedes hacer eso mientras estás muert@!", 1);
                 return;
             }
             if (Session.GetRoleplay().DrivingCar)
@@ -597,6 +595,143 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
                 }
                 #endregion
 
+                #region Fuga
+                else if (Type.ToLower() == "fuga")
+                {
+
+                    var Offer = Session.GetRoleplay().OfferManager.ActiveOffers["fuga"];
+                    GameClient Offerer = PolarEnvironment.GetGame().GetClientManager().GetClientByUserID(Offer.OffererId);
+
+                    if (Offerer == null)
+                    {
+                        RoleplayOffer? Junk;
+                        Session.GetRoleplay().OfferManager.ActiveOffers.TryRemove("fuga", out Junk);
+                        Session.SendWhisper("Al parecer el cómplice se ha ido. Oferta cancelada.", 1);
+                        return;
+                    }
+
+                    int Amount = Offer.Cost;
+
+                    // Solo se puede aceptar si el usuario está encarcelado
+                    if (!Session.GetRoleplay().IsJailed)
+                    {
+                        Session.SendWhisper("¡No estás encarcelado!", 1);
+                        return;
+                    }
+
+                    if (Offerer == null || Offerer.GetRoomUser().RoomId != Session.GetRoomUser().RoomId || Offerer.GetRoomUser() == null)
+                    {
+                        RoleplayOffer? Junk;
+                        Session.GetRoleplay().OfferManager.ActiveOffers.TryRemove("fuga", out Junk);
+                        Session.SendWhisper("Lo sentimos, este usuario se ha desconectado o no está en la misma habitación que tú.", 1);
+                        return;
+                    }
+                    else if (Session.GetHabbo().Credits < Amount)
+                    {
+                        RoleplayOffer? Junk;
+                        Session.GetRoleplay().OfferManager.ActiveOffers.TryRemove("fuga", out Junk);
+                        Session.SendWhisper("Lo siento, no puedes escapar sin pagar " + String.Format("{0:N0}", Amount) + "$", 1);
+                        return;
+                    }
+                    else
+                    {
+
+                        // ---- Sacar de la cárcel ----
+                        Session.GetRoleplay().IsJailed = false;
+                        Session.GetRoleplay().JailedTimeLeft = 0;
+
+                        if (Session.GetRoleplay().TimerManager.ActiveTimers.ContainsKey("jail"))
+                            Session.GetRoleplay().TimerManager.ActiveTimers["jail"].EndTimer();
+
+                        // ---- Añadir a la lista de buscados (nivel 3) ----
+                        int WantedLevel = 3;
+                        string RoomId = Session.GetHabbo().CurrentRoomId.ToString() != "0"
+                                        ? Session.GetHabbo().CurrentRoomId.ToString()
+                                        : "Unknown";
+
+                        if (Session.GetRoleplay().TimerManager.ActiveTimers.ContainsKey("wanted"))
+                            Session.GetRoleplay().TimerManager.ActiveTimers["wanted"].EndTimer();
+
+                        if (Session.GetRoleplay().TimerManager.ActiveTimers.ContainsKey("probation"))
+                            Session.GetRoleplay().TimerManager.ActiveTimers["probation"].EndTimer();
+
+                        Session.GetRoleplay().OnProbation = false;
+                        Session.GetRoleplay().ProbationTimeLeft = 0;
+                        Session.GetRoleplay().IsWanted = true;
+                        Session.GetRoleplay().WantedLevel = WantedLevel;
+                        Session.GetRoleplay().WantedTimeLeft = 6; // nivel 3 = 6 minutos
+
+                        Wanted NewWanted = new Wanted(Convert.ToUInt32(Session.GetHabbo().Id), RoomId, WantedLevel);
+
+                        if (RoleplayManager.WantedList.ContainsKey(Session.GetHabbo().Id))
+                        {
+                            int CurrentLevel = RoleplayManager.WantedList[Session.GetHabbo().Id].WantedLevel;
+                            if (WantedLevel > CurrentLevel)
+                                RoleplayManager.WantedList.TryUpdate(Session.GetHabbo().Id, NewWanted, RoleplayManager.WantedList[Session.GetHabbo().Id]);
+                            else
+                                Session.GetRoleplay().WantedLevel = CurrentLevel; // respetar el nivel más alto
+                        }
+                        else
+                        {
+                            RoleplayManager.WantedList.TryAdd(Session.GetHabbo().Id, NewWanted);
+                        }
+
+                        Wanted NewWanted2 = new Wanted(Convert.ToUInt32(Offerer.GetHabbo().Id), RoomId, WantedLevel);
+
+                        if (RoleplayManager.WantedList.ContainsKey(Offerer.GetHabbo().Id))
+                        {
+                            int CurrentLevel = RoleplayManager.WantedList[Offerer.GetHabbo().Id].WantedLevel;
+                            if (WantedLevel > CurrentLevel)
+                                RoleplayManager.WantedList.TryUpdate(Offerer.GetHabbo().Id, NewWanted2, RoleplayManager.WantedList[Session.GetHabbo().Id]);
+                            else
+                                Offerer.GetRoleplay().WantedLevel = CurrentLevel; // respetar el nivel más alto
+                        }
+                        else
+                        {
+                            RoleplayManager.WantedList.TryAdd(Offerer.GetHabbo().Id, NewWanted2);
+                        }
+
+                        if (!Session.GetRoleplay().WantedFor.Contains("fuga"))
+                            Session.GetRoleplay().WantedFor = Offerer.GetRoleplay().WantedFor + ", Por fuga, ";
+
+                        if (!Offerer.GetRoleplay().WantedFor.Contains("fugarse"))
+                            Offerer.GetRoleplay().WantedFor = Offerer.GetRoleplay().WantedFor +", Apoyo a " + Session.GetHabbo().Username + " fugarse, ";
+
+                        Session.GetRoleplay().TimerManager.CreateTimer("wanted", 1000, false);
+                        Offerer.GetRoleplay().TimerManager.CreateTimer("wanted", 1000, false);
+
+                        // WebSocket: actualizar estrellas
+                        if (Session.GetRoleplay().WebSocketConnection != null)
+                            PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(Session, "compose_wanted_stars|" + Session.GetRoleplay().WantedLevel);
+
+                        if (Offerer.GetRoleplay().WebSocketConnection != null)
+                            PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(Offerer, "compose_wanted_stars|" + Offerer.GetRoleplay().WantedLevel);
+
+                        // Shout roleplay
+                        RoleplayManager.Shout(Session, "*Se fuga de la cárcel con la ayuda de " + Offerer.GetHabbo().Username + "*", 37);
+
+                        // Notificar a ambas partes
+                        Session.SendWhisper("¡Te has fugado de la cárcel! Ahora eres buscado con " + Session.GetRoleplay().WantedLevel + " estrella(s). ¡Cuidado con la policía!", 1);
+                        Offerer.SendWhisper("¡" + Session.GetHabbo().Username + " ha aceptado la fuga y escapó de la cárcel! Ahora es buscado con " + Session.GetRoleplay().WantedLevel + " estrella(s).", 1);
+
+                        // Notificación global
+                        lock (PolarEnvironment.GetGame().GetClientManager().GetClients)
+                        {
+                            foreach (var client in PolarEnvironment.GetGame().GetClientManager().GetClients.ToList())
+                            {
+                                if (client == null || client.GetHabbo() == null)
+                                    continue;
+
+                                client.SendWhisper("[NOTIFICACIÓN IMPORTANTE] ¡" + Session.GetHabbo().Username + " se ha fugado de la cárcel con ayuda de " + Offerer.GetHabbo().Username + "! ¡La policía los está buscando!", 33);
+                            }
+                        }
+
+                        RoleplayOffer? FugaJunk;
+                        Session.GetRoleplay().OfferManager.ActiveOffers.TryRemove("fuga", out FugaJunk);
+                        return;
+                    }
+                }
+                #endregion
 
                 #region Reparación
                 else if (Type.ToLower() == "reparacion")
@@ -2547,6 +2682,88 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
                             RoleplayManager.Shout(Offerer, "*Saca sus herramientas y comienza a reparar el vehículo de " + Session.GetHabbo().Username + "*", 5);
                             Offerer.SendWhisper("Debes esperar " + Offerer.GetRoleplay().LoadingTimeLeft + " segundo(s)...", 1);
                             Offerer.GetRoleplay().TimerManager.CreateTimer("general", 1000, true);
+                            return;
+                        }
+                    }
+                }
+                #endregion
+
+                #region Telefono
+                else if (Session.GetRoleplay().OfferManager.ActiveOffers.ContainsKey("telefono"))
+                {
+                    var Offer2 = Session.GetRoleplay().OfferManager.ActiveOffers["telefono"];
+                    if (Offer2 != null)
+                    {
+                        GameClient Offerer = PolarEnvironment.GetGame().GetClientManager().GetClientByUserID(Offer2.OffererId);
+                        Phone phone = PhoneManager.getPhone("iphone");
+                        if (Offerer == null || Offerer.GetRoomUser().RoomId != Session.GetRoomUser().RoomId || Offerer.GetRoomUser() == null)
+                        {
+                            RoleplayOffer? Junk;
+                            Session.GetRoleplay().OfferManager.ActiveOffers.TryRemove("telefono", out Junk);
+                            Session.SendWhisper("Lo sentimos, el ofertante no está en la misma zona que tú.", 1);
+                            return;
+                        }
+                        else if (Session.GetHabbo().Credits < phone.Price)
+                        {
+                            RoleplayOffer? Junk;
+                            Session.GetRoleplay().OfferManager.ActiveOffers.TryRemove("telefono", out Junk);
+                            Session.SendWhisper("¡Necesitas $" + Offer2.Cost + " para aceptar el teléfono!", 1);
+                            return;
+                        }
+                        
+                        else if (phone == null)
+                        {
+                            Session.SendWhisper("Ha ocurrido un problema al obtener la Información del Teléfono.", 1);
+                            return;
+                        }
+                        else
+                        {
+
+
+                            RoleplayManager.Shout(Session, "*Acepta la oferta de teléfono de " + Offerer.GetHabbo().Username + " por $" + String.Format("{0:N0}", Offer2.Cost) + "*", 5);
+                            RoleplayOffer? Junk;
+                            Session.GetRoleplay().OfferManager.ActiveOffers.TryRemove("telefono", out Junk);
+
+                            #region Execute
+                            String NewNumber = Session.GetRoleplay().PhoneNumber;
+                            string NumberInfo = "Tu número para tu nuevo teléfono sigue siendo el mismo: " + NewNumber;
+                            if (NewNumber.Length <= 0)
+                            {
+                                // Obtenemos Numero Random con Formato (xxx)-xxx-xxxx
+                                NewNumber = RoleplayManager.GeneratePhoneNumber(Session.GetHabbo().Id);
+                                NumberInfo = "Tu número es: " + NewNumber + ". ((Para volverlo a consultar usa :minumero))";
+
+                                PhonesOwned nPO;
+                                if (!PolarEnvironment.GetGame().GetPhonesOwnedManager().TryCreatePhoneOwned(Session, phone.ID, Session.GetHabbo().Id, NewNumber, out nPO))
+                                {
+                                    Session.SendWhisper("No se pudo autorizar el registro de papeles para tu nuevo teléfono. Inténtalo de nuevo.", 1);
+                                    return;
+                                }
+
+                                PolarEnvironment.GetGame().GetClientManager().RegisterClientPhone(Session.GetRoomUser().GetClient(), Session.GetHabbo().Id, NewNumber);
+
+                                RoleplayManager.SetDefaultApps(Session);
+                            }
+                            else
+                            {
+                                PhonesOwned nPO;
+                                if (!PolarEnvironment.GetGame().GetPhonesOwnedManager().UpdatePhoneOwner(Session, phone.ID, true, out nPO))
+                                {
+                                    Session.SendWhisper("No se pudo autorizar el registro de papeles para tu nuevo teléfono. Inténtalo de nuevo.", 1);
+                                    return;
+                                }
+                            }
+
+                            Session.GetHabbo().Credits -= phone.Price;
+                            Session.GetHabbo().UpdateCreditsBalance();
+                            RoleplayManager.Shout(Session, "*Compra un " + phone.DisplayName + " nuevo y paga $" + phone.Price + " por él*", 5);
+                            Session.SendWhisper("Has comprado un " + phone.DisplayName + " y pagaste $" + phone.Price, 1);
+                            Session.SendWhisper("Ahora podrás agregar contactos, enviar mensajes y realizar llamadas.", 1);
+                            Session.SendWhisper(NumberInfo, 1);
+                            PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Session, "event_phone", "load_apps");
+                            PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Session, "event_phone", "show_button");
+
+                            #endregion
                             return;
                         }
                     }

@@ -88,6 +88,49 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Settings
             if (MaxUsers < 10 || MaxUsers > 75)
                 MaxUsers = 25;
 
+            string str5 = "open";
+            if (Room.RoomData.State == 1)
+                str5 = "locked";
+            else if (Room.RoomData.State == 2)
+                str5 = "password";
+            else if (Room.RoomData.State == 3)
+                str5 = "hide";
+
+            using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+            {
+                dbClient.SetQuery("UPDATE rooms SET caption = @caption, description = @description, password = @password, category = " +
+                    CategoryId + ", state = '" + str5 + "', tags = @tags, users_max = " + MaxUsers +
+                    ", allow_pets = '" + (AllowPets ? 1 : 0) + "', allow_pets_eat = '" + (AllowPetsEat ? 1 : 0) + "', room_blocking_disabled = '" +
+                    (RoomBlockingEnabled ? 1 : 0) + "', allow_hidewall = '" + (Hidewall ? 1 : 0) + "', floorthick = " +
+                    FloorThickness + ", wallthick = " + WallThickness + ", mute_settings='" + WhoMute +
+                    "', kick_settings='" + WhoKick + "',ban_settings='" + WhoBan + "', `chat_mode` = '" + chatMode + "', `chat_size` = '" + chatSize + "', `chat_speed` = '" + chatSpeed + "', `chat_extra_flood` = '" + extraFlood + "', `chat_hearing_distance` = '" + chatDistance + "', `trade_settings` = '" + TradeSettings + "' WHERE `id` = '" + RoomId + "' LIMIT 1");
+                dbClient.AddParameter("caption", Name);
+                dbClient.AddParameter("description", Description);
+                dbClient.AddParameter("password", Password);
+                dbClient.AddParameter("tags", (stringBuilder).ToString());
+                dbClient.RunQuery();
+            }
+
+
+            if (Session.GetHabbo().CurrentRoom == null)
+            {
+                Session.SendMessage(new RoomSettingsSavedComposer(RoomId));
+                Session.SendMessage(new RoomInfoUpdatedComposer(RoomId));
+                Session.SendMessage(new RoomVisualizationSettingsComposer(WallThickness, FloorThickness, Hidewall));
+            }
+            else
+            {
+                Room.SendMessage(new RoomSettingsSavedComposer(RoomId));
+                Room.SendMessage(new RoomInfoUpdatedComposer(RoomId));
+                Room.SendMessage(new RoomVisualizationSettingsComposer(WallThickness, FloorThickness, Hidewall));
+            }
+
+            PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Session, "ACH_SelfModDoorModeSeen", 1);
+            PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Session, "ACH_SelfModWalkthroughSeen", 1);
+            PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Session, "ACH_SelfModChatScrollSpeedSeen", 1);
+            PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Session, "ACH_SelfModChatFloodFilterSeen", 1);
+            PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Session, "ACH_SelfModChatHearRangeSeen", 1);
+
             Room.AllowPets = AllowPets;
             Room.AllowPetsEating = AllowPetsEat;
             Room.RoomBlockingEnabled = RoomBlockingEnabled;
@@ -145,50 +188,6 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Settings
             Room.RoomData.extraFlood = extraFlood;
 
             Room.RoomData.TradeSettings = TradeSettings;
-
-            string str5 = "open";
-            if (Room.RoomData.State == 1)
-                str5 = "locked";
-            else if (Room.RoomData.State == 2)
-                str5 = "password";
-            else if (Room.RoomData.State == 3)
-                str5 = "hide";
-
-            using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-            {
-                dbClient.SetQuery("UPDATE rooms SET caption = @caption, description = @description, password = @password, category = " +
-                    CategoryId + ", state = '" + str5 + "', tags = @tags, users_max = " + MaxUsers +
-                    ", allow_pets = '" + (AllowPets ? 1 : 0) + "', allow_pets_eat = '" + (AllowPetsEat ? 1 : 0) + "', room_blocking_disabled = '" +
-                    (RoomBlockingEnabled ? 1 : 0) + "', allow_hidewall = '" + (Room.RoomData.Hidewall ? 1 : 0) + "', floorthick = " +
-                    Room.FloorThickness + ", wallthick = " + Room.WallThickness + ", mute_settings='" + Room.WhoCanMute +
-                    "', kick_settings='" + Room.WhoCanKick + "',ban_settings='" + Room.WhoCanBan + "', `chat_mode` = '" + Room.chatMode + "', `chat_size` = '" + Room.chatSize + "', `chat_speed` = '" + Room.chatSpeed + "', `chat_extra_flood` = '" + Room.extraFlood + "', `chat_hearing_distance` = '" + Room.chatDistance + "', `trade_settings` = '" + Room.TradeSettings + "' WHERE `id` = '" + Room.RoomId + "' LIMIT 1");
-                dbClient.AddParameter("caption", Room.Name);
-                dbClient.AddParameter("description", Room.Description);
-                dbClient.AddParameter("password", Room.Password);
-                dbClient.AddParameter("tags", (stringBuilder).ToString());
-                dbClient.RunQuery();
-            }
-
-
-            if (Session.GetHabbo().CurrentRoom == null)
-            {
-                Session.SendMessage(new RoomSettingsSavedComposer(Room.RoomId));
-                Session.SendMessage(new RoomInfoUpdatedComposer(Room.RoomId));
-                Session.SendMessage(new RoomVisualizationSettingsComposer(Room.WallThickness, Room.FloorThickness, Room.Hidewall));
-            }
-            else
-            {
-                Room.SendMessage(new RoomSettingsSavedComposer(Room.RoomId));
-                Room.SendMessage(new RoomInfoUpdatedComposer(Room.RoomId));
-                Room.SendMessage(new RoomVisualizationSettingsComposer(Room.WallThickness, Room.FloorThickness, Room.Hidewall));
-            }
-
-            PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Session, "ACH_SelfModDoorModeSeen", 1);
-            PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Session, "ACH_SelfModWalkthroughSeen", 1);
-            PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Session, "ACH_SelfModChatScrollSpeedSeen", 1);
-            PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Session, "ACH_SelfModChatFloodFilterSeen", 1);
-            PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Session, "ACH_SelfModChatHearRangeSeen", 1);
-
             Session.SendMessage(new GetGuestRoomResultComposer(Session, Room.RoomData, true, false));
         }
     }

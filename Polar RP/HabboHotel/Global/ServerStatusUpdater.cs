@@ -1,24 +1,20 @@
-﻿using System;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Collections.Generic;
+using System;
 using System.Diagnostics;
 using log4net;
 using Polar.Database.Interfaces;
-
+using System.Threading;
 
 namespace Polar.HabboHotel.Global
 {
-    public class ServerStatusUpdater
+    public static class ServerStatusUpdater
     {
-        private static ILog log = LogManager.GetLogger("Polar.HabboHotel.Global.ServerUpdater");
+        private static readonly ILog log = LogManager.GetLogger("Polar.HabboHotel.Global.ServerUpdater");
 
-        private const int UPDATE_IN_SECS = 30;
-        private static bool isExecuted;
-        private static Stopwatch lowPriorityProcessWatch;
-        private static int _userPeak;
-        private static Timer? _timer;
+        private const int UpdateIntervalSecs = 30;
+
+        private static int       _userPeak;
+        private static Timer     _timer;
+        private static Stopwatch _watch = new Stopwatch();
 
         public static void Init()
         {
@@ -26,99 +22,62 @@ namespace Polar.HabboHotel.Global
             {
                 dbClient.SetQuery("SELECT userpeak FROM server_status");
                 _userPeak = dbClient.getInteger();
-
-
             }
 
-            _timer = new Timer(new TimerCallback(OnTick), null, TimeSpan.FromSeconds(UPDATE_IN_SECS), TimeSpan.FromSeconds(UPDATE_IN_SECS));
+            _watch.Start();
+            _timer = new Timer(OnTick, null,
+                TimeSpan.FromSeconds(UpdateIntervalSecs),
+                TimeSpan.FromSeconds(UpdateIntervalSecs));
 
-            Console.Title = "Polar Server RP [" + PolarEnvironment.GetConfig().data["hotel.name"] + "] » [0] ON » [0] SALAS » [0] DÍA(S) » [0] HORA(S)";
-
-            //log.Info("Server Status Updater has been started.");
-            //lowPriorityProcessWatch = new Stopwatch();
-            //lowPriorityProcessWatch.Start();
-            //StartProcessing();
-            lowPriorityProcessWatch = new Stopwatch();
-            lowPriorityProcessWatch.Start();
+            UpdateTitle(0, 0);
         }
 
-        /*public static void StartProcessing()
-        {
-            _mTimer = new Timer(Process, null, 0, 10000);
-        }*/
-
-        public static void OnTick(object Obj)
-        {
-            UpdateOnlineUsers();
-        }
+        private static void OnTick(object _) => UpdateOnlineUsers();
 
         public static void Process()
         {
-            if (lowPriorityProcessWatch.ElapsedMilliseconds >= 10000 || !isExecuted)
-            {
-                isExecuted = true;
-                lowPriorityProcessWatch.Restart();
-                TimeSpan Uptime = DateTime.Now - PolarEnvironment.ServerStarted;
-                //var UsersOnline = PolarEnvironment.GetGame().GetClientManager().GetClients.Where(x => x != null && x.GetHabbo() != null && !x.GetHabbo().AppearOffline).ToList().Count;
-                int UsersOnline = Convert.ToInt32(PolarEnvironment.GetGame().GetClientManager().Count);
-                // int UsersOnline = PolarEnvironment.GetGame().GetClientManager().Count;
-                // int UsersOnline = PolarEnvironment.GetGame().GetClientManager().GetClients.Where(x => x != null && x.GetHabbo() != null).ToList().Count;
-                int RoomCount = PolarEnvironment.GetGame().GetRoomManager().Count;
-
-                Console.Title = "Polar Server RP [" + PolarEnvironment.GetConfig().data["hotel.name"] + "] » [" + UsersOnline + "] ON » [" + RoomCount + "] SALAS » [" + Uptime.Days + "] DÍA(S) » [" + Uptime.Hours + "] HORA(S)";
-
-                using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-                {
-                    //PolarEnvironment.GetGame().GetWebEventManager().BroadCastWebEvent("event_updateonlinecount", UsersOnline.ToString());
-                    dbClient.SetQuery("UPDATE `server_status` SET `users_online` = @users, `loaded_rooms` = @loadedRooms LIMIT 1");
-                    dbClient.AddParameter("users", UsersOnline);
-                    dbClient.AddParameter("loadedRooms", RoomCount);
-                    dbClient.AddParameter("upeak", _userPeak);
-                    dbClient.RunQuery();
-                }
-            }
+            if (_watch.ElapsedMilliseconds < 10000) return;
+            _watch.Restart();
+            UpdateOnlineUsers();
         }
+
         private static void UpdateOnlineUsers()
         {
-            TimeSpan Uptime = DateTime.Now - PolarEnvironment.ServerStarted;
+            if (PolarEnvironment.GetGame()?.GetClientManager() == null) return;
 
-            if (PolarEnvironment.GetGame() == null)
-                return;
-            if (PolarEnvironment.GetGame().GetClientManager() == null)
-                return;
-            //var UsersOnline = PolarEnvironment.GetGame().GetClientManager().GetClients.Where(x => x != null && x.GetHabbo() != null && !x.GetHabbo().AppearOffline).ToList().Count;
-            int UsersOnline = Convert.ToInt32(PolarEnvironment.GetGame().GetClientManager().Count);
-            // int UsersOnline = PolarEnvironment.GetGame().GetClientManager().Count;
-            //int UsersOnline = PolarEnvironment.GetGame().GetClientManager().GetClients.Where(x => x != null && x.GetHabbo() != null).ToList().Count;
-            int RoomCount = PolarEnvironment.GetGame().GetRoomManager().Count;
+            int users = PolarEnvironment.GetGame().GetClientManager().Count;
+            int rooms = PolarEnvironment.GetGame().GetRoomManager().Count;
 
-            Console.Title = "Polar Server RP [" + PolarEnvironment.GetConfig().data["hotel.name"] + "] » [" + UsersOnline + "] ON » [" + RoomCount + "] SALAS » [" + Uptime.Days + "] DÍA(S) » [" + Uptime.Hours + "] HORA(S)";
+            if (users > _userPeak) _userPeak = users;
+
+            UpdateTitle(users, rooms);
 
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                if (UsersOnline > _userPeak)
-                    _userPeak = UsersOnline;
+                PolarEnvironment.GetGame().GetWebEventManager()
+                    .BroadCastWebEvent("event_updateonlinecount", users.ToString());
 
-
-                PolarEnvironment.GetGame().GetWebEventManager().BroadCastWebEvent("event_updateonlinecount", UsersOnline.ToString());
-                dbClient.SetQuery("UPDATE `server_status` SET `users_online` = @users, `loaded_rooms` = @loadedRooms, userpeak = @upeak LIMIT 1");
-                dbClient.AddParameter("users", UsersOnline);
-                dbClient.AddParameter("loadedRooms", RoomCount);
-                dbClient.AddParameter("upeak", _userPeak);
+                dbClient.SetQuery(
+                    "UPDATE `server_status` SET `users_online` = @users, `loaded_rooms` = @rooms, `userpeak` = @peak LIMIT 1");
+                dbClient.AddParameter("users", users);
+                dbClient.AddParameter("rooms", rooms);
+                dbClient.AddParameter("peak",  _userPeak);
                 dbClient.RunQuery();
             }
         }
 
-
-        public void Dispose()
+        private static void UpdateTitle(int users, int rooms)
         {
-            using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-            {
-                dbClient.RunQuery("UPDATE `server_status` SET `users_online` = '0', `rooms_loaded` = '0', `environment_status` = '0'");
-            }
+            TimeSpan up = DateTime.Now - PolarEnvironment.ServerStarted;
+            string hotel = PolarEnvironment.GetConfig().data["hotel.name"];
+            Console.Title = $"Polar Server RP [{hotel}] » [{users}] ON » [{rooms}] SALAS » [{up.Days}] DÍA(S) » [{up.Hours}] HORA(S)";
+        }
 
-            _timer.Dispose();
-            GC.SuppressFinalize(this);
+        public static void Dispose()
+        {
+            _timer?.Dispose();
+            using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+                dbClient.RunQuery("UPDATE `server_status` SET `users_online` = '0', `rooms_loaded` = '0', `environment_status` = '0'");
         }
     }
 }

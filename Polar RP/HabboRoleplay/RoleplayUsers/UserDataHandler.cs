@@ -210,6 +210,8 @@ namespace Polar.HabboRoleplay.RoleplayUsers
                                         CamXP = @CamXP,
                                         MecLvl = @MecLvl,
                                         MecXP = @MecXP,
+                                        hunt_points = @hunt_points,
+                                        hunt_skins = @hunt_skins,
                                         tutorial_step = @tutorial_step,
                                         passive_mode = @passive_mode,
                                         changename_count = @changename_count
@@ -334,6 +336,8 @@ namespace Polar.HabboRoleplay.RoleplayUsers
             DB.AddParameter("MecXP", RoleplayUser.MecXP);
             DB.AddParameter("ArmLvl", RoleplayUser.ArmLvl);
             DB.AddParameter("ArmXP", RoleplayUser.ArmXP);
+            DB.AddParameter("hunt_points", RoleplayUser.HuntPoints);
+            DB.AddParameter("hunt_skins", RoleplayUser.HuntSkins);
 
             // Human Needs
             DB.AddParameter("maxhealth", RoleplayUser.MaxHealth);

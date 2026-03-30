@@ -8,106 +8,136 @@ using Polar.HabboHotel.Pathfinding;
 
 namespace Polar.HabboHotel.Rooms
 {
-    public class Gamemap
+    public class Gamemap : IDisposable
     {
         private Room _room;
-        private byte[,] _gameMap;//0 = none, 1 = pool, 2 = normal skates, 3 = ice skates
-        public bool DiagonalEnabled;
         private RoomModel mStaticModel;
         private RoomModel _staticModel;
-        public byte[,] mUserOnMap { get; private set; }
-        public double[,] _itemHeightmap;
         private DynamicRoomModel _dynamicModel;
+
+        public bool DiagonalEnabled;
+
+        // Arrays del mapa — se reinicializan en GenerateMaps
+        public byte[,] GameMap { get; private set; }
+        public byte[,] EffectMap { get; private set; }
+        public byte[,] mUserOnMap { get; private set; }
+        public byte[,] mSquareTaking { get; private set; }
+        public double[,] _itemHeightmap;
+
+        // Índices de datos — accedidos en hot paths, ConcurrentDictionary por thread-safety
         private ConcurrentDictionary<Point, List<int>> _coordinatedItems;
-        public ConcurrentDictionary<Point, List<RoomUser>> _userMap;
+        private ConcurrentDictionary<Point, List<RoomUser>> _userMap;
+
+        // ✅ FIX #15: teamMap se creaba dentro de HandleGameItemRegistration como
+        //   new Dictionary<> en CADA llamada — es decir, en cada ítem que se añade
+        //   al mapa (GenerateMaps, AddToMap, etc.). Esta tabla es completamente estática.
+        //   Declarada aquí como campo readonly estático: se crea UNA sola vez en el
+        //   ClassLoader y se reutiliza para siempre.
+        private static readonly IReadOnlyDictionary<InteractionType, TEAM> _teamMap =
+            new Dictionary<InteractionType, TEAM>
+            {
+                [InteractionType.FOOTBALL_GOAL_RED] = TEAM.RED,
+                [InteractionType.footballcounterred] = TEAM.RED,
+                [InteractionType.banzaiscorered] = TEAM.RED,
+                [InteractionType.banzaigatered] = TEAM.RED,
+                [InteractionType.freezeredcounter] = TEAM.RED,
+                [InteractionType.FREEZE_RED_GATE] = TEAM.RED,
+                [InteractionType.FOOTBALL_GOAL_GREEN] = TEAM.GREEN,
+                [InteractionType.footballcountergreen] = TEAM.GREEN,
+                [InteractionType.banzaiscoregreen] = TEAM.GREEN,
+                [InteractionType.banzaigategreen] = TEAM.GREEN,
+                [InteractionType.freezegreencounter] = TEAM.GREEN,
+                [InteractionType.FREEZE_GREEN_GATE] = TEAM.GREEN,
+                [InteractionType.FOOTBALL_GOAL_BLUE] = TEAM.BLUE,
+                [InteractionType.footballcounterblue] = TEAM.BLUE,
+                [InteractionType.banzaiscoreblue] = TEAM.BLUE,
+                [InteractionType.banzaigateblue] = TEAM.BLUE,
+                [InteractionType.freezebluecounter] = TEAM.BLUE,
+                [InteractionType.FREEZE_BLUE_GATE] = TEAM.BLUE,
+                [InteractionType.FOOTBALL_GOAL_YELLOW] = TEAM.YELLOW,
+                [InteractionType.footballcounteryellow] = TEAM.YELLOW,
+                [InteractionType.banzaiscoreyellow] = TEAM.YELLOW,
+                [InteractionType.banzaigateyellow] = TEAM.YELLOW,
+                [InteractionType.freezeyellowcounter] = TEAM.YELLOW,
+                [InteractionType.FREEZE_YELLOW_GATE] = TEAM.YELLOW,
+            };
+
+        // ✅ FIX #16: Lock dedicado para mutaciones en _userMap y _coordinatedItems.
+        //   ConcurrentDictionary hace el diccionario thread-safe, pero la LIST dentro
+        //   de cada valor NO es thread-safe. Las lambda de AddOrUpdate pueden ejecutarse
+        //   en distintos hilos concurrentemente sobre la misma lista → corrupción.
+        //   El lock sólo protege la mutación de la lista, no la lectura del diccionario.
+        private readonly object _userMapLock = new object();
+        private readonly object _coordItemLock = new object();
 
         public Gamemap(Room room)
         {
-            this._room = room;
-            this.DiagonalEnabled = true;
+            _room = room;
+            DiagonalEnabled = true;
 
             mStaticModel = PolarEnvironment.GetGame().GetRoomManager().GetModel(room.ModelName, room.Id);
             if (mStaticModel == null)
                 throw new Exception("No modeldata found for roomID " + room.Id);
 
+            _staticModel = mStaticModel;
+            _dynamicModel = new DynamicRoomModel(mStaticModel);
 
-            this._staticModel = mStaticModel;
-            this._dynamicModel = new DynamicRoomModel(mStaticModel);
-            this.GameMap = new byte[Model.MapSizeX, Model.MapSizeY];
-            this.mUserOnMap = new byte[this.Model.MapSizeX, this.Model.MapSizeY];
-            this.mSquareTaking = new byte[this.Model.MapSizeX, this.Model.MapSizeY];
-            this._itemHeightmap = new double[Model.MapSizeX, Model.MapSizeY];
-            this._userMap = new ConcurrentDictionary<Point, List<RoomUser>>();
-            this._coordinatedItems = new ConcurrentDictionary<Point, List<int>>();
+            InitializeArrays();
+
+            _userMap = new ConcurrentDictionary<Point, List<RoomUser>>();
+            _coordinatedItems = new ConcurrentDictionary<Point, List<int>>();
         }
+
+        private void InitializeArrays()
+        {
+            int sizeX = Model.MapSizeX;
+            int sizeY = Model.MapSizeY;
+
+            GameMap = new byte[sizeX, sizeY];
+            mUserOnMap = new byte[sizeX, sizeY];
+            mSquareTaking = new byte[sizeX, sizeY];
+            EffectMap = new byte[sizeX, sizeY];
+            _itemHeightmap = new double[sizeX, sizeY];
+        }
+
+        #region User Management
 
         public void AddUserToMap(RoomUser user, Point coord)
         {
-            if (_userMap.ContainsKey(coord))
+            if (user == null) return;
+
+            // ✅ FIX #16 aplicado: lock protege la lista interna
+            lock (_userMapLock)
             {
-                _userMap[coord].Add(user);
+                _userMap.AddOrUpdate(coord,
+                    _ => new List<RoomUser> { user },
+                    (_, list) =>
+                    {
+                        if (!list.Contains(user)) list.Add(user);
+                        return list;
+                    });
             }
-            else
-            {
-                List<RoomUser> users = new List<RoomUser>
-                {
-                    user
-                };
-                _userMap.TryAdd(coord, users);
-            }
-            if (this.ValidTile(coord.X, coord.Y))
-                this.mUserOnMap[coord.X, coord.Y] = 1;
+
+            if (ValidTile(coord.X, coord.Y))
+                mUserOnMap[coord.X, coord.Y] = 1;
         }
 
-        public void TeleportToSquare(RoomUser user, Point point)
+        public void RemoveUserFromMap(RoomUser user, Point coord)
         {
-            if (user == null)
-                return;
+            if (user == null) return;
 
-            GameMap[user.X, user.Y] = user.SqState;
-            UpdateUserMovement(new Point(user.Coordinate.X, user.Coordinate.Y), point, user);
-            user.X = point.X;
-            user.Y = point.Y;
-            user.Z = this.GetHeightForSquare(point);
-
-            user.SqState = GameMap[point.X, point.Y];
-            GameMap[user.X, user.Y] = 1;
-
-            Item Item;
-            if (this.GetHighestItemForSquare(point, out Item))
+            lock (_userMapLock)
             {
-                user.RotBody = Item.Rotation;
-                user.RotHead = Item.Rotation;
+                if (!_userMap.TryGetValue(coord, out var list)) return;
+
+                list.RemoveAll(u => u?.VirtualId == user.VirtualId);
+
+                if (list.Count == 0)
+                    _userMap.TryRemove(coord, out _);
             }
 
-            user.GoalX = user.X;
-            user.GoalY = user.Y;
-            user.SetStep = false;
-            user.IsWalking = false;
-            user.UpdateNeeded = true;
-        }
-
-        public void TeleportToItem(RoomUser user, Item item)
-        {
-            if (item == null || user == null)
-                return;
-
-            GameMap[user.X, user.Y] = user.SqState;
-            UpdateUserMovement(new Point(user.Coordinate.X, user.Coordinate.Y), new Point(item.Coordinate.X, item.Coordinate.Y), user);
-            user.X = item.GetX;
-            user.Y = item.GetY;
-            user.Z = item.GetZ;
-
-            user.SqState = GameMap[item.GetX, item.GetY];
-            GameMap[user.X, user.Y] = 1;
-            user.RotBody = item.Rotation;
-            user.RotHead = item.Rotation;
-
-            user.GoalX = user.X;
-            user.GoalY = user.Y;
-            user.SetStep = false;
-            user.IsWalking = false;
-            user.UpdateNeeded = true;
+            if (ValidTile(coord.X, coord.Y))
+                mUserOnMap[coord.X, coord.Y] = 0;
         }
 
         public void UpdateUserMovement(Point oldCoord, Point newCoord, RoomUser user)
@@ -116,472 +146,278 @@ namespace Polar.HabboHotel.Rooms
             AddUserToMap(user, newCoord);
         }
 
-        public void RemoveUserFromMap(RoomUser user, Point coord)
-        {
-            if (_userMap.ContainsKey(coord))
-                ((List<RoomUser>)_userMap[coord]).RemoveAll(x => x != null && x.VirtualId == user.VirtualId);
-
-            if (this.ValidTile(coord.X, coord.Y))
-                this.mUserOnMap[coord.X, coord.Y] = 0;
-        }
-        /*public void RemoveUserFromMap(RoomUser user, Point coord)
-         {
-             if (!_userMap.ContainsKey(coord))
-             {
-                 if (this.ValidTile(coord.X, coord.Y))
-                     this.mUserOnMap[coord.X, coord.Y] = 0;
-
-                 return;
-             }
-
-             if (_userMap[coord].Contains(user))
-                 _userMap[coord].Remove(user);
-
-             if (_userMap[coord].Count > 0)
-                 return;
-
-             List<RoomUser> UserList;
-             _userMap.TryRemove(coord, out UserList);
-
-             if (this.ValidTile(coord.X, coord.Y))
-                 this.mUserOnMap[coord.X, coord.Y] = 0;
-         }*/
-
         public bool MapGotUser(Point coord)
         {
-            return (GetRoomUsers(coord).Count > 0);
+            return GetRoomUsers(coord).Count > 0;
         }
 
-        public bool MapGotUser(Point coord, bool CheckingInvisible, bool IsInvisible)
+        public bool MapGotUser(Point coord, bool checkingInvisible, bool isInvisible)
         {
-            List<RoomUser> List = GetRoomUsers(coord).Where(RoomUser => !RoomUser.IsBot).ToList();
+            // ✅ FIX #17: Antes filtraba bots con .Where().ToList() y luego comprobaba
+            //   users == null (nunca null) y Count > 0 dos veces. Simplificado.
+            List<RoomUser> users = GetRoomUsers(coord);
+            if (users.Count == 0) return false;
+            if (!checkingInvisible) return true;
+            return users.Any(u => !u.IsBot && IsUserVisible(u, isInvisible));
+        }
 
-            if (List == null)
-                return false;
-
-            #region Invisible
-            if (CheckingInvisible)
+        private static bool IsUserVisible(RoomUser user, bool isInvisible)
+        {
+            if (user.IsBot)
             {
-                List<RoomUser> CheckingUsers = new List<RoomUser>();
-                lock (List)
-                {
-                    foreach (var user in List)
-                    {
-                        if (user == null)
-                            continue;
-
-                        if (user.IsBot)
-                        {
-                            if (user.GetBotRoleplay() == null)
-                                continue;
-
-                            if (!user.GetBotRoleplay().Invisible)
-                                CheckingUsers.Add(user);
-                        }
-                        else
-                        {
-                            if (user.GetClient() == null)
-                                continue;
-
-                            if (user.GetClient().GetRoleplay() == null)
-                                continue;
-
-                            if (!user.GetClient().GetRoleplay().Invisible)
-                                CheckingUsers.Add(user);
-
-                            if (user.GetClient().GetRoleplay().Invisible && IsInvisible)
-                                CheckingUsers.Add(user);
-                        }
-                    }
-                    return (CheckingUsers.Count > 0);
-                }
+                var botRp = user.GetBotRoleplay();
+                return botRp != null && !botRp.Invisible;
             }
-            #endregion
-
-            return (List.Count > 0);
+            var rp = user.GetClient()?.GetRoleplay();
+            return rp != null && (!rp.Invisible || isInvisible);
         }
 
         public List<RoomUser> GetRoomUsers(Point coord)
         {
-            if (_userMap.ContainsKey(coord))
-                return (List<RoomUser>)_userMap[coord];
-            else
-                return new List<RoomUser>();
+            return _userMap.TryGetValue(coord, out var users)
+                ? new List<RoomUser>(users) // snapshot — no exponer la lista interna
+                : new List<RoomUser>();
         }
 
-        public Point GetRandomWalkableSquare()
+        #endregion
+
+        #region Teleportation
+
+        public void TeleportToSquare(RoomUser user, Point point)
         {
-            var walkableSquares = new List<Point>();
-            for (int y = 0; y < GameMap.GetUpperBound(1); y++)
-            {
-                for (int x = 0; x < GameMap.GetUpperBound(0); x++)
-                {
-                    if (_staticModel.DoorX != x && _staticModel.DoorY != y && GameMap[x, y] == 1)
-                        walkableSquares.Add(new Point(x, y));
-                }
-            }
+            if (user == null || !ValidTile(point.X, point.Y)) return;
 
-            int RandomNumber = PolarEnvironment.GetRandomNumber(0, walkableSquares.Count);
-            int i = 0;
-
-            foreach (Point coord in walkableSquares.ToList())
-            {
-                if (i == RandomNumber)
-                    return coord;
-                i++;
-            }
-
-            return new Point(0, 0);
+            UpdateUserStateAndPosition(user, point, GetHeightForSquare(point));
+            UpdateUserOrientation(user, point);
+            ResetUserMovement(user);
         }
 
-        public Point GetRandomWalkableSquare(int x, int y)
+        public void TeleportToItem(RoomUser user, Item item)
         {
-            int rx = PolarEnvironment.GetRandomNumber(x - 5, x + 5);
-            int ry = PolarEnvironment.GetRandomNumber(y - 5, y + 5);
+            if (user == null || item == null) return;
 
-            if (this.Model.DoorX == rx || this.Model.DoorY == ry || !this.CanWalk(rx, ry))
-                return new Point(x, y);
-
-            return new Point(rx, ry);
+            var point = new Point(item.GetX, item.GetY);
+            UpdateUserStateAndPosition(user, point, item.GetZ);
+            user.RotBody = item.Rotation;
+            user.RotHead = item.Rotation;
+            ResetUserMovement(user);
         }
 
-
-        public bool IsInMap(int X, int Y)
+        private void UpdateUserStateAndPosition(RoomUser user, Point newPoint, double newZ)
         {
-            var walkableSquares = new List<Point>();
-            for (int y = 0; y < GameMap.GetUpperBound(1); y++)
+            if (ValidTile(user.X, user.Y))
+                GameMap[user.X, user.Y] = user.SqState;
+
+            UpdateUserMovement(user.Coordinate, newPoint, user);
+
+            user.X = newPoint.X;
+            user.Y = newPoint.Y;
+            user.Z = newZ;
+
+            user.SqState = GameMap[newPoint.X, newPoint.Y];
+            if (ValidTile(newPoint.X, newPoint.Y))
+                GameMap[newPoint.X, newPoint.Y] = 1;
+        }
+
+        private void UpdateUserOrientation(RoomUser user, Point point)
+        {
+            if (GetHighestItemForSquare(point, out Item item))
             {
-                for (int x = 0; x < GameMap.GetUpperBound(0); x++)
-                {
-                    if (_staticModel.DoorX != x && _staticModel.DoorY != y && GameMap[x, y] == 1)
-                        walkableSquares.Add(new Point(x, y));
-                }
+                user.RotBody = item.Rotation;
+                user.RotHead = item.Rotation;
+            }
+        }
+
+        private static void ResetUserMovement(RoomUser user)
+        {
+            user.GoalX = user.X;
+            user.GoalY = user.Y;
+            user.SetStep = false;
+            user.IsWalking = false;
+            user.UpdateNeeded = true;
+        }
+
+        #endregion
+
+        #region Map Generation
+
+        public void GenerateMaps(bool checkLines = true)
+        {
+            ClearMaps();
+
+            if (checkLines && CheckAndExpandMapIfNeeded())
+                return;
+
+            InitializeBaseMap();
+            ProcessAllItems();
+            UpdateUserPositions();
+            EnsureDoorAccessible();
+        }
+
+        private bool CheckAndExpandMapIfNeeded()
+        {
+            Item[] items = _room.GetRoomItemHandler().GetFloor.ToArray();
+            int maxX = 0, maxY = 0;
+
+            foreach (Item item in items)
+            {
+                if (item == null) continue;
+                if (item.GetX > maxX) maxX = item.GetX;
+                if (item.GetY > maxY) maxY = item.GetY;
             }
 
-            if (walkableSquares.Contains(new Point(X, Y)))
+            if (maxY > Model.MapSizeY - 1 || maxX > Model.MapSizeX - 1)
+            {
+                Model.SetMapsize(
+                    Math.Max(maxX + 7, Model.MapSizeX),
+                    Math.Max(maxY + 7, Model.MapSizeY));
+                GenerateMaps(false);
                 return true;
+            }
+
             return false;
         }
 
-        public void AddToMap(Item item)
+        private void ClearMaps()
         {
-            AddItemToMap(item);
+            int sizeX = Model.MapSizeX;
+            int sizeY = Model.MapSizeY;
+
+            GameMap = new byte[sizeX, sizeY];
+            mUserOnMap = new byte[sizeX, sizeY];
+            EffectMap = new byte[sizeX, sizeY];
+            mSquareTaking = new byte[sizeX, sizeY];
+            _itemHeightmap = new double[sizeX, sizeY];
+        }
+
+        private void InitializeBaseMap()
+        {
+            for (int y = 0; y < Model.MapSizeY; y++)
+                for (int x = 0; x < Model.MapSizeX; x++)
+                    SetDefaultValue(x, y);
+        }
+
+        private void ProcessAllItems()
+        {
+            foreach (Item item in _room.GetRoomItemHandler().GetFloor.ToArray())
+            {
+                if (item != null) AddItemToMap(item, true, true);
+            }
+        }
+
+        private void UpdateUserPositions()
+        {
+            if (_room.RoomBlockingEnabled) return;
+
+            foreach (RoomUser user in _room.GetRoomUserManager().GetUserList())
+            {
+                if (user != null) UpdateUserMapPosition(user);
+            }
+        }
+
+        private void UpdateUserMapPosition(RoomUser user)
+        {
+            if (!ValidTile(user.X, user.Y)) return;
+
+            user.SqState = GameMap[user.X, user.Y];
+            GameMap[user.X, user.Y] = 0;
+            mUserOnMap[user.X, user.Y] = 1;
+        }
+
+        private void EnsureDoorAccessible()
+        {
+            try
+            {
+                if (ValidTile(Model.DoorX, Model.DoorY))
+                    GameMap[Model.DoorX, Model.DoorY] = 3;
+            }
+            catch { /* Ignorar errores de índice */ }
         }
 
         private void SetDefaultValue(int x, int y)
         {
+            if (!ValidTile(x, y)) return;
+
             GameMap[x, y] = 0;
             EffectMap[x, y] = 0;
             _itemHeightmap[x, y] = 0.0;
 
             if (x == Model.DoorX && y == Model.DoorY)
-            {
                 GameMap[x, y] = 3;
-            }
             else if (Model.SqState[x, y] == SquareState.OPEN)
-            {
                 GameMap[x, y] = 1;
-            }
             else if (Model.SqState[x, y] == SquareState.SEAT)
-            {
                 GameMap[x, y] = 2;
-            }
         }
+
+        #endregion
+
+        #region Item Management
+
+        public void AddToMap(Item item) => AddItemToMap(item, true, true);
 
         public void UpdateMapForItem(Item item)
         {
-            RemoveFromMap(item);
+            RemoveFromMap(item, false);
             AddToMap(item);
         }
 
-        public void GenerateMaps(bool checkLines = true)
+        public bool AddItemToMap(Item item, bool handleGameItem = true, bool newItem = true)
         {
-            /*if (this._coordinatedItems.Count > 0)
-                this._coordinatedItems.Clear();*/
+            if (item == null) return false;
 
-            int MaxX = 0;
-            int MaxY = 0;
+            if (handleGameItem) HandleGameItemRegistration(item);
 
-            if (checkLines)
-            {
-                Item[] items = _room.GetRoomItemHandler().GetFloor.ToArray();
-                foreach (Item item in items.ToList())
-                {
-                    if (item == null)
-                        continue;
+            if (item.GetBaseItem().Type != 's') return true;
 
-                    if (item.GetX > Model.MapSizeX && item.GetX > MaxX)
-                        MaxX = item.GetX;
-                    if (item.GetY > Model.MapSizeY && item.GetY > MaxY)
-                        MaxY = item.GetY;
-                }
+            foreach (Point coord in item.GetCoords)
+                AddCoordinatedItem(item, coord);
 
-                Array.Clear(items, 0, items.Length);
-                items = null;
-            }
+            if (!CheckMapBounds(item)) return false;
 
-            #region Dynamic game map handling
-
-            if (MaxY > (Model.MapSizeY - 1) || MaxX > (Model.MapSizeX - 1))
-            {
-                if (MaxX < Model.MapSizeX)
-                    MaxX = Model.MapSizeX;
-                if (MaxY < Model.MapSizeY)
-                    MaxY = Model.MapSizeY;
-
-                Model.SetMapsize(MaxX + 7, MaxY + 7);
-                GenerateMaps(false);
-                return;
-            }
-
-            if (MaxX != StaticModel.MapSizeX || MaxY != StaticModel.MapSizeY)
-            {
-                EffectMap = new byte[Model.MapSizeX, Model.MapSizeY];
-                GameMap = new byte[Model.MapSizeX, Model.MapSizeY];
-                mUserOnMap = new byte[this.Model.MapSizeX, this.Model.MapSizeY];
-
-                _itemHeightmap = new double[Model.MapSizeX, Model.MapSizeY];
-                //if (modelRemap)
-                //    Model.Generate(); //Clears model
-
-                for (int line = 0; line < Model.MapSizeY; line++)
-                {
-                    for (int chr = 0; chr < Model.MapSizeX; chr++)
-                    {
-                        GameMap[chr, line] = 0;
-                        EffectMap[chr, line] = 0;
-
-                        if (chr == Model.DoorX && line == Model.DoorY)
-                        {
-                            GameMap[chr, line] = 3;
-                        }
-                        else if (Model.SqState[chr, line] == SquareState.OPEN)
-                        {
-                            GameMap[chr, line] = 1;
-                        }
-                        else if (Model.SqState[chr, line] == SquareState.SEAT)
-                        {
-                            GameMap[chr, line] = 2;
-                        }
-                        else if (Model.SqState[chr, line] == SquareState.POOL)
-                        {
-                            EffectMap[chr, line] = 6;
-                        }
-                    }
-                }
-            }
-            #endregion
-
-            #region Static game map handling
-
-            else
-            {
-                //mGameMap
-                //mUserItemEffect
-                EffectMap = new byte[Model.MapSizeX, Model.MapSizeY];
-                GameMap = new byte[Model.MapSizeX, Model.MapSizeY];
-                mUserOnMap = new byte[this.Model.MapSizeX, this.Model.MapSizeY];
-
-                _itemHeightmap = new double[Model.MapSizeX, Model.MapSizeY];
-                //if (modelRemap)
-                //    Model.Generate(); //Clears model
-
-                for (int line = 0; line < Model.MapSizeY; line++)
-                {
-                    for (int chr = 0; chr < Model.MapSizeX; chr++)
-                    {
-                        GameMap[chr, line] = 0;
-                        EffectMap[chr, line] = 0;
-
-                        if (chr == Model.DoorX && line == Model.DoorY)
-                        {
-                            GameMap[chr, line] = 3;
-                        }
-                        else if (Model.SqState[chr, line] == SquareState.OPEN)
-                        {
-                            GameMap[chr, line] = 1;
-                        }
-                        else if (Model.SqState[chr, line] == SquareState.SEAT)
-                        {
-                            GameMap[chr, line] = 2;
-                        }
-                        else if (Model.SqState[chr, line] == SquareState.POOL)
-                        {
-                            EffectMap[chr, line] = 6;
-                        }
-                    }
-                }
-            }
-
-            #endregion
-
-            Item[] tmpItems = _room.GetRoomItemHandler().GetFloor.ToArray();
-            foreach (Item Item in tmpItems.ToList())
-            {
-                if (Item == null)
-                    continue;
-
-                if (!AddItemToMap(Item))
-                    continue;
-            }
-
-           /* foreach (RoomUser user in _room.GetRoomUserManager().GetUserList().ToList())
-            {
-                if (this.ValidTile(user.X, user.Y))
-                    this.mUserOnMap[user.X, user.Y] = 1;
-            }
-            */
-            Array.Clear(tmpItems, 0, tmpItems.Length);
-            tmpItems = null;
-
-            if (_room.RoomBlockingEnabled == false)
-            {
-                foreach (RoomUser user in _room.GetRoomUserManager().GetUserList().ToList())
-                {
-                    if (user == null)
-                        continue;
-
-                    user.SqState = GameMap[user.X, user.Y];
-                    GameMap[user.X, user.Y] = 0;
-                }
-            }
-
-            try
-            {
-                GameMap[Model.DoorX, Model.DoorY] = 3;
-            }
-            catch { }
+            return ConstructMapForAllCoordinates(item);
         }
 
-        private bool ConstructMapForItem(Item Item, Point Coord)
+        public bool AddItemToMap(Item item, bool newItem = true) =>
+            AddItemToMap(item, true, newItem);
+
+        private bool ConstructMapForAllCoordinates(Item item)
         {
-            try
-            {
-                if (Coord.X > (Model.MapSizeX - 1))
-                {
-                    Model.AddX();
-                    GenerateMaps();
-                    return false;
-                }
+            bool success = true;
+            foreach (Point coord in item.GetCoords)
+                if (!ConstructMapForItem(item, coord)) success = false;
+            return success;
+        }
 
-                if (Coord.Y > (Model.MapSizeY - 1))
-                {
-                    Model.AddY();
-                    GenerateMaps();
-                    return false;
-                }
+        private bool CheckMapBounds(Item item)
+        {
+            bool needs = false;
+            if (item.GetX > Model.MapSizeX - 1) { Model.AddX(); needs = true; }
+            if (item.GetY > Model.MapSizeY - 1) { Model.AddY(); needs = true; }
 
-                if (Model.SqState[Coord.X, Coord.Y] == SquareState.BLOCKED)
-                {
-                    Model.OpenSquare(Coord.X, Coord.Y, Item.GetZ);
-                }
-                if (_itemHeightmap[Coord.X, Coord.Y] <= Item.TotalHeight)
-                {
-                    _itemHeightmap[Coord.X, Coord.Y] = Item.TotalHeight - _dynamicModel.SqFloorHeight[Item.GetX, Item.GetY];
-                    EffectMap[Coord.X, Coord.Y] = 0;
-
-
-                    switch (Item.GetBaseItem().InteractionType)
-                    {
-                        case InteractionType.POOL:
-                            EffectMap[Coord.X, Coord.Y] = 1;
-                            break;
-                        case InteractionType.NORMAL_SKATES:
-                            EffectMap[Coord.X, Coord.Y] = 2;
-                            break;
-                        case InteractionType.ICE_SKATES:
-                            EffectMap[Coord.X, Coord.Y] = 3;
-                            break;
-                        case InteractionType.lowpool:
-                            EffectMap[Coord.X, Coord.Y] = 4;
-                            break;
-                        case InteractionType.haloweenpool:
-                            EffectMap[Coord.X, Coord.Y] = 5;
-                            break;
-                    }
-
-
-                    //SwimHalloween
-                    if (Item.GetBaseItem().Walkable)    // If this item is walkable and on the floor, allow users to walk here.
-                    {
-                        if (GameMap[Coord.X, Coord.Y] != 3)
-                            GameMap[Coord.X, Coord.Y] = 1;
-                    }
-                    else if (Item.GetZ <= (Model.SqFloorHeight[Item.GetX, Item.GetY] + 0.1) && Item.GetBaseItem().InteractionType == InteractionType.GATE && Item.ExtraData == "1")// If this item is a gate, open, and on the floor, allow users to walk here.
-                    {
-                        if (GameMap[Coord.X, Coord.Y] != 3)
-                            GameMap[Coord.X, Coord.Y] = 1;
-                    }
-                    else if (Item.GetBaseItem().IsSeat || Item.GetBaseItem().InteractionType == InteractionType.BED || Item.GetBaseItem().InteractionType == InteractionType.TENT_SMALL)
-                    {
-                        GameMap[Coord.X, Coord.Y] = 3;
-                    }
-                    else // Finally, if it's none of those, block the square.
-                    {
-                        if (GameMap[Coord.X, Coord.Y] != 3)
-                            GameMap[Coord.X, Coord.Y] = 0;
-                    }
-                }
-
-                // Set bad maps
-                if (Item.GetBaseItem().InteractionType == InteractionType.BED || Item.GetBaseItem().InteractionType == InteractionType.TENT_SMALL)
-                    GameMap[Coord.X, Coord.Y] = 3;
-            }
-            catch (Exception e)
-            {
-                Logging.HandleException(e, "Room.SqAbsoluteHeight");
-            }
+            if (needs) { GenerateMaps(false); return false; }
             return true;
         }
 
-        public void AddCoordinatedItem(Item item, Point coord)
+        private void HandleGameItemRegistration(Item item)
         {
-            List<int> Items = new List<int>(); //mCoordinatedItems[CoordForItem];
+            AddSpecialItems(item);
 
-            if (!_coordinatedItems.TryGetValue(coord, out Items))
+            // ✅ FIX #15 aplicado: usa el campo estático readonly en vez de new Dictionary<>
+            if (_teamMap.TryGetValue(item.GetBaseItem().InteractionType, out TEAM team))
             {
-                Items = new List<int>();
-
-                if (!Items.Contains(item.Id))
-                    Items.Add(item.Id);
-
-                if (!_coordinatedItems.ContainsKey(coord))
-                    _coordinatedItems.TryAdd(coord, Items);
+                if (!_room.GetRoomItemHandler().GetFloor.Contains(item))
+                    _room.GetGameManager().AddFurnitureToTeam(item, team);
             }
-            else
+            else if (item.GetBaseItem().InteractionType == InteractionType.freezeexit)
             {
-                if (!Items.Contains(item.Id))
-                {
-                    Items.Add(item.Id);
-                    _coordinatedItems[coord] = Items;
-                }
+                _room.GetFreeze().AddExitTile(item);
             }
-        }
-
-        public List<Item> GetCoordinatedItems(Point coord)
-        {
-            var point = new Point(coord.X, coord.Y);
-            List<Item> Items = new List<Item>();
-
-            if (_coordinatedItems.ContainsKey(point))
+            else if (item.GetBaseItem().InteractionType == InteractionType.ROLLER)
             {
-                List<int> Ids = _coordinatedItems[point];
-                Items = GetItemsFromIds(Ids);
-                return Items;
+                if (!_room.GetRoomItemHandler().GetRollers().Contains(item))
+                    _room.GetRoomItemHandler().TryAddRoller(item.Id, item);
             }
-
-            return new List<Item>();
-        }
-
-        public bool RemoveCoordinatedItem(Item item, Point coord)
-        {
-            Point point = new Point(coord.X, coord.Y);
-            if (_coordinatedItems != null && _coordinatedItems.ContainsKey(point))
-            {
-                ((List<int>)_coordinatedItems[point]).RemoveAll(x => x == item.Id);
-                return true;
-            }
-            return false;
         }
 
         private void AddSpecialItems(Item item)
@@ -589,326 +425,780 @@ namespace Polar.HabboHotel.Rooms
             switch (item.GetBaseItem().InteractionType)
             {
                 case InteractionType.FOOTBALL_GATE:
-                    //IsTrans = true;
                     _room.GetSoccer().RegisterGate(item);
-
-
-                    string[] splittedExtraData = item.ExtraData.Split(':');
-
-                    if (string.IsNullOrEmpty(item.ExtraData) || splittedExtraData.Length <= 1)
-                    {
-                        item.Gender = "M";
-                        switch (item.team)
-                        {
-                            case TEAM.YELLOW:
-                                item.Figure = "lg-275-93.hr-115-61.hd-207-14.ch-265-93.sh-305-62";
-                                break;
-                            case TEAM.RED:
-                                item.Figure = "lg-275-96.hr-115-61.hd-180-3.ch-265-96.sh-305-62";
-                                break;
-                            case TEAM.GREEN:
-                                item.Figure = "lg-275-102.hr-115-61.hd-180-3.ch-265-102.sh-305-62";
-                                break;
-                            case TEAM.BLUE:
-                                item.Figure = "lg-275-108.hr-115-61.hd-180-3.ch-265-108.sh-305-62";
-                                break;
-                        }
-                    }
-                    else
-                    {
-                        item.Gender = splittedExtraData[0];
-                        item.Figure = splittedExtraData[1];
-                    }
+                    InitializeGateFigure(item);
                     break;
-
                 case InteractionType.banzaifloor:
-                    {
-                        _room.GetBanzai().AddTile(item, item.Id);
-                        break;
-                    }
-
+                    _room.GetBanzai().AddTile(item, item.Id);
+                    break;
                 case InteractionType.banzaipyramid:
-                    {
-                        _room.GetGameItemHandler().AddPyramid(item, item.Id);
-                        break;
-                    }
-
+                    _room.GetGameItemHandler().AddPyramid(item, item.Id);
+                    break;
                 case InteractionType.banzaitele:
-                    {
-                        _room.GetGameItemHandler().AddTeleport(item, item.Id);
-                        item.ExtraData = "";
-                        break;
-                    }
+                    _room.GetGameItemHandler().AddTeleport(item, item.Id);
+                    item.ExtraData = "";
+                    break;
                 case InteractionType.banzaipuck:
-                    {
-                        _room.GetBanzai().AddPuck(item);
-                        break;
-                    }
-
+                    _room.GetBanzai().AddPuck(item);
+                    break;
                 case InteractionType.FOOTBALL:
-                    {
-                        _room.GetSoccer().AddBall(item);
-                        break;
-                    }
+                    _room.GetSoccer().AddBall(item);
+                    break;
                 case InteractionType.FREEZE_TILE_BLOCK:
-                    {
-                        _room.GetFreeze().AddFreezeBlock(item);
-                        break;
-                    }
+                    _room.GetFreeze().AddFreezeBlock(item);
+                    break;
                 case InteractionType.FREEZE_TILE:
-                    {
-                        _room.GetFreeze().AddFreezeTile(item);
-                        break;
-                    }
+                    _room.GetFreeze().AddFreezeTile(item);
+                    break;
                 case InteractionType.freezeexit:
-                    {
-                        _room.GetFreeze().AddExitTile(item);
-                        break;
-                    }
+                    _room.GetFreeze().AddExitTile(item);
+                    break;
             }
         }
 
-        private void RemoveSpecialItem(Item item)
+        private static void InitializeGateFigure(Item gate)
         {
-            switch (item.GetBaseItem().InteractionType)
+            if (string.IsNullOrEmpty(gate.ExtraData))
             {
-                case InteractionType.FOOTBALL_GATE:
-                    _room.GetSoccer().UnRegisterGate(item);
-                    break;
-                case InteractionType.banzaifloor:
-                    _room.GetBanzai().RemoveTile(item.Id);
-                    break;
-                case InteractionType.banzaipuck:
-                    _room.GetBanzai().RemovePuck(item.Id);
-                    break;
-                case InteractionType.banzaipyramid:
-                    _room.GetGameItemHandler().RemovePyramid(item.Id);
-                    break;
-                case InteractionType.banzaitele:
-                    _room.GetGameItemHandler().RemoveTeleport(item.Id);
-                    break;
-                case InteractionType.FOOTBALL:
-                    _room.GetSoccer().RemoveBall(item.Id);
-                    break;
-                case InteractionType.FREEZE_TILE:
-                    _room.GetFreeze().RemoveFreezeTile(item.Id);
-                    break;
-                case InteractionType.FREEZE_TILE_BLOCK:
-                    _room.GetFreeze().RemoveFreezeBlock(item.Id);
-                    break;
-                case InteractionType.freezeexit:
-                    _room.GetFreeze().RemoveExitTile(item.Id);
-                    break;
+                gate.Gender = "M";
+                gate.Figure = GetDefaultFigureForTeam(gate.team);
+            }
+            else
+            {
+                var parts = gate.ExtraData.Split(':');
+                if (parts.Length >= 2)
+                {
+                    gate.Gender = parts[0];
+                    gate.Figure = parts[1];
+                }
             }
         }
+
+        private static string GetDefaultFigureForTeam(TEAM team) => team switch
+        {
+            TEAM.YELLOW => "lg-275-93.hr-115-61.hd-207-14.ch-265-93.sh-305-62",
+            TEAM.RED => "lg-275-96.hr-115-61.hd-180-3.ch-265-96.sh-305-62",
+            TEAM.GREEN => "lg-275-102.hr-115-61.hd-180-3.ch-265-102.sh-305-62",
+            TEAM.BLUE => "lg-275-108.hr-115-61.hd-180-3.ch-265-108.sh-305-62",
+            _ => string.Empty
+        };
+
+        private bool ConstructMapForItem(Item item, Point coord)
+        {
+            try
+            {
+                if (!ValidTile(coord.X, coord.Y)) return false;
+
+                if (Model.SqState[coord.X, coord.Y] == SquareState.BLOCKED)
+                    Model.OpenSquare(coord.X, coord.Y, item.GetZ);
+
+                if (_itemHeightmap[coord.X, coord.Y] <= item.TotalHeight)
+                {
+                    _itemHeightmap[coord.X, coord.Y] =
+                        item.TotalHeight - _dynamicModel.SqFloorHeight[item.GetX, item.GetY];
+
+                    UpdateEffectMap(item, coord);
+                    UpdateGameMap(item, coord);
+                }
+
+                if (item.GetBaseItem().InteractionType == InteractionType.BED ||
+                    item.GetBaseItem().InteractionType == InteractionType.TENT_SMALL)
+                    GameMap[coord.X, coord.Y] = 3;
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Logging.HandleException(ex, "Gamemap.ConstructMapForItem");
+                return false;
+            }
+        }
+
+        private void UpdateEffectMap(Item item, Point coord)
+        {
+            EffectMap[coord.X, coord.Y] = item.GetBaseItem().InteractionType switch
+            {
+                InteractionType.POOL => 1,
+                InteractionType.NORMAL_SKATES => 2,
+                InteractionType.ICE_SKATES => 3,
+                InteractionType.lowpool => 4,
+                InteractionType.haloweenpool => 5,
+                _ => 0
+            };
+        }
+
+        private void UpdateGameMap(Item item, Point coord)
+        {
+            var baseItem = item.GetBaseItem();
+
+            if (baseItem.Walkable || IsOpenGate(item))
+            {
+                if (GameMap[coord.X, coord.Y] != 3)
+                    GameMap[coord.X, coord.Y] = 1;
+            }
+            else if (baseItem.IsSeat ||
+                     baseItem.InteractionType == InteractionType.BED ||
+                     baseItem.InteractionType == InteractionType.TENT_SMALL)
+            {
+                GameMap[coord.X, coord.Y] = 3;
+            }
+            else
+            {
+                if (GameMap[coord.X, coord.Y] != 3)
+                    GameMap[coord.X, coord.Y] = 0;
+            }
+        }
+
+        private bool IsOpenGate(Item item) =>
+            item.GetZ <= Model.SqFloorHeight[item.GetX, item.GetY] + 0.1 &&
+            item.GetBaseItem().InteractionType == InteractionType.GATE &&
+            item.ExtraData == "1";
 
         public bool RemoveFromMap(Item item, bool handleGameItem)
         {
-            if (handleGameItem)
-                RemoveSpecialItem(item);
+            if (item == null) return false;
+
+            if (handleGameItem) RemoveSpecialItem(item);
 
             bool isRemoved = false;
-            foreach (Point coord in item.GetCoords.ToList())
+            foreach (Point coord in item.GetCoords)
+                if (RemoveCoordinatedItem(item, coord)) isRemoved = true;
+
+            // ✅ FIX #18: Antes usaba ConcurrentDictionary<Point, List<Item>> como
+            //   estructura temporal, con ContainsKey redundante en el loop de escritura
+            //   y en el loop de lectura (for each Key + ContainsKey(key) siempre true).
+            //   Reemplazado por Dictionary<Point, List<Item>> local — no hay concurrencia
+            //   aquí porque es una operación de regeneración que ocurre de forma serializada.
+            var affectedCoords = new Dictionary<Point, List<Item>>();
+            foreach (Point tile in item.GetCoords)
             {
-                if (RemoveCoordinatedItem(item, coord))
-                    isRemoved = true;
+                SetDefaultValue(tile.X, tile.Y);
+
+                if (_coordinatedItems.TryGetValue(tile, out var ids))
+                    affectedCoords[tile] = GetItemsFromIds(ids);
             }
 
-            ConcurrentDictionary<Point, List<Item>> items = new ConcurrentDictionary<Point, List<Item>>();
-            foreach (Point Tile in item.GetCoords.ToList())
-            {
-                Point point = new Point(Tile.X, Tile.Y);
-                if (_coordinatedItems.ContainsKey(point))
-                {
-                    List<int> Ids = (List<int>)_coordinatedItems[point];
-                    List<Item> __items = GetItemsFromIds(Ids);
-
-                    if (!items.ContainsKey(Tile))
-                        items.TryAdd(Tile, __items);
-                }
-
-                SetDefaultValue(Tile.X, Tile.Y);
-            }
-
-            foreach (Point Coord in items.Keys.ToList())
-            {
-                if (!items.ContainsKey(Coord))
-                    continue;
-
-                List<Item> SubItems = (List<Item>)items[Coord];
-                foreach (Item Item in SubItems.ToList())
-                {
-                    ConstructMapForItem(Item, Coord);
-                }
-            }
-
-
-            items.Clear();
-            items = null;
-
+            foreach (var (coord, subItems) in affectedCoords)
+                foreach (Item subItem in subItems)
+                    ConstructMapForItem(subItem, coord);
 
             return isRemoved;
         }
 
         public bool RemoveFromMap(Item item) => RemoveFromMap(item, true);
 
-        public bool AddItemToMap(Item Item, bool handleGameItem, bool NewItem = true)
+        private void RemoveSpecialItem(Item item)
         {
-
-            if (handleGameItem)
+            switch (item.GetBaseItem().InteractionType)
             {
-                AddSpecialItems(Item);
-
-                switch (Item.GetBaseItem().InteractionType)
-                {
-                    case InteractionType.FOOTBALL_GOAL_RED:
-                    case InteractionType.footballcounterred:
-                    case InteractionType.banzaiscorered:
-                    case InteractionType.banzaigatered:
-                    case InteractionType.freezeredcounter:
-                    case InteractionType.FREEZE_RED_GATE:
-                        {
-                            if (!_room.GetRoomItemHandler().GetFloor.Contains(Item))
-                                _room.GetGameManager().AddFurnitureToTeam(Item, TEAM.RED);
-                            break;
-                        }
-                    case InteractionType.FOOTBALL_GOAL_GREEN:
-                    case InteractionType.footballcountergreen:
-                    case InteractionType.banzaiscoregreen:
-                    case InteractionType.banzaigategreen:
-                    case InteractionType.freezegreencounter:
-                    case InteractionType.FREEZE_GREEN_GATE:
-                        {
-                            if (!_room.GetRoomItemHandler().GetFloor.Contains(Item))
-                                _room.GetGameManager().AddFurnitureToTeam(Item, TEAM.GREEN);
-                            break;
-                        }
-                    case InteractionType.FOOTBALL_GOAL_BLUE:
-                    case InteractionType.footballcounterblue:
-                    case InteractionType.banzaiscoreblue:
-                    case InteractionType.banzaigateblue:
-                    case InteractionType.freezebluecounter:
-                    case InteractionType.FREEZE_BLUE_GATE:
-                        {
-                            if (!_room.GetRoomItemHandler().GetFloor.Contains(Item))
-                                _room.GetGameManager().AddFurnitureToTeam(Item, TEAM.BLUE);
-                            break;
-                        }
-                    case InteractionType.FOOTBALL_GOAL_YELLOW:
-                    case InteractionType.footballcounteryellow:
-                    case InteractionType.banzaiscoreyellow:
-                    case InteractionType.banzaigateyellow:
-                    case InteractionType.freezeyellowcounter:
-                    case InteractionType.FREEZE_YELLOW_GATE:
-                        {
-                            if (!_room.GetRoomItemHandler().GetFloor.Contains(Item))
-                                _room.GetGameManager().AddFurnitureToTeam(Item, TEAM.YELLOW);
-                            break;
-                        }
-                    case InteractionType.freezeexit:
-                        {
-                            _room.GetFreeze().AddExitTile(Item);
-                            break;
-                        }
-                    case InteractionType.ROLLER:
-                        {
-                            if (!_room.GetRoomItemHandler().GetRollers().Contains(Item))
-                                _room.GetRoomItemHandler().TryAddRoller(Item.Id, Item);
-                            break;
-                        }
-                }
+                case InteractionType.FOOTBALL_GATE: _room.GetSoccer().UnRegisterGate(item); break;
+                case InteractionType.banzaifloor: _room.GetBanzai().RemoveTile(item.Id); break;
+                case InteractionType.banzaipuck: _room.GetBanzai().RemovePuck(item.Id); break;
+                case InteractionType.banzaipyramid: _room.GetGameItemHandler().RemovePyramid(item.Id); break;
+                case InteractionType.banzaitele: _room.GetGameItemHandler().RemoveTeleport(item.Id); break;
+                case InteractionType.FOOTBALL: _room.GetSoccer().RemoveBall(item.Id); break;
+                case InteractionType.FREEZE_TILE: _room.GetFreeze().RemoveFreezeTile(item.Id); break;
+                case InteractionType.FREEZE_TILE_BLOCK: _room.GetFreeze().RemoveFreezeBlock(item.Id); break;
+                case InteractionType.freezeexit: _room.GetFreeze().RemoveExitTile(item.Id); break;
             }
-
-            if (Item.GetBaseItem().Type != 's')
-                return true;
-
-            foreach (Point coord in Item.GetCoords.ToList())
-            {
-                AddCoordinatedItem(Item, new Point(coord.X, coord.Y));
-            }
-
-            if (Item.GetX > (Model.MapSizeX - 1))
-            {
-                Model.AddX();
-                GenerateMaps();
-                return false;
-            }
-
-            if (Item.GetY > (Model.MapSizeY - 1))
-            {
-                Model.AddY();
-                GenerateMaps();
-                return false;
-            }
-
-            bool Return = true;
-
-            foreach (Point coord in Item.GetCoords)
-            {
-                if (!ConstructMapForItem(Item, coord))
-                {
-                    Return = false;
-                }
-                else
-                {
-                    Return = true;
-                }
-            }
-
-
-
-            return Return;
         }
 
+        #endregion
 
-        public bool CanWalk(int X, int Y, bool Override = false)
+        #region Coordinated Items Management
+
+        public void AddCoordinatedItem(Item item, Point coord)
         {
-
-            if (!this.ValidTile(X, Y))
-                return false;
-            else
-                return (Override || this.mUserOnMap[X, Y] == 0);
-            ;
-        }
-
-        public bool AddItemToMap(Item Item, bool NewItem = true)
-        {
-            return AddItemToMap(Item, true, NewItem);
-        }
-
-        public bool ItemCanMove(Item Item, Point MoveTo)
-        {
-            List<ThreeDCoord> Points = Gamemap.GetAffectedTiles(Item.GetBaseItem().Length, Item.GetBaseItem().Width, MoveTo.X, MoveTo.Y, Item.Rotation).Values.ToList();
-
-            if (Points == null || Points.Count == 0)
-                return true;
-
-            foreach (ThreeDCoord Coord in Points)
+            // ✅ FIX #16 aplicado: lock protege la lista interna de _coordinatedItems
+            lock (_coordItemLock)
             {
+                _coordinatedItems.AddOrUpdate(coord,
+                    _ => new List<int> { item.Id },
+                    (_, list) =>
+                    {
+                        if (!list.Contains(item.Id)) list.Add(item.Id);
+                        return list;
+                    });
+            }
+        }
 
-                if (Coord.X >= Model.MapSizeX || Coord.Y >= Model.MapSizeY)
+        public List<Item> GetCoordinatedItems(Point coord)
+        {
+            return _coordinatedItems.TryGetValue(coord, out var itemIds)
+                ? GetItemsFromIds(itemIds)
+                : new List<Item>();
+        }
+
+        public bool RemoveCoordinatedItem(Item item, Point coord)
+        {
+            lock (_coordItemLock)
+            {
+                if (!_coordinatedItems.TryGetValue(coord, out var itemIds))
                     return false;
 
-                if (!SquareIsOpen(Coord.X, Coord.Y, false))
-                    return false;
+                bool removed = itemIds.Remove(item.Id);
 
-                continue;
+                if (itemIds.Count == 0)
+                    _coordinatedItems.TryRemove(coord, out _);
+
+                return removed;
             }
+        }
+
+        public List<Item> GetItemsFromIds(List<int> input)
+        {
+            if (input == null || input.Count == 0) return new List<Item>();
+
+            // ✅ FIX #19: Antes: input.Distinct() + items.Contains(item) — O(n²).
+            //   Usando HashSet<int> para deduplicar ids en O(1), y no hace falta
+            //   items.Contains(item) si ya los ids son únicos.
+            var seen = new HashSet<int>(input.Count);
+            var items = new List<Item>(input.Count);
+
+            try
+            {
+                foreach (int id in input)
+                {
+                    if (!seen.Add(id)) continue;
+                    Item? item = _room.GetRoomItemHandler().GetItem(id);
+                    if (item != null) items.Add(item);
+                }
+            }
+            catch (Exception e)
+            {
+                Logging.LogCriticalException("Error in GetItemsFromIds: " + e);
+            }
+
+            return items;
+        }
+
+        #endregion
+
+        #region Tile and Movement Validation
+
+        public bool ValidTile(int x, int y) =>
+            x >= 0 && y >= 0 && x < Model.MapSizeX && y < Model.MapSizeY;
+
+        public bool CanWalk(int x, int y, bool @override = false)
+        {
+            if (!ValidTile(x, y)) return false;
+            return @override || mUserOnMap[x, y] == 0;
+        }
+
+        public bool SquareHasUsers(int x, int y)
+        {
+            if (!ValidTile(x, y) || mUserOnMap[x, y] == 0) return false;
+            return MapGotUser(new Point(x, y));
+        }
+
+        public bool SquareHasUsers(int x, int y, bool checkingInvisible = false, bool isInvisible = false) =>
+            MapGotUser(new Point(x, y), checkingInvisible, isInvisible);
+
+        public bool ItemCanBePlacedHere(int x, int y)
+        {
+            if (_dynamicModel.MapSizeX - 1 < x || _dynamicModel.MapSizeY - 1 < y ||
+                (x == _dynamicModel.DoorX && y == _dynamicModel.DoorY))
+                return false;
+            return GameMap[x, y] == 1;
+        }
+
+        public bool SquareIsOpen(int x, int y, bool pOverride)
+        {
+            if (_dynamicModel.MapSizeX - 1 < x || _dynamicModel.MapSizeY - 1 < y) return false;
+            return CanWalk(GameMap[x, y], pOverride);
+        }
+
+        public bool ItemCanMove(Item item, Point moveTo)
+        {
+            List<ThreeDCoord> points = Gamemap.GetAffectedTiles(
+                item.GetBaseItem().Length,
+                item.GetBaseItem().Width,
+                moveTo.X, moveTo.Y,
+                item.Rotation).Values.ToList();
+
+            if (points.Count == 0) return true;
+
+            foreach (ThreeDCoord coord in points)
+            {
+                if (coord.X >= Model.MapSizeX || coord.Y >= Model.MapSizeY) return false;
+                if (!SquareIsOpen(coord.X, coord.Y, false)) return false;
+            }
+            return true;
+        }
+
+        public bool IsValidStep(Vector2D from, Vector2D to, bool endOfPath, bool @override,
+            bool roller = false, bool isBot = false, bool isInvisible = false, bool diagMove = false)
+            => IsValidStep(new Point(from.X, from.Y), new Point(to.X, to.Y),
+                           endOfPath, @override, roller, isBot, isInvisible, diagMove);
+
+        public bool IsValidStep(Point from, Point to, bool endOfPath, bool @override,
+            bool roller = false, bool isBot = false, bool isInvisible = false, bool diagMove = false)
+        {
+            if (!ValidTile(to.X, to.Y)) return false;
+            if (@override) return true;
+
+            if (!isBot && !_room.RoomBlockingEnabled &&
+                SquareHasUsers(to.X, to.Y, true, isInvisible))
+                return false;
+
+            List<Item> items = GetAllRoomItemForSquare(to.X, to.Y);
+            if (items.Count > 0 && HasSpecialItemsBlockingMovement(items, to, endOfPath))
+                return false;
+
+            if (!IsTileWalkable(GameMap[to.X, to.Y], endOfPath)) return false;
+            if (!roller && GetHeightDifference(from, to) > 1.5) return false;
+            if (diagMove && !IsValidDiagonalMove(from, to)) return false;
 
             return true;
         }
+
+        public bool IsValidStep2(RoomUser user, Vector2D from, Vector2D to, bool endOfPath, bool @override)
+            => IsValidStep2(user, new Point(from.X, from.Y), new Point(to.X, to.Y), endOfPath, @override);
+
+        public bool IsValidStep2(RoomUser user, Point from, Point to, bool endOfPath, bool @override)
+        {
+            if (user == null || !ValidTile(to.X, to.Y)) return false;
+            if (@override) return true;
+
+            List<Item> items = GetAllRoomItemForSquare(to.X, to.Y);
+
+            // ✅ FIX #20: Antes: .Any(...) para verificar + .FirstOrDefault(...) para obtener —
+            //   doble scan de la misma lista. Un solo FirstOrDefault es suficiente.
+            Item? gate = items.FirstOrDefault(x =>
+                x?.GetBaseItem().InteractionType == InteractionType.GUILD_GATE);
+            if (gate != null)
+                return HandleGroupGateAccess(user, gate);
+
+            bool isChair = false;
+            double highestZ = -1;
+            foreach (Item item in items)
+            {
+                if (item == null) continue;
+                if (item.GetZ > highestZ)
+                {
+                    highestZ = item.GetZ;
+                    isChair = item.GetBaseItem().IsSeat;
+                }
+            }
+
+            byte tileState = GameMap[to.X, to.Y];
+            if ((tileState == 3 && !endOfPath && !isChair) ||
+                tileState == 0 ||
+                (tileState == 2 && !endOfPath))
+            {
+                user.Path?.Clear();
+                user.PathRecalcNeeded = true;
+                return false;
+            }
+
+            double heightDiff = SqAbsoluteHeight(to.X, to.Y) - SqAbsoluteHeight(from.X, from.Y);
+            if (heightDiff > 1.5 && !user.RidingHorse) return false;
+
+            RoomUser? other = _room.GetRoomUserManager().GetUserForSquare(to.X, to.Y);
+            if (other != null && !other.IsWalking && endOfPath) return false;
+
+            return true;
+        }
+
+        private bool HandleGroupGateAccess(RoomUser user, Item gate)
+        {
+            if (user.IsBot) { OpenGate(gate); return true; }
+
+            Group? group = gate.GroupId < 1000
+                ? GroupManager.GetJob(gate.GroupId)
+                : GroupManager.GetGang(gate.GroupId);
+
+            if (group == null || user.GetClient()?.GetHabbo() == null)
+                return false;
+
+            if (gate.GroupId < 1000)
+            {
+                GroupRank? rank = GroupManager.GetJobRank(group.Id, 1);
+                if (rank?.HasCommand("arrest") == true &&
+                    user.GetClient().GetRoleplay()?.PoliceTrial == true)
+                {
+                    OpenGate(gate);
+                    return true;
+                }
+            }
+
+            // ✅ FIX #21: Operador precedencia bug en original:
+            //   a && b || c && d && e
+            //   se parseaba como (a && b) || c || (d && e)
+            //   en vez de la semántica obvia de tres condiciones independientes.
+            //   Paréntesis explícitos para hacer la intención inequívoca.
+            var rp = user.GetClient().GetRoleplay();
+            var habbo = user.GetClient().GetHabbo();
+            bool hasAccess =
+                (group.IsMember(habbo.Id) && rp?.IsWorking == true) ||
+                habbo.GetPermissions().HasRight("corporation_rights") ||
+                (GroupManager.HasJobCommand(user.GetClient(), "guide") && rp?.IsWorking == true);
+
+            if (hasAccess) { OpenGate(gate); return true; }
+
+            user.Path?.Clear();
+            user.PathRecalcNeeded = false;
+            return false;
+        }
+
+        private static void OpenGate(Item gate)
+        {
+            gate.ExtraData = "1";
+            gate.UpdateState(false, true);
+            gate.RequestUpdate(4, true);
+        }
+
+        private bool HasSpecialItemsBlockingMovement(List<Item> items, Point to, bool endOfPath)
+        {
+            if (items.Any(i => i?.GetBaseItem().InteractionType == InteractionType.GUILD_GATE ||
+                               i?.GetBaseItem().InteractionType == InteractionType.SLIDING_DOORS))
+                return true;
+
+            var bed = items.FirstOrDefault(i => i?.GetBaseItem().IsBed() == true);
+            if (bed != null)
+            {
+                List<Point> bedTiles = bed.GetBedTiles(new Point(to.X, to.Y), out _);
+                if (bedTiles.Any(p => SquareHasUsers(p.X, p.Y))) return true;
+                if (!endOfPath) return true;
+            }
+
+            return false;
+        }
+
+        private static bool IsTileWalkable(byte tileState, bool endOfPath)
+        {
+            if (tileState == 0) return false;
+            if (tileState == 2 && !endOfPath) return false;
+            if (tileState == 3 && !endOfPath) return false;
+            return true;
+        }
+
+        private double GetHeightDifference(Point from, Point to) =>
+            SqAbsoluteHeight(to.X, to.Y) - SqAbsoluteHeight(from.X, from.Y);
+
+        private bool IsValidDiagonalMove(Point from, Point to)
+        {
+            int dx = to.X - from.X;
+            int dy = to.Y - from.Y;
+
+            return (dx, dy) switch
+            {
+                (-1, -1) => GameMap[to.X + 1, to.Y] == 1 || GameMap[to.X, to.Y + 1] == 1,
+                (1, -1) => GameMap[to.X - 1, to.Y] == 1 || GameMap[to.X, to.Y + 1] == 1,
+                (1, 1) => GameMap[to.X - 1, to.Y] == 1 || GameMap[to.X, to.Y - 1] == 1,
+                (-1, 1) => GameMap[to.X + 1, to.Y] == 1 || GameMap[to.X, to.Y - 1] == 1,
+                _ => true
+            };
+        }
+
+        public static bool CanWalk(byte state, bool @override) =>
+            @override || state == 1 || state == 3;
+
+        #endregion
+
+        #region Height and Item Retrieval
+
+        public double SqAbsoluteHeight(int x, int y)
+        {
+            if (_coordinatedItems.TryGetValue(new Point(x, y), out var itemIds))
+                return SqAbsoluteHeight(x, y, GetItemsFromIds(itemIds));
+
+            return _dynamicModel.SqFloorHeight[x, y];
+        }
+
+        public double SqAbsoluteHeight(int x, int y, List<Item> itemsOnSquare)
+        {
+            try
+            {
+                double highestStack = 0;
+                double deductable = 0;
+                bool deduct = false;
+
+                if (itemsOnSquare != null)
+                {
+                    foreach (Item item in itemsOnSquare)
+                    {
+                        if (item == null || item.TotalHeight <= highestStack) continue;
+
+                        highestStack = item.TotalHeight;
+                        bool isBedSeat = item.GetBaseItem().IsSeat ||
+                                         item.GetBaseItem().InteractionType == InteractionType.BED ||
+                                         item.GetBaseItem().InteractionType == InteractionType.TENT_SMALL;
+                        if (isBedSeat)
+                        {
+                            deduct = true;
+                            deductable = item.GetBaseItem().Height;
+                        }
+                        else
+                        {
+                            deduct = false;
+                        }
+                    }
+                }
+
+                double floor = Model.SqFloorHeight[x, y];
+                double stack = highestStack - floor;
+                if (deduct) stack -= deductable;
+                if (stack < 0) stack = 0;
+                return floor + stack;
+            }
+            catch (Exception e)
+            {
+                Logging.HandleException(e, "Gamemap.SqAbsoluteHeight");
+                return 0;
+            }
+        }
+
+        public bool GetHighestItemForSquare(Point square, out Item item)
+        {
+            item = null;
+            List<Item> items = GetAllRoomItemForSquare(square.X, square.Y);
+            if (items.Count == 0) return false;
+
+            double highestZ = -1;
+            foreach (Item u in items)
+            {
+                if (u == null) continue;
+                if (u.TotalHeight > highestZ) { highestZ = u.TotalHeight; item = u; }
+            }
+            return item != null;
+        }
+
+        public double GetHeightForSquare(Point coord)
+        {
+            if (GetHighestItemForSquare(coord, out Item rItem) && rItem != null)
+                return rItem.TotalHeight;
+            return 0.0;
+        }
+
+        public List<Item> GetAllRoomItemForSquare(int pX, int pY)
+        {
+            return _coordinatedItems.TryGetValue(new Point(pX, pY), out var ids)
+                ? GetItemsFromIds(ids)
+                : new List<Item>();
+        }
+
+        public List<Item> GetRoomItemForSquare(int pX, int pY, double minZ)
+        {
+            var result = new List<Item>();
+            if (!_coordinatedItems.TryGetValue(new Point(pX, pY), out var ids)) return result;
+
+            foreach (Item item in GetItemsFromIds(ids))
+                if (item.GetZ > minZ && item.GetX == pX && item.GetY == pY)
+                    result.Add(item);
+
+            return result;
+        }
+
+        public List<Item> GetRoomItemForSquare(int pX, int pY)
+        {
+            var result = new List<Item>();
+            if (!_coordinatedItems.TryGetValue(new Point(pX, pY), out var ids)) return result;
+
+            foreach (Item item in GetItemsFromIds(ids))
+                if (item.Coordinate.X == pX && item.Coordinate.Y == pY)
+                    result.Add(item);
+
+            return result;
+        }
+
+        #endregion
+
+        #region Utility Methods
+
+        public Point GetRandomWalkableSquare()
+        {
+            try
+            {
+                // ✅ FIX #22: Antes: GetWalkableSquares().ToList() + redundant null check
+                //   (ToList() nunca devuelve null) + validación de índice redundante.
+                //   Simplificado: el único caso borde real es lista vacía.
+                var squares = GetWalkableSquares()
+                    .Where(p => p.X != StaticModel.DoorX || p.Y != StaticModel.DoorY)
+                    .ToList();
+
+                if (squares.Count == 0) return new Point(0, 0);
+
+                return squares[PolarEnvironment.GetRandomNumber(0, squares.Count - 1)];
+            }
+            catch
+            {
+                return new Point(0, 0);
+            }
+        }
+
+        private IEnumerable<Point> GetWalkableSquares()
+        {
+            for (int y = 0; y < GameMap.GetLength(1); y++)
+                for (int x = 0; x < GameMap.GetLength(0); x++)
+                    if (GameMap[x, y] == 1)
+                        yield return new Point(x, y);
+        }
+
+        public Point GetRandomWalkableSquare(int x, int y)
+        {
+            int rx = PolarEnvironment.GetRandomNumber(x - 5, x + 5);
+            int ry = PolarEnvironment.GetRandomNumber(y - 5, y + 5);
+
+            if (Model.DoorX == rx || Model.DoorY == ry || !CanWalk(rx, ry))
+                return new Point(x, y);
+
+            return new Point(rx, ry);
+        }
+
+        public bool IsInMap(int x, int y)
+        {
+            // ✅ FIX #23: Antes llamaba a GetWalkableSquares().ToList() completo para
+            //   verificar si UN punto es caminable — O(n) scan + allocación de lista completa
+            //   por cada comprobación. Para una sala de 64×64 = 4096 iteraciones por llamada.
+            //   Ahora: comprobación directa O(1) en los arrays ya calculados.
+            if (!ValidTile(x, y)) return false;
+            if (x == StaticModel.DoorX && y == StaticModel.DoorY) return false;
+            return GameMap[x, y] == 1;
+        }
+
+        public static Dictionary<int, ThreeDCoord> GetAffectedTiles(
+            int length, int width, int posX, int posY, int rotation)
+        {
+            // ✅ FIX #24: Antes: PointList.Values.Contains(coord) en cada iteración.
+            //   Dictionary.Values es una colección sin índice — .Contains() es O(n).
+            //   Con un ítem de 4×4 esto es hasta 16 * 16 = 256 comparaciones O(n²).
+            //   Reemplazado por HashSet<ThreeDCoord> como lookup set auxiliar — O(1) add/contains.
+            var pointList = new Dictionary<int, ThreeDCoord>();
+            var seen = new HashSet<ThreeDCoord>();
+            int idx = 0;
+
+            void TryAdd(ThreeDCoord c)
+            {
+                if (seen.Add(c))
+                    pointList[idx++] = c;
+            }
+
+            if (length > 1)
+            {
+                if (rotation == 0 || rotation == 4)
+                {
+                    for (int i = 1; i < length; i++)
+                    {
+                        TryAdd(new ThreeDCoord(posX, posY + i, i));
+                        for (int j = 1; j < width; j++)
+                            TryAdd(new ThreeDCoord(posX + j, posY + i, Math.Max(i, j)));
+                    }
+                }
+                else if (rotation == 2 || rotation == 6)
+                {
+                    for (int i = 1; i < length; i++)
+                    {
+                        TryAdd(new ThreeDCoord(posX + i, posY, i));
+                        for (int j = 1; j < width; j++)
+                            TryAdd(new ThreeDCoord(posX + i, posY + j, Math.Max(i, j)));
+                    }
+                }
+            }
+
+            if (width > 1)
+            {
+                if (rotation == 0 || rotation == 4)
+                {
+                    for (int i = 1; i < width; i++)
+                    {
+                        TryAdd(new ThreeDCoord(posX + i, posY, i));
+                        for (int j = 1; j < length; j++)
+                            TryAdd(new ThreeDCoord(posX + i, posY + j, Math.Max(i, j)));
+                    }
+                }
+                else if (rotation == 2 || rotation == 6)
+                {
+                    for (int i = 1; i < width; i++)
+                    {
+                        TryAdd(new ThreeDCoord(posX, posY + i, i));
+                        for (int j = 1; j < length; j++)
+                            TryAdd(new ThreeDCoord(posX + j, posY + i, Math.Max(i, j)));
+                    }
+                }
+            }
+
+            TryAdd(new ThreeDCoord(posX, posY, 0));
+            return pointList;
+        }
+
+        public Point GetChaseMovement(Item item)
+        {
+            int distance = 99;
+            Point coord = new Point(0, 0);
+            int iX = item.GetX;
+            int iY = item.GetY;
+            bool isHorizontal = false;
+
+            foreach (RoomUser user in _room.GetRoomUserManager().GetRoomUsers())
+            {
+                if (user.X == item.GetX)
+                {
+                    int diff = Math.Abs(user.Y - item.GetY);
+                    if (diff < distance)
+                    {
+                        distance = diff;
+                        coord = user.Coordinate;
+                        isHorizontal = false;
+                    }
+                }
+                else if (user.Y == item.GetY)
+                {
+                    int diff = Math.Abs(user.X - item.GetX);
+                    if (diff < distance)
+                    {
+                        distance = diff;
+                        coord = user.Coordinate;
+                        isHorizontal = true;
+                    }
+                }
+            }
+
+            // ✅ FIX #25: Antes: OrderBy(x => Guid.NewGuid()) para shuffle aleatorio.
+            //   Crear un Guid por elemento es extremadamente caro (crypto RNG).
+            //   Reemplazado por selección directa de un lado aleatorio.
+            if (distance > 5)
+            {
+                var sides = item.GetSides();
+                return sides.Count == 0
+                    ? item.Coordinate
+                    : sides[PolarEnvironment.GetRandomNumber(0, sides.Count - 1)];
+            }
+
+            if (isHorizontal) return new Point(iX > coord.X ? iX - 1 : iX + 1, iY);
+            if (distance < 99) return new Point(iX, iY > coord.Y ? iY - 1 : iY + 1);
+
+            return item.Coordinate;
+        }
+
+        public RoomUser? SquareHasUserNear(int x, int y, int distance = 0)
+        {
+            if (SquareHasUsers(x - 1, y)) return _room.GetRoomUserManager().GetUserForSquare(x - 1, y);
+            if (SquareHasUsers(x + 1, y)) return _room.GetRoomUserManager().GetUserForSquare(x + 1, y);
+            if (SquareHasUsers(x, y - 1)) return _room.GetRoomUserManager().GetUserForSquare(x, y - 1);
+            if (SquareHasUsers(x, y + 1)) return _room.GetRoomUserManager().GetUserForSquare(x, y + 1);
+            return null;
+        }
+
+        public static bool TilesTouching(Point p1, Point p2) =>
+            TilesTouching(p1.X, p1.Y, p2.X, p2.Y);
+
+        public static bool TilesTouching(int x1, int y1, int x2, int y2) =>
+            Math.Abs(x1 - x2) <= 1 && Math.Abs(y1 - y2) <= 1;
+
+        public static int TileDistance(int x1, int y1, int x2, int y2) =>
+            Math.Abs(x1 - x2) + Math.Abs(y1 - y2);
 
         public byte GetFloorStatus(Point coord)
         {
             if (coord.X > GameMap.GetUpperBound(0) || coord.Y > GameMap.GetUpperBound(1))
                 return 1;
-
             return GameMap[coord.X, coord.Y];
         }
 
-        public void SetFloorStatus(int X, int Y, byte Status)
+        public void SetFloorStatus(int x, int y, byte status)
         {
-            GameMap[X, Y] = Status;
+            if (ValidTile(x, y)) GameMap[x, y] = status;
         }
 
         public double GetHeightForSquareFromData(Point coord)
@@ -919,773 +1209,40 @@ namespace Polar.HabboHotel.Rooms
             return _dynamicModel.SqFloorHeight[coord.X, coord.Y];
         }
 
-        public bool CanRollItemHere(int x, int y, HabboHotel.GameClients.GameClient Session)
+        public bool CanRollItemHere(int x, int y, HabboHotel.GameClients.GameClient session)
         {
-            if (!ValidTile(x, y))
-                return false;
-
-            if (Model.SqState[x, y] == SquareState.BLOCKED)
-                return false;
-
-            if (!_room.CheckTerrain(Session, x, y))
-                return false;
-
-            return true;
+            if (!ValidTile(x, y) || Model.SqState[x, y] == SquareState.BLOCKED) return false;
+            return _room.CheckTerrain(session, x, y);
         }
 
-        public bool CanRollItemHere(int x, int y)
-        {
-            if (!ValidTile(x, y))
-                return false;
+        public bool CanRollItemHere(int x, int y) =>
+            ValidTile(x, y) && Model.SqState[x, y] != SquareState.BLOCKED;
 
-            if (Model.SqState[x, y] == SquareState.BLOCKED)
-                return false;
+        #endregion
 
+        #region Properties
 
-            return true;
-        }
+        public DynamicRoomModel Model => _dynamicModel;
+        public RoomModel StaticModel => _staticModel;
 
-        public bool SquareIsOpen(int x, int y, bool pOverride)
-        {
-            if ((_dynamicModel.MapSizeX - 1) < x || (_dynamicModel.MapSizeY - 1) < y)
-                return false;
+        #endregion
 
-            return CanWalk(GameMap[x, y], pOverride);
-        }
-
-        public bool GetHighestItemForSquare(Point Square, out Item Item)
-        {
-            List<Item> Items = GetAllRoomItemForSquare(Square.X, Square.Y);
-            Item = null;
-            double HighestZ = -1;
-
-            if (Items != null && Items.Count() > 0)
-            {
-                foreach (Item uItem in Items.ToList())
-                {
-                    if (uItem == null)
-                        continue;
-
-                    if (uItem.TotalHeight > HighestZ)
-                    {
-                        HighestZ = uItem.TotalHeight;
-                        Item = uItem;
-                        continue;
-                    }
-                    else
-                        continue;
-                }
-            }
-            else
-                return false;
-
-            return true;
-        }
-
-        public double GetHeightForSquare(Point Coord)
-        {
-            Item rItem;
-
-            if (GetHighestItemForSquare(Coord, out rItem))
-                if (rItem != null)
-                    return rItem.TotalHeight;
-
-            return 0.0;
-        }
-        public Point GetChaseMovement(Item Item)
-        {
-            int Distance = 99;
-            Point Coord = new Point(0, 0);
-            int iX = Item.GetX;
-            int iY = Item.GetY;
-            bool X = false;
-
-            foreach (RoomUser User in _room.GetRoomUserManager().GetRoomUsers())
-            {
-                if (User.X == Item.GetX || Item.GetY == User.Y)
-                {
-                    if (User.X == Item.GetX)
-                    {
-                        int Difference = Math.Abs(User.Y - Item.GetY);
-                        if (Difference < Distance)
-                        {
-                            Distance = Difference;
-                            Coord = User.Coordinate;
-                            X = false;
-                        }
-                        else
-                            continue;
-
-                    }
-                    else if (User.Y == Item.GetY)
-                    {
-                        int Difference = Math.Abs(User.X - Item.GetX);
-                        if (Difference < Distance)
-                        {
-                            Distance = Difference;
-                            Coord = User.Coordinate;
-                            X = true;
-                        }
-                        else
-                            continue;
-                    }
-                    else
-                        continue;
-                }
-            }
-
-            if (Distance > 5)
-                return Item.GetSides().OrderBy(x => Guid.NewGuid()).FirstOrDefault();
-            if (X && Distance < 99)
-            {
-                if (iX > Coord.X)
-                {
-                    iX--;
-                    return new Point(iX, iY);
-                }
-                else
-                {
-                    iX++;
-                    return new Point(iX, iY);
-                }
-            }
-            else if (!X && Distance < 99)
-            {
-                if (iY > Coord.Y)
-                {
-                    iY--;
-                    return new Point(iX, iY);
-                }
-                else
-                {
-                    iY++;
-                    return new Point(iX, iY);
-                }
-            }
-            else
-                return Item.Coordinate;
-        }
-
-        /*internal bool IsValidMovement(int CoordX, int CoordY)
-        {
-            if (CoordX < 0 || CoordY < 0 || CoordX >= Model.MapSizeX || CoordY >= Model.MapSizeY)
-                return false;
-
-            if (SquareHasUsers(CoordX, CoordY))
-                return false;
-
-            if (GetCoordinatedItems(new Point(CoordX, CoordY)).Count > 0 && !SquareIsOpen(CoordX, CoordY, false))
-                return false;
-
-            return Model.SqState[CoordX, CoordY] == SquareState.OPEN;
-        }*/
-
-        public bool IsValidStep2(RoomUser User, Vector2D From, Vector2D To, bool EndOfPath, bool Override)
-        {
-            if (User == null)
-                return false;
-
-            if (!ValidTile(To.X, To.Y))
-                return false;
-
-            if (Override)
-                return true;
-
-            /*
-             * 0 = blocked
-             * 1 = open
-             * 2 = last step
-             * 3 = door
-             * */
-
-            List<Item> Items = _room.GetGameMap().GetAllRoomItemForSquare(To.X, To.Y);
-            if (Items.Count > 0)
-            {
-                bool HasGroupGate = Items.ToList().Count(x => x.GetBaseItem().InteractionType == InteractionType.GUILD_GATE) > 0;
-                if (HasGroupGate)
-                {
-                    Item I = Items.FirstOrDefault(x => x.GetBaseItem().InteractionType == InteractionType.GUILD_GATE);
-                    if (I != null)
-                    {
-                        if (User.IsBot)
-                        {
-                            I.ExtraData = "1";
-                            I.UpdateState(false, true);
-                            I.RequestUpdate(4, true);
-                            return true;
-                        }
-
-                        Group Group = null;
-
-                        if (I.GroupId < 1000)
-                            Group = GroupManager.GetJob(I.GroupId);
-                        else
-                            Group = GroupManager.GetGang(I.GroupId);
-
-                        if (Group == null)
-                            return false;
-
-                        if (User.GetClient() == null || User.GetClient().GetHabbo() == null || User.GetClient().GetRoleplay() == null)
-                            return false;
-
-                        if (I.GroupId < 1000)
-                        {
-                            GroupRank Rank = GroupManager.GetJobRank(Group.Id, 1);
-                            if (Rank != null && Rank.HasCommand("arrest"))
-                            {
-                                if (User.GetClient().GetRoleplay().PoliceTrial)
-                                {
-                                    I.ExtraData = "1";
-                                    I.UpdateState(false, true);
-                                    I.RequestUpdate(4, true);
-                                    return true;
-                                }
-                            }
-                        }
-
-                        if (Group.IsMember(User.GetClient().GetHabbo().Id) && User.GetClient().GetRoleplay().IsWorking || User.GetClient().GetHabbo().GetPermissions().HasRight("corporation_rights") || GroupManager.HasJobCommand(User.GetClient(), "guide") && User.GetClient().GetRoleplay().IsWorking)
-                        {
-                            I.ExtraData = "1";
-                            I.UpdateState(false, true);
-                            I.RequestUpdate(4, true);
-                            return true;
-                        }
-                        else
-                        {
-                            if (User.Path.Count > 0)
-                                User.Path.Clear();
-                            User.PathRecalcNeeded = false;
-                            return false;
-                        }
-                    }
-                }
-            }
-
-            bool Chair = false;
-            double HighestZ = -1;
-            foreach (Item Item in Items.ToList())
-            {
-                if (Item == null)
-                    continue;
-
-                if (Item.GetZ < HighestZ)
-                {
-                    Chair = false;
-                    continue;
-                }
-
-                HighestZ = Item.GetZ;
-                if (Item.GetBaseItem().IsSeat)
-                    Chair = true;
-            }
-
-            if ((GameMap[To.X, To.Y] == 3 && !EndOfPath && !Chair) || (GameMap[To.X, To.Y] == 0) || (GameMap[To.X, To.Y] == 2 && !EndOfPath))
-            {
-                if (User.Path.Count > 0)
-                    User.Path.Clear();
-                User.PathRecalcNeeded = true;
-            }
-
-            double HeightDiff = SqAbsoluteHeight(To.X, To.Y) - SqAbsoluteHeight(From.X, From.Y);
-            if (HeightDiff > 1.5 && !User.RidingHorse)
-                return false;
-
-            //Check this last, because ya.
-            RoomUser Userx = _room.GetRoomUserManager().GetUserForSquare(To.X, To.Y);
-            if (Userx != null)
-            {
-                if (!Userx.IsWalking && EndOfPath)
-                    return false;
-            }
-            return true;
-        }
-
-
-
-        public bool IsValidStep(Vector2D From, Vector2D To, bool EndOfPath, bool Override, bool Roller = false, bool IsBot = false, bool IsInvisibleUser = false, bool DiagMove = false)
-        {
-            if (!ValidTile(To.X, To.Y))
-                return false;
-
-            if (Override)
-                return true;
-
-            /*
-             * 0 = blocked
-             * 1 = open
-             * 2 = last step
-             * 3 = door
-             * */
-
-            if (!IsBot && _room.RoomBlockingEnabled == false && SquareHasUsers(To.X, To.Y, true, IsInvisibleUser))
-                return false;
-
-
-            List<Item> Items = _room.GetGameMap().GetAllRoomItemForSquare(To.X, To.Y);
-            if (Items.Count > 0)
-            {
-                bool HasGroupGate = Items.ToList().Count(x => x != null && x.GetBaseItem().InteractionType == InteractionType.GUILD_GATE) > 0;
-                if (HasGroupGate)
-                    return true;
-
-                bool HasSlidingDoors = Items.ToList().Where(x => x != null && x.GetBaseItem().InteractionType == InteractionType.SLIDING_DOORS).Count() > 0;
-                if (HasSlidingDoors)
-                    return true;
-
-                bool HasBed = Items.Where(x => x.GetBaseItem().IsBed()).ToList().Count > 0;
-                if (HasBed)
-                {
-                    var Item = Items.Where(x => x.GetBaseItem().IsBed()).FirstOrDefault();
-                    Point Square;
-                    List<Point> BedTiles = Item.GetBedTiles(new Point(To.X, To.Y), out Square);
-
-                    foreach (Point Point in BedTiles)
-                    {
-                        if (SquareHasUsers(Point.X, Point.Y))
-                            return false;
-                    }
-
-                    if (!EndOfPath)
-                        return false;
-                }
-            }
-
-            if ((GameMap[To.X, To.Y] == 3 && !EndOfPath) || GameMap[To.X, To.Y] == 0 || (GameMap[To.X, To.Y] == 2 && !EndOfPath))
-                return false;
-
-            if (!Roller)
-            {
-                double HeightDiff = SqAbsoluteHeight(To.X, To.Y) - SqAbsoluteHeight(From.X, From.Y);
-                if (HeightDiff > 1.5)
-                    return false;
-            }
-
-            if (DiagMove)
-            {
-                int XValue = To.X - From.X;
-                int YValue = To.Y - From.Y;
-
-                if (XValue == -1 && YValue == -1)
-                {
-                    if (GameMap[To.X + 1, To.Y] != 1 && GameMap[To.X, To.Y + 1] != 1)
-                        return false;
-                }
-                else if (XValue == 1 && YValue == -1)
-                {
-                    if (GameMap[To.X - 1, To.Y] != 1 && GameMap[To.X, To.Y + 1] != 1)
-                        return false;
-                }
-                else if (XValue == 1 && YValue == 1)
-                {
-                    if (GameMap[To.X - 1, To.Y] != 1 && GameMap[To.X, To.Y - 1] != 1)
-                        return false;
-                }
-                else if (XValue == -1 && YValue == 1)
-                {
-                    if (GameMap[To.X + 1, To.Y] != 1 && GameMap[To.X, To.Y - 1] != 1)
-                        return false;
-                }
-            }
-            return true;
-        }
-
-        public static bool CanWalk(byte pState, bool pOverride)
-        {
-            if (!pOverride)
-            {
-                if (pState == 3)
-                    return true;
-                if (pState == 1)
-                    return true;
-
-                return false;
-            }
-            return true;
-        }
-
-        public bool ItemCanBePlacedHere(int x, int y)
-        {
-            if (_dynamicModel.MapSizeX - 1 < x || _dynamicModel.MapSizeY - 1 < y ||
-                (x == _dynamicModel.DoorX && y == _dynamicModel.DoorY))
-                return false;
-
-            return GameMap[x, y] == 1;
-        }
-
-        public double SqAbsoluteHeight(int X, int Y)
-        {
-            Point Points = new Point(X, Y);
-
-            List<int> Ids;
-
-            if (_coordinatedItems.TryGetValue(Points, out Ids))
-            {
-                List<Item> Items = GetItemsFromIds(Ids);
-
-                return SqAbsoluteHeight(X, Y, Items);
-            }
-            else
-                return _dynamicModel.SqFloorHeight[X, Y];
-
-            #region Old
-            /*
-            if (mCoordinatedItems.ContainsKey(Points))
-            {
-                List<Item> Items = new List<Item>();
-                foreach (Item Item in mCoordinatedItems[Points].ToArray())
-                {
-                    if (!Items.Contains(Item))
-                        Items.Add(Item);
-                }
-                return SqAbsoluteHeight(X, Y, Items);
-            }*/
-            #endregion
-        }
-
-        public double SqAbsoluteHeight(int X, int Y, List<Item> ItemsOnSquare)
-        {
-            try
-            {
-                bool deduct = false;
-                double HighestStack = 0;
-                double deductable = 0.0;
-
-                if (ItemsOnSquare != null && ItemsOnSquare.Count > 0)
-                {
-                    foreach (Item Item in ItemsOnSquare.ToList())
-                    {
-                        if (Item == null)
-                            continue;
-
-                        if (Item.TotalHeight > HighestStack)
-                        {
-                            if (Item.GetBaseItem().IsSeat || Item.GetBaseItem().InteractionType == InteractionType.BED || Item.GetBaseItem().InteractionType == InteractionType.TENT_SMALL)
-                            {
-                                deduct = true;
-                                deductable = Item.GetBaseItem().Height;
-                            }
-                            else
-                                deduct = false;
-                            HighestStack = Item.TotalHeight;
-                        }
-                    }
-                }
-
-                double floorHeight = Model.SqFloorHeight[X, Y];
-                double stackHeight = HighestStack - Model.SqFloorHeight[X, Y];
-
-                if (deduct)
-                    stackHeight -= deductable;
-
-                if (stackHeight < 0)
-                    stackHeight = 0;
-
-                return (floorHeight + stackHeight);
-            }
-            catch (Exception e)
-            {
-                Logging.HandleException(e, "Room.SqAbsoluteHeight");
-                return 0;
-            }
-        }
-
-        public bool ValidTile(int X, int Y)
-        {
-            if (X < 0 || Y < 0 || X >= Model.MapSizeX || Y >= Model.MapSizeY)
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        public static Dictionary<int, ThreeDCoord> GetAffectedTiles(int Length, int Width, int PosX, int PosY, int Rotation)
-        {
-            int x = 0;
-
-            var PointList = new Dictionary<int, ThreeDCoord>();
-
-            if (Length > 1)
-            {
-                if (Rotation == 0 || Rotation == 4)
-                {
-                    for (int i = 1; i < Length; i++)
-                    {
-                        if (!PointList.Values.Contains(new ThreeDCoord(PosX, PosY + i, i)))
-                            PointList.Add(x++, new ThreeDCoord(PosX, PosY + i, i));
-
-                        for (int j = 1; j < Width; j++)
-                        {
-                            if (!PointList.Values.Contains(new ThreeDCoord(PosX + j, PosY + i, (i < j) ? j : i)))
-                                PointList.Add(x++, new ThreeDCoord(PosX + j, PosY + i, (i < j) ? j : i));
-                        }
-                    }
-                }
-                else if (Rotation == 2 || Rotation == 6)
-                {
-                    for (int i = 1; i < Length; i++)
-                    {
-                        if (!PointList.Values.Contains(new ThreeDCoord(PosX + i, PosY, i)))
-                            PointList.Add(x++, new ThreeDCoord(PosX + i, PosY, i));
-
-                        for (int j = 1; j < Width; j++)
-                        {
-                            if (!PointList.Values.Contains(new ThreeDCoord(PosX + i, PosY + j, (i < j) ? j : i)))
-                                PointList.Add(x++, new ThreeDCoord(PosX + i, PosY + j, (i < j) ? j : i));
-                        }
-                    }
-                }
-                else
-                {
-                    for (int i = 1; i < Length; i++)
-                    {
-                        if (!PointList.Values.Contains(new ThreeDCoord(PosX + i, PosY, i)))
-                            PointList.Add(x++, new ThreeDCoord(PosX + i, PosY, i));
-
-                        for (int j = 1; j < Width; j++)
-                        {
-                            if (!PointList.Values.Contains(new ThreeDCoord(PosX + i, PosY + j, (i < j) ? j : i)))
-                                PointList.Add(x++, new ThreeDCoord(PosX + i, PosY + j, (i < j) ? j : i));
-                        }
-                    }
-                }
-            }
-
-            if (Width > 1)
-            {
-                if (Rotation == 0 || Rotation == 4)
-                {
-                    for (int i = 1; i < Width; i++)
-                    {
-                        if (!PointList.Values.Contains(new ThreeDCoord(PosX + i, PosY, i)))
-                            PointList.Add(x++, new ThreeDCoord(PosX + i, PosY, i));
-
-                        for (int j = 1; j < Length; j++)
-                        {
-                            if (!PointList.Values.Contains(new ThreeDCoord(PosX + i, PosY + j, (i < j) ? j : i)))
-                                PointList.Add(x++, new ThreeDCoord(PosX + i, PosY + j, (i < j) ? j : i));
-                        }
-                    }
-                }
-                else if (Rotation == 2 || Rotation == 6)
-                {
-                    for (int i = 1; i < Width; i++)
-                    {
-                        if (!PointList.Values.Contains(new ThreeDCoord(PosX, PosY + i, i)))
-                            PointList.Add(x++, new ThreeDCoord(PosX, PosY + i, i));
-
-                        for (int j = 1; j < Length; j++)
-                        {
-                            if (!PointList.Values.Contains(new ThreeDCoord(PosX + j, PosY + i, (i < j) ? j : i)))
-                                PointList.Add(x++, new ThreeDCoord(PosX + j, PosY + i, (i < j) ? j : i));
-                        }
-                    }
-                }
-                else
-                {
-                    for (int i = 1; i < Width; i++)
-                    {
-                        if (!PointList.Values.Contains(new ThreeDCoord(PosX, PosY + i, i)))
-                            PointList.Add(x++, new ThreeDCoord(PosX, PosY + i, i));
-
-                        for (int j = 1; j < Length; j++)
-                        {
-                            if (!PointList.Values.Contains(new ThreeDCoord(PosX + j, PosY + i, (i < j) ? j : i)))
-                                PointList.Add(x++, new ThreeDCoord(PosX + j, PosY + i, (i < j) ? j : i));
-                        }
-                    }
-                }
-            }
-
-            if (!PointList.Values.Contains(new ThreeDCoord(PosX, PosY, 0)))
-                PointList.Add(PointList.Count + 1, new ThreeDCoord(PosX, PosY, 0));
-
-            return PointList;
-        }
-
-        public List<Item> GetItemsFromIds(List<int> Input)
-        {
-            if (Input == null || Input.Count == 0)
-                return new List<Item>();
-
-            List<int> Ids = new List<int>(Input).Where(x => _room.GetRoomItemHandler().GetItem(x) != null).ToList();
-            List<Item> Items = new List<Item>();
-
-            try
-            {
-                lock (Ids)
-                {
-                    foreach (int Id in Ids)
-                    {
-                        Item Itm = _room.GetRoomItemHandler().GetItem(Id);
-                        if (Itm != null && !Items.Contains(Itm))
-                            Items.Add(Itm);
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Logging.LogCriticalException("Error in GetItemsFromIds void: " + e);
-            }
-
-            return Items.ToList();
-        }
-
-        public List<Item> GetRoomItemForSquare(int pX, int pY, double minZ)
-        {
-            var itemsToReturn = new List<Item>();
-
-            lock (_coordinatedItems)
-            {
-                var coord = new Point(pX, pY);
-                if (_coordinatedItems.ContainsKey(coord))
-                {
-                    var itemsFromSquare = GetItemsFromIds((List<int>)_coordinatedItems[coord]);
-
-                    foreach (Item item in itemsFromSquare)
-                        if (item.GetZ > minZ)
-                            if (item.GetX == pX && item.GetY == pY)
-                                itemsToReturn.Add(item);
-                }
-            }
-            return itemsToReturn;
-        }
-
-        public List<Item> GetRoomItemForSquare(int pX, int pY)
-        {
-            var coord = new Point(pX, pY);
-            var itemsToReturn = new List<Item>();
-
-            lock (_coordinatedItems)
-            {
-                if (_coordinatedItems.ContainsKey(coord))
-                {
-                    var itemsFromSquare = GetItemsFromIds((List<int>)_coordinatedItems[coord]);
-
-                    foreach (Item item in itemsFromSquare)
-                    {
-                        if (item.Coordinate.X == coord.X && item.Coordinate.Y == coord.Y)
-                            itemsToReturn.Add(item);
-                    }
-                }
-            }
-            return itemsToReturn;
-        }
-
-        public List<Item> GetAllRoomItemForSquare(int pX, int pY)
-        {
-            Point Coord = new Point(pX, pY);
-
-            List<Item> Items = new List<Item>();
-            List<int> Ids;
-
-            lock (_coordinatedItems)
-            {
-                if (_coordinatedItems.TryGetValue(Coord, out Ids))
-                    Items = GetItemsFromIds(Ids);
-                else
-                    Items = new List<Item>();
-            }
-            return Items;
-        }
-
-        public RoomUser SquareHasUserNear(int X, int Y, int Distance = 0)
-        {
-            if (SquareHasUsers(X - 1, Y))
-            {
-                return _room.GetRoomUserManager().GetUserForSquare(X - 1, Y);
-            }
-            else if (SquareHasUsers(X + 1, Y))
-            {
-                return _room.GetRoomUserManager().GetUserForSquare(X + 1, Y);
-            }
-            else if (SquareHasUsers(X, Y - 1))
-            {
-                return _room.GetRoomUserManager().GetUserForSquare(X, Y - 1);
-            }
-            else if (SquareHasUsers(X, Y + 1))
-            {
-                return _room.GetRoomUserManager().GetUserForSquare(X, Y + 1);
-            }
-
-            return null;
-        }
-
-        /*
-        public bool SquareHasUsers(int X, int Y)
-        {
-            return MapGotUser(new Point(X, Y));
-        }*/
-
-        public bool SquareHasUsers(int X, int Y)
-        {
-            if (!ValidTile(X, Y))
-                return false;
-
-            if (this.mUserOnMap[X, Y] == 0)
-                return false;
-
-            return true;
-        }
-        public static bool TilesTouching(Point p1, Point p2)
-        {
-            return TilesTouching(p1.X, p1.Y, p2.X, p2.Y);
-        }
-
-        public bool SquareHasUsers(int X, int Y, bool CheckingInvisible = false, bool IsInvisible = false)
-        {
-            return MapGotUser(new Point(X, Y), CheckingInvisible, IsInvisible);
-        }
-
-        public static bool TilesTouching(int X1, int Y1, int X2, int Y2)
-        {
-            if (!(Math.Abs(X1 - X2) > 1 || Math.Abs(Y1 - Y2) > 1)) return true;
-            if (X1 == X2 && Y1 == Y2) return true;
-            return false;
-        }
-
-        public static int TileDistance(int X1, int Y1, int X2, int Y2)
-        {
-            return Math.Abs(X1 - X2) + Math.Abs(Y1 - Y2);
-        }
-
-        public DynamicRoomModel Model
-        {
-            get { return _dynamicModel; }
-        }
-
-        public RoomModel StaticModel
-        {
-            get { return _staticModel; }
-        }
-
-        public byte[,] EffectMap
-        {
-            get; private set;
-        }
-
-        public byte[,] mSquareTaking { get; private set; }
-        public byte[,] GameMap
-        {
-             get; private set; 
-        }
+        #region IDisposable
 
         public void Dispose()
         {
-            _userMap.Clear();
-            _dynamicModel.Destroy();
-            _coordinatedItems.Clear();
-
-            Array.Clear(GameMap, 0, GameMap.Length);
-            Array.Clear(EffectMap, 0, EffectMap.Length);
-            Array.Clear(_itemHeightmap, 0, _itemHeightmap.Length);
-            Array.Clear((Array)this.mSquareTaking, 0, this.mSquareTaking.Length);
+            _userMap?.Clear();
+            _coordinatedItems?.Clear();
+            _dynamicModel?.Destroy();
 
             GameMap = null;
             EffectMap = null;
+            mUserOnMap = null;
+            mSquareTaking = null;
             _itemHeightmap = null;
-
-            this._room = null;
+            _room = null;
         }
+
+        #endregion
     }
 }

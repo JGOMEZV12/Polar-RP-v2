@@ -1,22 +1,26 @@
-﻿using System;
+﻿using Polar.Communication.Packets.Outgoing.Inventory.Bots;
+using Polar.Database.Interfaces;
+using Polar.HabboHotel.Rooms;
+using Polar.HabboHotel.Rooms.AI;
+using Polar.HabboHotel.Rooms.AI.Responses;
+using Polar.HabboHotel.Rooms.AI.Speech;
+using Polar.HabboHotel.Users.Inventory.Bots;
+using Polar.Communication.Packets;
+using Polar.Communication.Packets.Incoming;
+using Polar.Communication.Packets.Outgoing.Inventory.Bots;
+using Polar.Database.Interfaces;
+using Polar.HabboHotel.Rooms;
+using Polar.HabboHotel.Rooms.AI;
+using Polar.HabboHotel.Rooms.AI.Speech;
+using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Text;
-using System.Collections.Generic;
-
-using Polar.HabboHotel.Rooms;
-using Polar.HabboHotel.Users.Inventory.Bots;
-using Polar.Communication.Packets.Outgoing.Inventory.Bots;
-using Polar.Database.Interfaces;
-using Polar.HabboHotel.Rooms.AI.Speech;
-using Polar.HabboHotel.Rooms.AI;
-using Polar.HabboHotel.Rooms.AI.Responses;
-using Polar.HabboRoleplay.Bots.Manager;
-using Polar.HabboRoleplay.Bots;
 
 namespace Polar.Communication.Packets.Incoming.Rooms.AI.Bots
 {
-    internal class PlaceBotEvent : IPacketEvent
+    class PlaceBotEvent : IPacketEvent
     {
         public void Parse(HabboHotel.GameClients.GameClient Session, ClientPacket Packet)
         {
@@ -42,21 +46,8 @@ namespace Polar.Communication.Packets.Incoming.Rooms.AI.Bots
             }
 
             Bot Bot = null;
-            RoleplayBot RoleplayBotInstance = null;
-
-            // Buscar primero en el inventario y luego en RoleplayBotManager
             if (!Session.GetHabbo().GetInventoryComponent().TryGetBot(BotId, out Bot))
-            {
-                if (!RoleplayBotManager.CachedRoleplayBots.TryGetValue(BotId, out RoleplayBotInstance))
-                {
-                    Session.SendNotification("Bot no encontrado en el inventario o RoleplayBotManager!");
-                    return;
-                }
-
-                // Si encontramos un RoleplayBot, desplegarlo y salir
-                RoleplayBotManager.DeployBotByID(BotId);
                 return;
-            }
 
             int BotCount = 0;
             foreach (RoomUser User in Room.GetRoomUserManager().GetUserList().ToList())
@@ -104,9 +95,9 @@ namespace Polar.Communication.Packets.Incoming.Rooms.AI.Bots
             }
 
             RoomUser BotUser = Room.GetRoomUserManager().DeployBot(new RoomBot(Bot.Id, Session.GetHabbo().CurrentRoomId, Convert.ToString(GetData["ai_type"]), Convert.ToString(GetData["walk_mode"]), Bot.Name, "", Bot.Figure, X, Y, 0, 4, 0, 0, 0, 0, ref BotSpeechList, "", 0, Bot.OwnerId, PolarEnvironment.EnumToBool(GetData["automatic_chat"].ToString()), Convert.ToInt32(GetData["speaking_interval"]), PolarEnvironment.EnumToBool(GetData["mix_sentences"].ToString()), Convert.ToInt32(GetData["chat_bubble"])), null);
-            BotUser.Chat("Hello!",false, 0);
+            BotUser.Chat("Hello!", false, 0);
 
-            Room.GetGameMap().UpdateUserMovement(new System.Drawing.Point(X,Y), new System.Drawing.Point(X, Y), BotUser);
+            Room.GetGameMap().UpdateUserMovement(new System.Drawing.Point(X, Y), new System.Drawing.Point(X, Y), BotUser);
 
 
             Bot ToRemove = null;

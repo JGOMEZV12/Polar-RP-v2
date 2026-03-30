@@ -35,16 +35,17 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Chat
             if (Message.Length > 150)
                 Message = Message.Substring(0, 150);
 
-            int Colour = Packet.PopInt();
+            int Bubble = Packet.PopInt();
+            string Colour = Packet.PopString();
 
-            if (Colour != 0 && !User.GetClient().GetHabbo().GetPermissions().HasRight("use_any_bubble"))
-                Colour = 0;
+            if (Bubble != 0 && !User.GetClient().GetHabbo().GetPermissions().HasRight("use_any_bubble"))
+                Bubble = 0;
 
             ChatStyle Style = null;
-            if (!PolarEnvironment.GetGame().GetChatManager().GetChatStyles().TryGetStyle(Colour, out Style) || (Style.RequiredRight.Length > 0 && !Session.GetHabbo().GetPermissions().HasRight(Style.RequiredRight)))
-                Colour = 0;
+            if (!PolarEnvironment.GetGame().GetChatManager().GetChatStyles().TryGetStyle(Bubble, out Style) || (Style.RequiredRight.Length > 0 && !Session.GetHabbo().GetPermissions().HasRight(Style.RequiredRight)))
+                Bubble = 0;
 
-            User.LastBubble = Session.GetHabbo().CustomBubbleId == 0 ? Colour : Session.GetHabbo().CustomBubbleId;
+            User.LastBubble = Session.GetHabbo().CustomBubbleId == 0 ? Bubble : Session.GetHabbo().CustomBubbleId;
 
             if (PolarEnvironment.GetUnixTimestamp() < Session.GetHabbo().FloodTime && Session.GetHabbo().FloodTime != 0)
                 return;
@@ -117,7 +118,7 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Chat
                     return;
                 }
 
-                Session.SendMessage(new ChatComposer(User.VirtualId, "Mensaje inapropiado", 0, Colour));
+                Session.SendMessage(new ChatComposer(User.VirtualId, "Mensaje inapropiado", 0, Bubble, Colour));
                 return;
             }
 
@@ -139,24 +140,24 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Chat
             if (Session.GetRoleplay() != null)
             {
                 if (Session.GetRoleplay().IsWorking && HabboHotel.Groups.GroupManager.HasJobCommand(Session, "guide"))
-                    User.OnChat(37, Message, true);
+                    User.OnChat(37, Message, true, Colour);
                 else if (Session.GetRoleplay().StaffOnDuty && Session.GetHabbo().GetPermissions().HasRight("mod_tool"))
-                    User.OnChat(23, Message, true);
+                    User.OnChat(23, Message, true, Colour);
                 else if (Session.GetRoleplay().AmbassadorOnDuty && Session.GetHabbo().GetPermissions().HasRight("ambassador"))
-                    User.OnChat(37, Message, true);
+                    User.OnChat(37, Message, true, Colour);
 
                 // Roleplay
                 else if (Session.GetRoleplay().CurHealth > 25 && Session.GetRoleplay().CurHealth <= 40 && !Session.GetRoleplay().IsDead)
-                    User.OnChat(5, Message, true);
+                    User.OnChat(5, Message, true, Colour);
                 else if (Session.GetRoleplay().CurHealth <= 25 && !Session.GetRoleplay().IsDead)
-                    User.OnChat(3, Message, true);
+                    User.OnChat(3, Message, true, Colour);
                 else if (Session.GetRoleplay().IsDead)
-                    User.OnChat(3, "[ " + Message + " ]", true);
+                    User.OnChat(3, "[ " + Message + " ]", true, Colour);
                 else
-                    User.OnChat(User.LastBubble, Message, true);
+                    User.OnChat(User.LastBubble, Message, true, Colour);
             }
             else
-                User.OnChat(User.LastBubble, Message, true);
+                User.OnChat(User.LastBubble, Message, true, Colour);
         }
     }
 }

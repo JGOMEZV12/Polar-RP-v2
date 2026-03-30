@@ -1,28 +1,15 @@
+using ConnectionManager;
 ﻿using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using Fleck;
 using Polar.HabboHotel.Items;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Rooms;
 using System.IO;
 using Polar.HabboRoleplay.Misc;
-using Polar.Communication.Packets.Incoming.Groups;
-using Polar.Communication.Packets.Outgoing;
-using Polar.Communication.Packets.Incoming;
-using Polar.Communication.Packets.Outgoing.Groups;
-using Polar.Communication.Packets.Outgoing.Catalog;
-using Polar.Communication.Packets.Outgoing.Messenger;
-using System.Collections.Generic;
-using Polar.HabboHotel.Groups;
-using Polar.HabboHotel.Cache;
-using Polar.Communication.Packets.Outgoing.Rooms.Permissions;
-using Polar.Database.Interfaces;
-using System.Text.RegularExpressions;
-using Polar.Communication.Packets.Outgoing.Rooms.Notifications;
-using Polar.HabboRoleplay.Vehicles;
+using Polar.Net;
 using System.Data;
 using Polar.HabboRoleplay.VehicleOwned;
 using Polar.HabboRoleplay.Wizards;
@@ -43,7 +30,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -72,7 +59,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             return;
                         #endregion
 
-                        #region Comodin Conditions
+                       /* #region Comodin Conditions
                         Item BTile = null;
                         BTile = Room.GetRoomItemHandler().GetFloor.FirstOrDefault(x => x.GetBaseItem().ItemName.ToLower() == "comodin_carro" && x.Coordinate == Client.GetRoomUser().Coordinate);
                         if (BTile == null)
@@ -80,7 +67,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             Client.SendWhisper("Debes acercarte al despacho para comprar el arma.", 1);
                             return;
                         }
-                        #endregion
+                        #endregion*/
 
                         Client.GetRoleplay().ViewWizardsList = true;
 
@@ -112,7 +99,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         string SendData = "";
                         SendData += html;
-                        Socket.Send("compose_shop_wizards|openshop|" + SendData);
+                        Socket.SendWS( "compose_shop_wizards|openshop|" + SendData);
                         Client.GetRoleplay().CooldownManager.CreateCooldown("openshopwizard", 1000, 1);
                         break;
                     }
@@ -122,7 +109,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 case "closeshop":
                     {
                         Client.GetRoleplay().ViewWizardsList = false;
-                        Socket.Send("compose_shop_wizards|closeshop|");
+                        Socket.SendWS( "compose_shop_wizards|closeshop|");
                         break;
                     }
                 #endregion
@@ -145,14 +132,14 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if(hechizo == null)
                         {
-                            Socket.Send("compose_shop_wizards|shopmsg|Ha ocurrido un problema al obtener la Información del Arma. [2]");
+                            Socket.SendWS( "compose_shop_wizards|shopmsg|Ha ocurrido un problema al obtener la Información del Arma. [2]");
                             return;
                         }
                         if (hechizo.Cost > 100)
                         {
                             if (Client.GetRoleplay().BankChequings < hechizo.Cost)
                             {
-                                Socket.Send("compose_shop_wizards|shopmsg|No tienes dinero suficiente para comprar esa arma.");
+                                Socket.SendWS( "compose_shop_wizards|shopmsg|No tienes dinero suficiente para comprar esa arma.");
                                 return;
                             }
                         }
@@ -160,29 +147,29 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         {
                             if (Client.GetHabbo().Diamonds < hechizo.Cost)
                             {
-                                Socket.Send("compose_shop_wizards|shopmsg|No tienes los Rubies suficientes para comprar esa arma.");
+                                Socket.SendWS( "compose_shop_wizards|shopmsg|No tienes los Rubies suficientes para comprar esa arma.");
                                 return;
                             }
                         }
 
                         if (hechizo.Stock < 1)
                         {
-                            Socket.Send("compose_shop_wizards|shopmsg|Lo sentimos, pero esta arma se ha agotado");
+                            Socket.SendWS( "compose_shop_wizards|shopmsg|Lo sentimos, pero esta arma se ha agotado");
                             return;
                         }
                         if (Client.GetRoleplay().BankTarget < 1)
                         {
-                            Socket.Send("compose_shop_wizards|shopmsg|Lo sentimos, pero aquí solo aceptamos débito y usted no tiene tarjeta, vaya al banco y solicite");
+                            Socket.SendWS( "compose_shop_wizards|shopmsg|Lo sentimos, pero aquí solo aceptamos débito y usted no tiene tarjeta, vaya al banco y solicite");
                             return;
                         }
                         if (Client.GetRoleplay().BankChequings < hechizo.Cost)
                         {
-                            Socket.Send("compose_shop_wizards|shopmsg|¡Lo siento, no puedes pagar una " + hechizo.PublicName + " no tiene dinero en su cuenta bancaria!");
+                            Socket.SendWS( "compose_shop_wizards|shopmsg|¡Lo siento, no puedes pagar una " + hechizo.PublicName + " no tiene dinero en su cuenta bancaria!");
                             return;
                         }
                         if (Client.GetRoleplay().OwnedWeapons.ContainsKey(hechizo.Name))
                         {
-                            Socket.Send("compose_shop_wizards|shopmsg|Ya posees este hechizo, escoge otra.");
+                            Socket.SendWS( "compose_shop_wizards|shopmsg|Ya posees este hechizo, escoge otra.");
                             return;
                         }
                         #endregion
@@ -192,10 +179,10 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         {
                             //Client.GetHabbo().Credits -= weapon.Cost;
                             Client.GetRoleplay().BankChequings -= hechizo.Cost;
-                            Socket.Send("compose_atm|change_balance_1|" + Client.GetRoleplay().BankChequings);
+                            Socket.SendWS( "compose_atm|change_balance_1|" + Client.GetRoleplay().BankChequings);
                             Client.GetHabbo().UpdateCreditsBalance();
                             RoleplayManager.Shout(Client, "*Compra un " + hechizo.PublicName + " y paga $" + String.Format("{0:N0}", hechizo.Cost) + "*", 5);
-                            Socket.Send("compose_atm|change_balance_1|" + Client.GetRoleplay().BankChequings);
+                            Socket.SendWS( "compose_atm|change_balance_1|" + Client.GetRoleplay().BankChequings);
                         }
                         else
                         {
@@ -222,5 +209,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

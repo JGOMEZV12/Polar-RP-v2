@@ -137,11 +137,6 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Police
                 Session.SendWhisper("¡No puedes aturdir a un usuario ausente!", 1);
                 return;
             }
-            if (TargetClient.GetRoleplay().PassiveMode)
-            {
-                Session.SendWhisper("¡No puedes hacerle eso a una persona que está en modo pasivo!", 1);
-                return;
-            }
             if (Session.GetRoleplay().EquippedWeapon == null)
             {
                 Session.SendWhisper("¡Debes equiparte el arma!", 1);
@@ -153,8 +148,8 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Police
                 Session.SendWhisper("¡Debes equiparte la pistola electrica!", 1);
                 return;
             }
-           /* if (Session.GetRoleplay().TryGetCooldown("stun"))
-                return;*/
+            /* if (Session.GetRoleplay().TryGetCooldown("stun"))
+                 return;*/
             #endregion
 
             #region Execute
@@ -163,56 +158,50 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Police
             double Distance = RoleplayManager.GetDistanceBetweenPoints2D(ClientPos, TargetClientPos);
             string MyCity = Room.City;
             RPRoom Data;
-            int JailRID = PolarEnvironment.GetGame().GetRPRoomManager().TryToGetJail(MyCity, out Data);//prision de la cd.
+            int JailRID = PolarEnvironment.GetGame().GetRPRoomManager().TryToGetJail(MyCity, out Data);
             int WantedTime = 5;
             CryptoRandom Random = new CryptoRandom();
             int Chance = Random.Next(1, 101);
 
             Session.GetRoomUser().ApplyEffect(536);
 
-            /*if (Distance <= RoleplayManager.StunGunRange)
-            {
-                if (Chance <= 8)
-                {
-                    RoleplayManager.Shout(Session, "*Dispara su pistola paralizadora hacia " + TargetClient.GetHabbo().Username + ", pero falla*", 37);
+            RoleplayManager.Shout(Session, "*Dispara su pistola electrica hacia " + TargetClient.GetHabbo().Username + " inmovilizándolo inmediatamente*", 37);
 
-                    Session.GetRoleplay().CooldownManager.CreateCooldown("stun", 1000, 3);
-                }
-                else
-                {*/
-                    RoleplayManager.Shout(Session, "*Dispara su pistola electrica hacia " + TargetClient.GetHabbo().Username + " inmovilizándolo inmediatamente*", 37);
-                    TargetClient.GetRoleplay().TimerManager.CreateTimer("stun", 1000, false);
-                    //TargetClient.SendMessage(new FloodControlComposer(15));
+            // Iniciar timer de stun
+            TargetClient.GetRoleplay().TimerManager.CreateTimer("stun", 1000, false);
 
-                    if (TargetClient.GetRoleplay().InsideTaxi)
-                        TargetClient.GetRoleplay().InsideTaxi = false;
-
+            // Configurar estado de stun
             TargetClient.GetRoleplay().IsStun = true;
             TargetClient.GetRoomUser().Frozen = true;
-                    TargetClient.GetRoomUser().CanWalk = false;
-                    TargetClient.GetRoomUser().ClearMovement(true);
+            TargetClient.GetRoomUser().CanWalk = false;
+            TargetClient.GetRoomUser().ClearMovement(true);
 
-                    #region Desequipar al Convicto
-                    if (TargetClient.GetRoleplay().EquippedWeapon != null)
-                    {
-                        string UnEquipMessage = TargetClient.GetRoleplay().EquippedWeapon.UnEquipText;
-                        UnEquipMessage = UnEquipMessage.Replace("[NAME]", TargetClient.GetRoleplay().EquippedWeapon.PublicName);
+            #region Desequipar al Convicto
+            if (TargetClient.GetRoleplay().EquippedWeapon != null)
+            {
+                string UnEquipMessage = TargetClient.GetRoleplay().EquippedWeapon.UnEquipText;
+                UnEquipMessage = UnEquipMessage.Replace("[NAME]", TargetClient.GetRoleplay().EquippedWeapon.PublicName);
 
-                        RoleplayManager.Shout(TargetClient, UnEquipMessage, 5);
+                RoleplayManager.Shout(TargetClient, UnEquipMessage, 5);
 
-                        if (TargetClient.GetRoomUser().CurrentEffect == TargetClient.GetRoleplay().EquippedWeapon.EffectID)
-                            TargetClient.GetRoomUser().ApplyEffect(0);
+                if (TargetClient.GetRoomUser().CurrentEffect == TargetClient.GetRoleplay().EquippedWeapon.EffectID)
+                    TargetClient.GetRoomUser().ApplyEffect(0);
 
-                        if (TargetClient.GetRoomUser().CarryItemID == TargetClient.GetRoleplay().EquippedWeapon.HandItem)
-                            TargetClient.GetRoomUser().CarryItem(0);
+                if (TargetClient.GetRoomUser().CarryItemID == TargetClient.GetRoleplay().EquippedWeapon.HandItem)
+                    TargetClient.GetRoomUser().CarryItem(0);
 
-                        TargetClient.GetRoleplay().CooldownManager.CreateCooldown("unequip", 1000, 3);
-                        TargetClient.GetRoleplay().EquippedWeapon = null;
+                TargetClient.GetRoleplay().CooldownManager.CreateCooldown("unequip", 1000, 3);
+                TargetClient.GetRoleplay().EquippedWeapon = null;
 
-                        TargetClient.GetRoleplay().WLife = 0;
-                        TargetClient.GetRoleplay().Bullets = 0;
-                    }
+                TargetClient.GetRoleplay().WLife = 0;
+                TargetClient.GetRoleplay().Bullets = 0;
+            }
             #endregion
+
+            // Establecer cooldown de stun (CORREGIDO)
+            TargetClient.GetRoleplay().SpecialCooldowns["stun"] = 1800;
+           /* // O usando AddOrUpdate:
+            // TargetClient.GetRoleplay().SpecialCooldowns.AddOrUpdate("stun", 1800, (key, oldValue) => 1800);
 
             if (!TargetClient.GetRoleplay().IsJailed)
             {
@@ -229,21 +218,10 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Police
             }
             else
             {
-                TargetClient.SendMessage(new RoomBubbleNotificationComposer("room_jail_prison", "Usted ha sido escoltado por  " + Session.GetHabbo().Username + " por " + WantedTime + " minutos!", ""));
+                TargetClient.SendMessage(new RoomBubbleNotificationComposer("room_jail_prison", "Usted ha sido escoltado por " + Session.GetHabbo().Username + " por " + WantedTime + " minutos!", ""));
                 RoleplayManager.SendUserOld2(TargetClient, JailRID);
             }
-
-            //Session.GetRoleplay().CooldownManager.CreateCooldown("stun", 1000, 3);
-            TargetClient.GetRoleplay().SpecialCooldowns.TryUpdate("stun", 1800, TargetClient.GetRoleplay().SpecialCooldowns["stun"]);
-            /*   }
-           }
-           else
-           {
-               RoleplayManager.Shout(Session, "*Dispara su pistola paralizadora hacia " + TargetClient.GetHabbo().Username + ", pero el disparo no lo alcanza*", 37);
-
-               Session.GetRoleplay().CooldownManager.CreateCooldown("stun", 1000, 3);
-           }*/
-
+            */
             #region Sound System
             foreach (RoomUser RoomUsers in Session.GetRoomUser().GetRoom().GetRoomUserManager().GetRoomUsers())
             {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Polar.Utilities;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Rooms;
@@ -12,21 +12,15 @@ namespace Polar.HabboHotel.Items.Interactor
 {
     public class InteractorWeedMateria : IFurniInteractor
     {
-        public void OnPlace(GameClient Session, Item Item)
-        {
-        }
+        public void OnPlace(GameClient Session, Item Item) { }
 
-        public void OnRemove(GameClient Session, Item Item)
-        {
-        }
+        public void OnRemove(GameClient Session, Item Item) { }
 
         public void OnTrigger(GameClient Session, Item Item, int Request, bool HasRights)
         {
+            // FIX: No llamar métodos sobre Session si es null
             if (Session == null || Session.GetHabbo() == null || Session.GetRoleplay() == null)
-            {
-                Session.SendWhisper("Error: sesión inválida", 6);
                 return;
-            }
 
             if (!Session.GetHabbo().CurrentRoom.TurfEnabled)
             {
@@ -34,13 +28,9 @@ namespace Polar.HabboHotel.Items.Interactor
                 return;
             }
 
-            #region Variables
             Room Room = Session.GetHabbo().CurrentRoom;
             Turf Turf = PolarEnvironment.GetGame().GetGangTurfsManager().getTurfbyRoom(Session.GetHabbo().CurrentRoomId);
             Item BTile = Room.GetRoomItemHandler().GetFloor.FirstOrDefault(x => x.GetBaseItem().ItemName.ToLower() == "weed_krauter" && x.Coordinate == Session.GetRoomUser().SquareInFront);
-
-            #endregion
-
 
             if (Turf == null)
             {
@@ -49,7 +39,6 @@ namespace Polar.HabboHotel.Items.Interactor
             }
 
             RoomUser User = Item.GetRoom()?.GetRoomUserManager()?.GetRoomUserByHabbo(Session.GetHabbo().Id);
-
             if (User == null)
             {
                 Session.SendWhisper("¡No se pudo encontrar al usuario en la sala!", 6);
@@ -63,7 +52,7 @@ namespace Polar.HabboHotel.Items.Interactor
                         User.MoveTo(Item.SquareInFront);
                 return;
             }
-       
+
             if (Session.GetHabbo().Credits < 1000)
             {
                 Session.SendWhisper("¡No tienes 1000$ para invertir!", 6);
@@ -82,42 +71,37 @@ namespace Polar.HabboHotel.Items.Interactor
                 return;
             }
 
-                // Si el ítem tiene un valor extra vacío o "0", procedemos a realizar la acción
-                if (string.IsNullOrEmpty(Item.ExtraData))
-                    Item.ExtraData = "0";
+            if (string.IsNullOrEmpty(Item.ExtraData))
+                Item.ExtraData = "0";
 
-                if (Item.ExtraData == "0")
-                {
-                    int Minutes = 2;
+            if (Item.ExtraData == "0")
+            {
+                int Minutes = 2;
 
-                    User.ClearMovement(true);
-                    User.SetRot(Rotation.Calculate(User.Coordinate.X, User.Coordinate.Y, Item.GetX, Item.GetY), false);
+                User.ClearMovement(true);
+                User.SetRot(Rotation.Calculate(User.Coordinate.X, User.Coordinate.Y, Item.GetX, Item.GetY), false);
 
-                    // 135 Cycles approximately 1 minute
-                    Item.ExtraData = "1";
-                    Item.UpdateState(false, true);
-                    Item.RequestUpdate(1000 * Minutes, true);
-                    Session.Shout("* Comienza a cuidar la planta y cosechar las semillas [-1000$ Inversión]*", 6);
-                    Session.SendWhisper("Por favor, espera 2 minutos", 1);
-                    Session.GetHabbo().Credits -= 1000;
-                    Session.GetHabbo().UpdateCreditsBalance();
+                Item.ExtraData = "1";
+                Item.UpdateState(false, true);
+                Item.RequestUpdate(1000 * Minutes, true);
+                Session.Shout("* Comienza a cuidar la planta y cosechar las semillas [-1000$ Inversión]*", 6);
+                Session.SendWhisper("Por favor, espera 2 minutos", 1);
+                Session.GetHabbo().Credits -= 1000;
+                Session.GetHabbo().UpdateCreditsBalance();
 
-                    User.CanWalk = false;
-                    Session.GetRoleplay().HRidCoordinate = Session.GetRoomUser().SquareInFront;
-                    Session.GetRoleplay().HRidProcess = Room;
-                    Session.GetRoleplay().HRidItem = Item;
-                    Session.GetRoleplay().ProcessWeed = true;
-                    Session.GetRoleplay().LoadingTimeLeft = RoleplayManager.ProcessWeedTime;
-                    Session.GetRoleplay().TimerManager.CreateTimer("general", 1000, true);
-                }
-                else
-                    Session.SendWhisper("¡ESPERE POR FAVOR, LA PLANTA AÚN NO SE HA RECUPERADO...!", 6);
+                User.CanWalk = false;
+                Session.GetRoleplay().HRidCoordinate = Session.GetRoomUser().SquareInFront;
+                Session.GetRoleplay().HRidProcess = Room;
+                Session.GetRoleplay().HRidItem = Item;
+                Session.GetRoleplay().ProcessWeed = true;
+                Session.GetRoleplay().LoadingTimeLeft = RoleplayManager.ProcessWeedTime;
+                Session.GetRoleplay().TimerManager.CreateTimer("general", 1000, true);
+            }
+            else
+                Session.SendWhisper("¡ESPERE POR FAVOR, LA PLANTA AÚN NO SE HA RECUPERADO...!", 6);
         }
 
-        public void OnWiredTrigger(Item Item)
-        {
-
-        }
+        public void OnWiredTrigger(Item Item) { }
 
         public void ChooseReward(GameClient Session)
         {
@@ -129,23 +113,17 @@ namespace Polar.HabboHotel.Items.Interactor
             if (SecondChance < 4 && Chance > TotalCraftingItems)
                 Chance = Random.Next(1, TotalCraftingItems + 1);
 
-            #region Weed
             else if (Chance > 1 && Chance <= 6)
             {
                 int Amount = Random.Next(1, 10);
-
                 Session.GetRoleplay().Weedmateria += Amount;
                 Session.Shout("*¡Felicidades cosechaste! " + Amount + " semillas de marihuana *", 6);
                 Session.SendWhisper("*¡utiliza la mesa para preparar los porros! [TODO ESTO ES ILEGAL]*", 1);
             }
-            #endregion
-
-            #region No Reward
             else
             {
                 Session.SendWhisper("*¡Esta planta no tiene semillas que ofrecer! intentalo más tarde*", 1);
             }
-            #endregion
         }
     }
 }

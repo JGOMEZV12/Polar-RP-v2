@@ -44,9 +44,9 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic
             #region Conditions
 
 
-            if (Session.GetHabbo().CurrentRoomId != 9)
+            if (!Session.GetRoomUser().GetRoom().RoomData.LearningEnabled)
             {
-                Session.SendWhisper("¡Para leer necesitas estar en a sala #9!", 1);
+                Session.SendWhisper("¡En está sala no se permite leer!..", 1);
                 return;
             }
 

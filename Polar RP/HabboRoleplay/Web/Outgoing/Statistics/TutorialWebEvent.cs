@@ -1,10 +1,5 @@
-﻿using System;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Fleck;
-
+using ConnectionManager;
+using Polar.Net;
 using Polar.HabboHotel.GameClients;
 using System.IO;
 using Polar.HabboHotel.Roleplay.Web;
@@ -25,7 +20,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -56,7 +51,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
 
                                     if (RoleplayManager.GenerateRoom(Client.GetRoomUser().RoomId, out Room Room) && Room.WardrobeEnabled && Room.Type.Equals("public"))
                                     {
-                                        Socket.Send("compose_tutorial|13");
+                                        Socket.SendWS( "compose_tutorial|13");
                                     }
                                     #endregion
                                 }
@@ -69,7 +64,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
 
                                     if (RoleplayManager.GenerateRoom(Client.GetRoomUser().RoomId, out Room Room) && Room.PhoneStoreEnabled && Room.Type.Equals("public"))
                                     {
-                                        Socket.Send("compose_tutorial|18");
+                                        Socket.SendWS( "compose_tutorial|18");
                                     }
                                     #endregion
                                 }
@@ -82,7 +77,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
 
                                     if (RoleplayManager.GenerateRoom(Client.GetRoomUser().RoomId, out Room Room) && Room.BuyCarEnabled && Room.Type.Equals("public"))
                                     {
-                                        Socket.Send("compose_tutorial|24");
+                                        Socket.SendWS( "compose_tutorial|24");
                                     }
                                     #endregion
                                 }
@@ -95,7 +90,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
 
                                     if (RoleplayManager.GenerateRoom(Client.GetRoomUser().RoomId, out Room Room) && Room.MallEnabled && Room.Type.Equals("public"))
                                     {
-                                        Socket.Send("compose_tutorial|28");
+                                        Socket.SendWS( "compose_tutorial|28");
                                     }
                                     #endregion
                                 }
@@ -114,5 +109,13 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
                     break;
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

@@ -1,29 +1,23 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Polar.Communication.Packets.Incoming;
 using Polar.HabboHotel.Rooms;
-using Polar.Communication.Packets.Incoming;
 using Polar.HabboHotel.Items.Wired;
 using Polar.HabboHotel.Items;
-using Polar.HabboHotel.Rooms;
+
+// FIX: Eliminados using duplicados de Packets.Incoming y Rooms
 
 namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
 {
     internal class FurniHasFurniBox : IWiredItem
     {
         public Room Instance { get; set; }
-
         public Item Item { get; set; }
-
         public WiredBoxType Type => WiredBoxType.ConditionFurniHasFurni;
-
         public ConcurrentDictionary<int, Item> SetItems { get; set; }
-
         public string StringData { get; set; }
-
         public bool BoolData { get; set; }
-
         public string ItemsData { get; set; }
 
         public FurniHasFurniBox(Room instance, Item item)

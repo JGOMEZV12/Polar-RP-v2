@@ -1,65 +1,66 @@
-using System.Threading.Tasks;
-﻿using Polar.HabboHotel.Catalog.FurniMatic;
+using JNogueira.Discord.Webhook.Client;
 using log4net;
-using Polar.Database.Interfaces;
-using Polar.Core;
 using Polar.Communication.Packets;
-using Polar.HabboHotel.GameClients;
-using Polar.HabboHotel.Moderation;
-using Polar.HabboHotel.Support;
-using Polar.HabboHotel.Catalog;
-using Polar.HabboHotel.Items;
-using Polar.HabboHotel.Items.Televisions;
-using Polar.HabboHotel.Navigator;
-using Polar.HabboHotel.Rooms;
-using Polar.HabboHotel.Groups;
-using Polar.HabboHotel.Quests;
+using Polar.Core;
+using Polar.Database.Interfaces;
 using Polar.HabboHotel.Achievements;
-using Polar.HabboHotel.LandingView;
-using Polar.HabboHotel.Global;
-using Polar.HabboHotel.Polls;
-using Polar.HabboHotel.Games;
-using Polar.HabboHotel.Talents;
-using Polar.HabboHotel.Rooms.Chat;
+using Polar.HabboHotel.Animations;
+using Polar.HabboHotel.Badges;
 using Polar.HabboHotel.Bots;
 using Polar.HabboHotel.Cache;
-using Polar.HabboHotel.Rewards;
-using Polar.HabboHotel.Badges;
-using Polar.HabboHotel.Permissions;
-using Polar.HabboHotel.Subscriptions;
+using Polar.HabboHotel.Catalog;
+using Polar.HabboHotel.Catalog.FurniMatic;
+using Polar.HabboHotel.GameClients;
+using Polar.HabboHotel.Games;
+using Polar.HabboHotel.Global;
+using Polar.HabboHotel.Groups;
 using Polar.HabboHotel.Guides;
-using Polar.HabboRoleplay.Misc;
-using Polar.HabboRoleplay.Events;
-using Polar.HabboRoleplay.Weapons;
-using Polar.HabboRoleplay.Skins;
-using Polar.HabboRoleplay.Wizards;
-using Polar.HabboRoleplay.Combat;
-using Polar.HabboRoleplay.Food;
-using Polar.HabboRoleplay.Turfs;
-using Polar.HabboRoleplay.Houses;
+using Polar.HabboHotel.Items;
 using Polar.HabboHotel.Items.Crafting;
+using Polar.HabboHotel.Items.Televisions;
+using Polar.HabboHotel.LandingView;
+using Polar.HabboHotel.Moderation;
+using Polar.HabboHotel.Navigator;
+using Polar.HabboHotel.Permissions;
+using Polar.HabboHotel.Polls;
+using Polar.HabboHotel.Quests;
+using Polar.HabboHotel.Rewards;
 using Polar.HabboHotel.Roleplay.Web;
-using Polar.HabboRoleplay.Farming;
-using Polar.HabboRoleplay.Gambling;
-using Polar.HabboRoleplay.Web.Util.ChatRoom;
-using Polar.HabboRoleplay.VehicleOwned;
-using Polar.HabboRoleplay.Vehicles;
-using Polar.HabboRoleplay.Products;
-using Polar.HabboRoleplay.RPRoom;
-using Polar.HabboRoleplay.Comodin;
-using Polar.HabboRoleplay.Phones;
-using Polar.HabboRoleplay.PhoneOwned;
-using Polar.HabboRoleplay.PhonesApps;
-using Polar.HabboRoleplay.PhoneChat;
-using Polar.Messages.Net.MusCommunication;
-using Polar.HabboRoleplay.PlayInternet;
-using System.Diagnostics;
-using Polar.HabboHotel.Animations;
+using Polar.HabboHotel.Rooms;
+using Polar.HabboHotel.Rooms.Chat;
+using Polar.HabboHotel.Rooms.TraxMachine;
+using Polar.HabboHotel.Subscriptions;
+using Polar.HabboHotel.Support;
+using Polar.HabboHotel.Talents;
 using Polar.HabboRoleplay.Apartments;
 using Polar.HabboRoleplay.ApartmentsOwned;
-using Polar.HabboHotel.Rooms.TraxMachine;
-using JNogueira.Discord.Webhook.Client;
+using Polar.HabboRoleplay.Combat;
+using Polar.HabboRoleplay.Comodin;
+using Polar.HabboRoleplay.Events;
+using Polar.HabboRoleplay.Farming;
+using Polar.HabboRoleplay.Food;
+using Polar.HabboRoleplay.Gambling;
+using Polar.HabboRoleplay.Houses;
+using Polar.HabboRoleplay.Misc;
+using Polar.HabboRoleplay.PhoneChat;
+using Polar.HabboRoleplay.PhoneOwned;
+using Polar.HabboRoleplay.Phones;
+using Polar.HabboRoleplay.PhonesApps;
+using Polar.HabboRoleplay.PlayInternet;
+using Polar.HabboRoleplay.Products;
+using Polar.HabboRoleplay.RPRoom;
+using Polar.HabboRoleplay.Skins;
+using Polar.HabboRoleplay.Turfs;
+using Polar.HabboRoleplay.VehicleOwned;
+using Polar.HabboRoleplay.Vehicles;
 using Polar.HabboRoleplay.VehiclesJobs;
+using Polar.HabboRoleplay.Weapons;
+using Polar.HabboRoleplay.Web.Util.ChatRoom;
+using Polar.HabboRoleplay.Wizards;
+using Polar.Messages.Net.MusCommunication;
+using Polar.Utilities;
+using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace Polar.HabboHotel
 {
@@ -67,185 +68,195 @@ namespace Polar.HabboHotel
     {
         private static readonly ILog log = LogManager.GetLogger("Polar.HabboHotel.Game");
 
-        private readonly PacketManager _packetManager;
-        private readonly MusPacketManager _muspacketManager;
-        private readonly GameClientManager _clientManager;
-        private readonly ModerationManager _modManager;
-        private readonly ModerationTool _moderationTool;//TODO: Initialize from the moderation manager.
-        private readonly ItemDataManager _itemDataManager;
-        private readonly CatalogManager _catalogManager;
-        private readonly TalentManager _talentManager;
-        private readonly TelevisionManager _televisionManager;//TODO: Initialize from the item manager.
-        private readonly NavigatorManager _navigatorManager;
-        private readonly RoomManager _roomManager;
-        private readonly ChatManager _chatManager;
-        private readonly GroupManager _groupManager;
-       public bool ClientManagerCycleEnded;
-        //public bool ClientManagerCycleEnded, RoomManagerCycleEnded;
-        private readonly QuestManager _questManager;
-        private readonly AnimationManager _animationManager;
-        private readonly AchievementManager _achievementManager;
-        private readonly TalentTrackManager _talentTrackManager;
-        private readonly LandingViewManager _landingViewManager;//TODO: Rename class
-        private readonly GameDataManager _gameDataManager;
-        private readonly ServerStatusUpdater _globalUpdater;
-        private readonly LanguageLocale _languageLocale;
-        //private readonly AntiMutant _antiMutant;
-        private readonly BotManager _botManager;
-        private readonly CacheManager _cacheManager;
-        private readonly RewardManager _rewardManager;
-        private readonly BadgeManager _badgeManager;
-        private readonly PermissionManager _permissionManager;
-        private readonly SubscriptionManager _subscriptionManager;
-        private readonly GuideManager _guideManager;
-        private readonly PollManager _pollManager;
-        private readonly HouseManager _houseManager;
-        private readonly ApartmentOwnedManager _apartmentownedManager;
-        private readonly WebEventManager _webEventManager;
-        private readonly CrackableManager _crackableManager;
-        private readonly TargetedOffersManager _targetedoffersManager;
-        private readonly FurniMaticRewardsManager _furniMaticRewardsManager;
-        private readonly PhoneChatManager _phonechatManager;
-        private readonly VehiclesOwnedManager _vehiclesownedManager;
-        private readonly PhonesOwnedManager _phonesownedManager;
-        public readonly RPRoomManager _rproomManager;
-        private readonly TurfManager _gangturfsManager;
-        private readonly HallOfFame _HallOfFame;
+        // Ping packet: 4 bytes length (big-endian = 2) + 2 bytes header 21 (0x00 0x15)
+        private static readonly byte[] PingPacket = { 0x00, 0x00, 0x00, 0x02, 0x00, 0x15 };
+        private static readonly TimeSpan PingThreshold       = TimeSpan.FromMinutes(2);
+        private static readonly TimeSpan DisconnectThreshold = TimeSpan.FromMinutes(10);
+        private const int GameLoopDelayMs = 480;
+        private const int HighLatencyWarnMs = 480;
 
+        // Core
+        private PacketManager         _packetManager;
+        private MusPacketManager      _muspacketManager;
+        private GameClientManager     _clientManager;
+        private ModerationManager     _modManager;
+        private ModerationTool        _moderationTool;
+        private ItemDataManager       _itemDataManager;
+        private CatalogManager        _catalogManager;
+        private NavigatorManager      _navigatorManager;
+        private RoomManager           _roomManager;
+        private ChatManager           _chatManager;
+        private GroupManager          _groupManager;
+        private QuestManager          _questManager;
+        private AnimationManager      _animationManager;
+        private AchievementManager    _achievementManager;
+        private TalentManager         _talentManager;
+        private TalentTrackManager    _talentTrackManager;
+        private LandingViewManager    _landingViewManager;
+        private GameDataManager       _gameDataManager;
+        private LanguageLocale        _languageLocale;
+        private BotManager            _botManager;
+        private CacheManager          _cacheManager;
+        private RewardManager         _rewardManager;
+        private BadgeManager          _badgeManager;
+        private PermissionManager     _permissionManager;
+        private SubscriptionManager   _subscriptionManager;
+        private GuideManager          _guideManager;
+        private PollManager           _pollManager;
+        private HouseManager          _houseManager;
+        private ApartmentOwnedManager _apartmentownedManager;
+        private WebEventManager       _webEventManager;
+        private CrackableManager      _crackableManager;
+        private TargetedOffersManager _targetedoffersManager;
+        private FurniMaticRewardsManager _furniMaticRewardsManager;
+        private PhoneChatManager      _phonechatManager;
+        private VehiclesOwnedManager  _vehiclesownedManager;
+        private PhonesOwnedManager    _phonesownedManager;
+        private TurfManager           _gangturfsManager;
+        private HallOfFame            _hallOfFame;
+        private TelevisionManager     _televisionManager;
+        public  RPRoomManager         _rproomManager;
+
+        // Game loop
         private Task _gameLoop;
-        public static bool gameLoopEnabled = true;
-        public bool gameLoopActive;
-        public bool gameLoopEnded;
+        public  static bool gameLoopEnabled = true;
+        public  bool gameLoopActive;
+        public  bool gameLoopEnded;
         private bool _cycleEnded;
-        private readonly Stopwatch moduleWatch;
+        private readonly Stopwatch _moduleWatch = new();
+        public  bool ClientManagerCycleEnded;
 
         public Game()
         {
-
             AbstractBar bar = new AnimatedBar();
             const int wait = 15, end = 5;
 
+            LoadCore(bar, wait, end);
+            LoadHotel(bar, wait, end);
+            LoadRoleplay(bar, wait, end);
+        }
+
+        // ─── Initialization ────────────────────────────────────────────────────────
+
+        private void LoadCore(AbstractBar bar, int wait, int end)
+        {
             Progress(bar, wait, end, "Cargando Packets...");
-            this._packetManager = new PacketManager();
-            this._muspacketManager = new MusPacketManager();
+            _packetManager    = new PacketManager();
+            _muspacketManager = new MusPacketManager();
 
             Progress(bar, wait, end, "Cargando GameClientManager...");
-            this._clientManager = new GameClientManager();
-
-            this._modManager = new ModerationManager();
-
-            Progress(bar, wait, end, "Cargando Herramientas de moderación...");
-            this._moderationTool = new ModerationTool();
+            _clientManager  = new GameClientManager();
+            _modManager     = new ModerationManager();
+            _moderationTool = new ModerationTool();
 
             Progress(bar, wait, end, "Cargando configuraciones extras...");
             ExtraSettings.RunExtraSettings();
             CatalogSettings.RunCatalogSettings();
 
-            Progress(bar, wait, end, "Cargando Iems...");
-            this._itemDataManager = new ItemDataManager();
+            Progress(bar, wait, end, "Cargando Items...");
+            _itemDataManager = new ItemDataManager();
 
-            Progress(bar, wait, end, "Cargando Catalogo...");
-            this._catalogManager = new CatalogManager();
+            Progress(bar, wait, end, "Cargando Catálogo...");
+            _catalogManager = new CatalogManager();
 
             Progress(bar, wait, end, "Cargando Televisiones...");
-            this._televisionManager = new TelevisionManager();
+            _televisionManager = new TelevisionManager();
+        }
 
+        private void LoadHotel(AbstractBar bar, int wait, int end)
+        {
             Progress(bar, wait, end, "Cargando Navegador de salas...");
-            this._navigatorManager = new NavigatorManager();
+            _navigatorManager = new NavigatorManager();
 
             Progress(bar, wait, end, "Cargando Salas...");
-            this._roomManager = new RoomManager();
-            this._roomManager.LoadModels();
+            _roomManager = new RoomManager();
+            _roomManager.LoadModels();
 
-            Progress(bar, wait, end, "Cargando Adminisrador de chat...");
-            this._chatManager = new ChatManager();
+            Progress(bar, wait, end, "Cargando Administrador de chat...");
+            _chatManager = new ChatManager();
 
             Progress(bar, wait, end, "Cargando Misiones...");
-            this._questManager = new QuestManager();
+            _questManager = new QuestManager();
 
             Progress(bar, wait, end, "Cargando Logros y talentos...");
-            this._achievementManager = new AchievementManager();
-            this._talentManager = new TalentManager();
-            this._talentManager.Initialize();
-            this._talentTrackManager = new TalentTrackManager();
+            _achievementManager  = new AchievementManager();
+            _talentManager       = new TalentManager();
+            _talentManager.Initialize();
+            _talentTrackManager  = new TalentTrackManager();
 
             Progress(bar, wait, end, "Cargando Vista del hotel...");
-            this._landingViewManager = new LandingViewManager();
+            _landingViewManager = new LandingViewManager();
 
             Progress(bar, wait, end, "Cargando Datos del juego...");
-            this._gameDataManager = new GameDataManager();
+            _gameDataManager = new GameDataManager();
 
             Progress(bar, wait, end, "Cargando Actualizaciones del sistema...");
-            //this._globalUpdater = new ServerStatusUpdater();
             ServerStatusUpdater.Init();
 
             Progress(bar, wait, end, "Cargando Lenguajes...");
-            this._languageLocale = new LanguageLocale();
-
-            /*Progress(bar, wait, end, "Cargando Anti-Mutant...");
-            this._antiMutant = new AntiMutant();*/
+            _languageLocale = new LanguageLocale();
 
             Progress(bar, wait, end, "Cargando Bots...");
-            this._botManager = new BotManager();
+            _botManager = new BotManager();
 
             Progress(bar, wait, end, "Cargando Administrador de caché...");
-            this._cacheManager = new CacheManager();
+            _cacheManager = new CacheManager();
 
             Progress(bar, wait, end, "Cargando Recompensas...");
-            this._rewardManager = new RewardManager();
+            _rewardManager = new RewardManager();
 
             Progress(bar, wait, end, "Cargando Jukebox...");
-            //Jukebox
             TraxSoundManager.Init();
 
             Progress(bar, wait, end, "Cargando Administrador de placas...");
-            this._badgeManager = new BadgeManager();
-            this._badgeManager.Init();
+            _badgeManager = new BadgeManager();
+            _badgeManager.Init();
 
             Progress(bar, wait, end, "Cargando Permisos...");
-            this._permissionManager = new PermissionManager();
-            this._permissionManager.Init();
+            _permissionManager = new PermissionManager();
+            _permissionManager.Init();
 
-            Progress(bar, wait, end, "Cargando Subscripciones...");
-            this._subscriptionManager = new SubscriptionManager();
-            this._subscriptionManager.Init();
+            Progress(bar, wait, end, "Cargando Suscripciones...");
+            _subscriptionManager = new SubscriptionManager();
+            _subscriptionManager.Init();
 
-            this._guideManager = new GuideManager();
+            _guideManager = new GuideManager();
 
             Progress(bar, wait, end, "Cargando Salón de la fama...");
-            this._HallOfFame = new HallOfFame();
+            _hallOfFame = new HallOfFame();
 
             Progress(bar, wait, end, "Cargando Administrador de encuestas...");
-            int pollLoaded;
-            this._pollManager = new PollManager();
-            this._pollManager.Init(out pollLoaded);
+            _pollManager = new PollManager();
+            _pollManager.Init(out _);
 
             Progress(bar, wait, end, "Cargando Crafting...");
-            this._crackableManager = new CrackableManager();
-            this._crackableManager.Initialize(PolarEnvironment.GetDatabaseManager().GetQueryReactor());
+            _crackableManager = new CrackableManager();
+            _crackableManager.Initialize(PolarEnvironment.GetDatabaseManager().GetQueryReactor());
 
             Progress(bar, wait, end, "Cargando Mega Ofertas...");
-            this._targetedoffersManager = new TargetedOffersManager();
-            this._targetedoffersManager.Initialize(PolarEnvironment.GetDatabaseManager().GetQueryReactor());
+            _targetedoffersManager = new TargetedOffersManager();
+            _targetedoffersManager.Initialize(PolarEnvironment.GetDatabaseManager().GetQueryReactor());
 
-            /*Progress(bar, wait, end, "Cargando Furni-Matic...");
+            Progress(bar, wait, end, "Cargando Furni-Matic...");
             this._furniMaticRewardsManager = new FurniMaticRewardsManager();
-            this._furniMaticRewardsManager.Initialize(PolarEnvironment.GetDatabaseManager().GetQueryReactor());*/
+            this._furniMaticRewardsManager.Initialize(PolarEnvironment.GetDatabaseManager().GetQueryReactor());
+        }
 
+        private void LoadRoleplay(AbstractBar bar, int wait, int end)
+        {
             Progress(bar, wait, end, "Cargando Sistema Roleplay...");
 
-            #region Roleplay Section
             RoleplayData.Initialize();
             EventManager.Initialize();
             CombatManager.Initialize();
 
-            this._groupManager = new GroupManager();
-            this._groupManager.Initialize();
+            _groupManager = new GroupManager();
+            _groupManager.Initialize();
 
             TexasHoldEmManager.Initialize();
 
-            this._gangturfsManager = new TurfManager();
-            this._gangturfsManager.Initialize();
+            _gangturfsManager = new TurfManager();
+            _gangturfsManager.Initialize();
 
             WeaponManager.Initialize();
             WSkinManager.Initialize();
@@ -261,325 +272,220 @@ namespace Polar.HabboHotel
             ProductsManager.Initialize();
             RoleplayManager.AssingInventoryProducts();
 
-            this._houseManager = new HouseManager();
-            this._houseManager.Init();
-            this._rproomManager = new RPRoomManager();
-            this._rproomManager.Init();
+            _houseManager = new HouseManager();
+            _houseManager.Init();
+
+            _rproomManager = new RPRoomManager();
+            _rproomManager.Init();
+
             VehicleManager.Initialize();
             VehicleJobsManager.Initialize();
             PhoneManager.Initialize();
             PhoneAppManager.Initialize();
             PlayInternetManager.Init();
-            this._phonechatManager = new PhoneChatManager();
-            this._phonechatManager.Init();
 
-            this._vehiclesownedManager = new VehiclesOwnedManager();
-            this._vehiclesownedManager.Init();
+            _phonechatManager = new PhoneChatManager();
+            _phonechatManager.Init();
 
-            this._phonesownedManager = new PhonesOwnedManager();
-            this._phonesownedManager.Init();
+            _vehiclesownedManager = new VehiclesOwnedManager();
+            _vehiclesownedManager.Init();
+
+            _phonesownedManager = new PhonesOwnedManager();
+            _phonesownedManager.Init();
+
             ComodinManager.Initialize();
             ApartmentManager.Init();
-            this._webEventManager = new WebEventManager();
-            this._webEventManager.Init();
 
-            this._animationManager = new AnimationManager();
-            this._animationManager.Init();
+            _webEventManager = new WebEventManager();
+            _webEventManager.Init();
 
-            this._apartmentownedManager = new ApartmentOwnedManager();
-            this._apartmentownedManager.Init();
+            _animationManager = new AnimationManager();
+            _animationManager.Init();
 
-            #endregion
+            _apartmentownedManager = new ApartmentOwnedManager();
+            _apartmentownedManager.Init();
 
-            this.moduleWatch = new Stopwatch();
-
-        }
-
-        public HallOfFame GetHallOfFame()
-        {
-            return _HallOfFame;
         }
 
         public async Task InitializeAsync()
         {
-            await this._itemDataManager.InitAsync();
-            await this._catalogManager.InitAsync(this._itemDataManager);
+            await _itemDataManager.InitAsync();
+            await _catalogManager.InitAsync(_itemDataManager);
         }
 
-
-        public async Task SendMsPhoto(GameClient Author, string image)
-        {
-            string Webhook = PolarEnvironment.GetConfig().data["Webhook"];
-            string Webhook_login_logout_ProfilePicture = PolarEnvironment.GetConfig().data["Webhook_Image"];
-            string Webhook_login_logout_UserNameD = PolarEnvironment.GetConfig().data["Webhook_Username"];
-            string Webhook_login_logout_WebHookurl = PolarEnvironment.GetConfig().data["Webhook_URL"];
-
-
-                var client = new DiscordWebhookClient(Webhook_login_logout_WebHookurl);
-
-                var message = new DiscordMessage(
-                 "Una nueva foto! " + DiscordEmoji.Grinning,
-                    username: Webhook_login_logout_UserNameD,
-                    avatarUrl: Webhook_login_logout_ProfilePicture,
-                    tts: false,
-                    embeds: new[]
-        {
-                                new DiscordMessageEmbed(
-                                "Notificacion de login" + DiscordEmoji.Thumbsup,
-                                 color: 4833120,
-                                author: new DiscordMessageEmbedAuthor(Author.GetHabbo().Username),
-                                description: "Ha ingresado al cliente del hotel",
-                                image: new DiscordMessageEmbedImage(image),
-                                footer: new DiscordMessageEmbedFooter("Creado por "+Webhook_login_logout_UserNameD, Webhook_login_logout_ProfilePicture)
-        )
-        }
-        );
-
-                //agrega un catch
-
-                await client.SendToDiscord(message);
-
-                Console.WriteLine("login enviado a Discord ", ConsoleColor.DarkCyan);
-        }
-        public static void Progress(AbstractBar bar, int wait, int end, string message)
-        {
-            bar.PrintMessage(message);
-            for (var cont = 0; cont < end; cont++)
-                bar.Step();
-        }
+        // ─── Game Loop ─────────────────────────────────────────────────────────────
 
         public void StartGameLoop()
         {
-            this.gameLoopActive = true;
-            this._gameLoop = MainGameLoop();
+            gameLoopActive = true;
+            _gameLoop = MainGameLoop();
         }
+
         private async Task MainGameLoop()
         {
-            while (this.gameLoopActive)
+            while (gameLoopActive)
             {
-                this._cycleEnded = false;
+                _cycleEnded = false;
                 try
                 {
                     if (gameLoopEnabled)
                     {
-                        moduleWatch.Restart();
-                        ServerStatusUpdater.Process();
-
-                        if (moduleWatch.ElapsedMilliseconds > 480)
-                            Console.WriteLine("High latency in LowPriorityWorker.Process ({0} ms)", moduleWatch.ElapsedMilliseconds);
-
-                        this.moduleWatch.Restart();
-
-                        PolarEnvironment.GetGame().GetClientManager().OnCycle();
-
-                        if (moduleWatch.ElapsedMilliseconds > 480)
-                            Console.WriteLine("High latency in GameClientManager ({0} ms)", moduleWatch.ElapsedMilliseconds);
-
+                        RunAndWarn("ServerStatusUpdater", ServerStatusUpdater.Process);
+                        RunAndWarn("GameClientManager", () =>
+                        {
+                            _clientManager.OnCycle();
+                            CheckClientConnections();
+                        });
+                        HuntManager.Initialize();
                     }
                 }
                 catch (OperationCanceledException e)
                 {
                     Console.WriteLine("Canceled operation {0}", e);
                 }
-                this._cycleEnded = true;
-                await Task.Delay(480);
+
+                _cycleEnded = true;
+                await Task.Delay(GameLoopDelayMs);
             }
 
             Console.WriteLine("MainGameLoop end");
-            this.gameLoopEnded = true;
+            gameLoopEnded = true;
         }
 
-        public PacketManager GetPacketManager()
+        private void RunAndWarn(string label, Action action)
         {
-            return _packetManager;
+            _moduleWatch.Restart();
+            action();
+            if (_moduleWatch.ElapsedMilliseconds > HighLatencyWarnMs)
+                Console.WriteLine("High latency in {0} ({1} ms)", label, _moduleWatch.ElapsedMilliseconds);
         }
 
-        public MusPacketManager GetMusPacketManager()
+        // ─── Client Ping / Disconnect ───────────────────────────────────────────────
+
+        private void CheckClientConnections()
         {
-            return _muspacketManager;
+            var clients = _clientManager?.GetClients;
+            if (clients == null) return;
+
+            var now = DateTime.UtcNow;
+
+            foreach (var client in clients.ToList())
+            {
+                var conn = client?.GetConnection();
+                if (conn == null) continue;
+
+                var idle = now - conn.LastReceiveUtc;
+
+                if (idle > DisconnectThreshold)
+                {
+                    try { client.Disconnect(true); } catch { }
+                    continue;
+                }
+
+                if (idle > PingThreshold)
+                {
+                    try { conn.SendData(PingPacket, 0, PingPacket.Length); } catch { }
+                }
+            }
         }
 
-        public GameClientManager GetClientManager()
+        // ─── Discord ────────────────────────────────────────────────────────────────
+
+        public async Task SendMsPhoto(GameClient author, string image)
         {
-            return _clientManager;
+            var cfg = PolarEnvironment.GetConfig().data;
+            var client = new DiscordWebhookClient(cfg["Webhook_URL"]);
+
+            var message = new DiscordMessage(
+                "Una nueva foto! " + DiscordEmoji.Grinning,
+                username:  cfg["Webhook_Username"],
+                avatarUrl: cfg["Webhook_Image"],
+                tts: false,
+                embeds: new[]
+                {
+                    new DiscordMessageEmbed(
+                        "Notificación de login" + DiscordEmoji.Thumbsup,
+                        color:       4833120,
+                        author:      new DiscordMessageEmbedAuthor(author.GetHabbo().Username),
+                        description: "Ha ingresado al cliente del hotel",
+                        image:       new DiscordMessageEmbedImage(image),
+                        footer:      new DiscordMessageEmbedFooter("Creado por " + cfg["Webhook_Username"], cfg["Webhook_Image"])
+                    )
+                }
+            );
+
+            await client.SendToDiscord(message);
+            Console.WriteLine("Foto enviada a Discord.", ConsoleColor.DarkCyan);
         }
 
-        public RPRoomManager GetRPRoomManager() => this._rproomManager;
-        
-        public CatalogManager GetCatalog() => _catalogManager;
-        
-        public NavigatorManager GetNavigator() => _navigatorManager;
-        
+        // ─── Helpers ────────────────────────────────────────────────────────────────
 
-        public TurfManager GetGangTurfsManager() => this._gangturfsManager;
-
-        public ItemDataManager GetItemManager() => _itemDataManager;
-        public RoomManager GetRoomManager() => _roomManager;
-
-        public AnimationManager GetAnimationManager() => this._animationManager;
-        public AchievementManager GetAchievementManager() => _achievementManager;
-        
-        public PhoneChatManager GetPhoneChatManager()
+        public static void Progress(AbstractBar bar, int wait, int end, string message)
         {
-            return this._phonechatManager;
-        }
-        public PhonesOwnedManager GetPhonesOwnedManager()
-        {
-            return this._phonesownedManager;
-        }
-        public VehiclesOwnedManager GetVehiclesOwnedManager()
-        {
-            return this._vehiclesownedManager;
+            bar.PrintMessage(message);
+            for (var i = 0; i < end; i++)
+                bar.Step();
         }
 
-        public WebEventManager GetWebEventManager()
-        {
-            return _webEventManager;
-        }
-
-        public TalentTrackManager GetTalentTrackManager()
-        {
-            return _talentTrackManager;
-        }
-
-        public ModerationTool GetModerationTool()
-        {
-            return _moderationTool;
-        }
-
-        public ModerationManager GetModerationManager()
-        {
-            return this._modManager;
-        }
-
-        public TalentManager GetTalentManager()
-        {
-            return _talentManager;
-
-        }
-
-        public PermissionManager GetPermissionManager()
-        {
-            return this._permissionManager;
-        }
-
-        public SubscriptionManager GetSubscriptionManager()
-        {
-            return this._subscriptionManager;
-        }
-
-        public QuestManager GetQuestManager()
-        {
-            return this._questManager;
-        }
-
-        public GroupManager GetGroupManager()
-        {
-            return _groupManager;
-        }
-
-        public LandingViewManager GetLandingManager()
-        {
-            return _landingViewManager;
-        }
-        public TelevisionManager GetTelevisionManager()
-        {
-            return _televisionManager;
-        }
-
-        internal GuideManager GetGuideManager()
-        {
-            return _guideManager;
-        }
-        internal PollManager GetPollManager()
-        {
-            return _pollManager;
-        }
-
-        public ChatManager GetChatManager()
-        {
-            return this._chatManager;
-        }
-
-        public GameDataManager GetGameDataManager()
-        {
-            return this._gameDataManager;
-        }
-
-        public HouseManager GetHouseManager()
-        {
-            return this._houseManager;
-        }
-
-        public ApartmentOwnedManager GetApartmentOwnedManager()
-        {
-            return this._apartmentownedManager;
-        }
-
-        public LanguageLocale GetLanguageLocale()
-        {
-            return this._languageLocale;
-        }
-/*
-        public AntiMutant GetAntiMutant()
-        {
-            return this._antiMutant;
-        }
-        */
         public static void DatabaseCleanup()
         {
-            using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-            {
-                dbClient.RunQuery("UPDATE users SET online = '0' WHERE online = '1'");
-                dbClient.RunQuery("UPDATE users SET auth_ticket = '' WHERE auth_ticket != ''");
-                dbClient.RunQuery("UPDATE rooms SET users_now = '0' WHERE users_now > '0'");
-                dbClient.RunQuery("UPDATE server_status SET users_online = '0', loaded_rooms = '0'");
-            }
+            using IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor();
+            dbClient.RunQuery("UPDATE users     SET online = '0'       WHERE online != '0'");
+            dbClient.RunQuery("UPDATE users     SET auth_ticket = ''   WHERE auth_ticket != ''");
+            dbClient.RunQuery("UPDATE rooms     SET users_now = '0'    WHERE users_now > '0'");
+            dbClient.RunQuery("UPDATE server_status SET users_online = '0', loaded_rooms = '0'");
         }
 
         public async Task DestroyAsync()
         {
             DatabaseCleanup();
-
             Console.WriteLine("Disposing RoomManager...");
             await _roomManager.DisposeAsync();
-
-            this.GetClientManager();
             Console.WriteLine("Apagando servidor...");
         }
-        public BotManager GetBotManager()
-        {
-            return this._botManager;
-        }
 
-        public TargetedOffersManager GetTargetedOffersManager()
-        {
-            return this._targetedoffersManager;
-        }
+        // ─── Accessors ──────────────────────────────────────────────────────────────
 
-        public CacheManager GetCacheManager()
-        {
-            return this._cacheManager;
-        }
+        public PacketManager          GetPacketManager()          => _packetManager;
+        public MusPacketManager       GetMusPacketManager()       => _muspacketManager;
+        public GameClientManager      GetClientManager()          => _clientManager;
+        public CatalogManager         GetCatalog()                => _catalogManager;
+        public NavigatorManager       GetNavigator()              => _navigatorManager;
+        public ItemDataManager        GetItemManager()            => _itemDataManager;
+        public RoomManager            GetRoomManager()            => _roomManager;
+        public AnimationManager       GetAnimationManager()       => _animationManager;
+        public AchievementManager     GetAchievementManager()     => _achievementManager;
+        public ChatManager            GetChatManager()            => _chatManager;
+        public GroupManager           GetGroupManager()           => _groupManager;
+        public QuestManager           GetQuestManager()           => _questManager;
+        public TalentManager          GetTalentManager()          => _talentManager;
+        public TalentTrackManager     GetTalentTrackManager()     => _talentTrackManager;
+        public LandingViewManager     GetLandingManager()         => _landingViewManager;
+        public TelevisionManager      GetTelevisionManager()      => _televisionManager;
+        public GameDataManager        GetGameDataManager()        => _gameDataManager;
+        public LanguageLocale         GetLanguageLocale()         => _languageLocale;
+        public BotManager             GetBotManager()             => _botManager;
+        public CacheManager           GetCacheManager()           => _cacheManager;
+        public RewardManager          GetRewardManager()          => _rewardManager;
+        public BadgeManager           GetBadgeManager()           => _badgeManager;
+        public PermissionManager      GetPermissionManager()      => _permissionManager;
+        public SubscriptionManager    GetSubscriptionManager()    => _subscriptionManager;
+        public HouseManager           GetHouseManager()           => _houseManager;
+        public ApartmentOwnedManager  GetApartmentOwnedManager()  => _apartmentownedManager;
+        public WebEventManager        GetWebEventManager()        => _webEventManager;
+        public PhoneChatManager       GetPhoneChatManager()       => _phonechatManager;
+        public PhonesOwnedManager     GetPhonesOwnedManager()     => _phonesownedManager;
+        public VehiclesOwnedManager   GetVehiclesOwnedManager()   => _vehiclesownedManager;
+        public TurfManager            GetGangTurfsManager()       => _gangturfsManager;
+        public HallOfFame             GetHallOfFame()             => _hallOfFame;
+        public RPRoomManager          GetRPRoomManager()          => _rproomManager;
+        public TargetedOffersManager  GetTargetedOffersManager()  => _targetedoffersManager;
+        public CrackableManager       GetPinataManager()          => _crackableManager;
+        public FurniMaticRewardsManager GetFurniMaticRewardsMnager() => _furniMaticRewardsManager;
+        public ModerationTool         GetModerationTool()         => _moderationTool;
+        public ModerationManager      GetModerationManager()      => _modManager;
 
-        public RewardManager GetRewardManager()
-        {
-            return this._rewardManager;
-        }
-
-        public BadgeManager GetBadgeManager()
-        {
-            return this._badgeManager;
-        }
-
-        public CrackableManager GetPinataManager()
-        {
-            return this._crackableManager;
-        }
-
-        public FurniMaticRewardsManager GetFurniMaticRewardsMnager()
-        {
-            return this._furniMaticRewardsManager;
-        }
+        internal GuideManager         GetGuideManager()           => _guideManager;
+        internal PollManager          GetPollManager()            => _pollManager;
     }
 }

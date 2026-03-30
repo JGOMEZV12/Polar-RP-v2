@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections;
@@ -11,7 +11,7 @@ using Polar.Communication.Packets.Incoming;
 
 namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
 {
-    class BotCommunicatesToAllBox: IWiredItem
+    class BotCommunicatesToAllBox : IWiredItem
     {
         public Room Instance { get; set; }
         public Item Item { get; set; }
@@ -53,7 +53,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                 return false;
 
             //TODO: This needs finishing.
-
 
             return true;
         }

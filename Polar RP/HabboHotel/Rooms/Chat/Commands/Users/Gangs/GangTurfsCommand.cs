@@ -2,12 +2,14 @@
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 using Polar.Communication.Packets.Outgoing.Notifications;
 using Polar.HabboHotel.Rooms;
 using Polar.HabboRoleplay.Misc;
 using Polar.HabboRoleplay.Turfs;
 using Polar.HabboHotel.Groups;
+using Polar.HabboHotel.GameClients;
 
 namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Gangs
 {
@@ -28,27 +30,55 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Gangs
             get { return "Proporciona una lista de todos los barrios de pandillas capturables."; }
         }
 
-        public async Task Execute(GameClients.GameClient Session, Rooms.Room Room, string[] Params)
+        public async Task Execute(GameClient Session, Room Room, string[] Params)
         {
             StringBuilder Message = new StringBuilder().Append("--- Barrios ---\n\n");
 
-            if (PolarEnvironment.GetGame().GetGangTurfsManager().getTurfs().Count == 0)
-                Message.Append("No hay barrios\n");
+            var turfsManager = PolarEnvironment.GetGame().GetGangTurfsManager();
 
-            lock (PolarEnvironment.GetGame().GetGangTurfsManager().getTurfs())
+            if (turfsManager == null || turfsManager.getTurfs() == null || turfsManager.getTurfs().Count == 0)
             {
-                foreach (var Turf in PolarEnvironment.GetGame().GetGangTurfsManager().getTurfs())
-                {
-                    if (Turf == null)
-                        continue;
+                Message.Append("No hay barrios disponibles.\n");
+                Session.SendMessage(new MOTDNotificationComposer(Message.ToString()));
+                return;
+            }
 
-                    if (RoleplayManager.GenerateRoom(Turf.RoomId, out Room TurfRoom, false))
+            List<Turf> turfs;
+            lock (turfsManager.getTurfs())
+            {
+                turfs = new List<Turf>(turfsManager.getTurfs());
+            }
+
+            foreach (var Turf in turfs)
+            {
+                if (Turf == null)
+                    continue;
+
+                if (RoleplayManager.GenerateRoom(Turf.RoomId, out Room TurfRoom, false) && TurfRoom != null)
+                {
+                    string gangName = "Ninguna pandilla";
+
+                    if (Turf.GangId > 0)
                     {
                         Group Gang = GroupManager.GetGang(Turf.GangId);
-                        Message.Append(TurfRoom.Name + " [RoomID: " + Turf.RoomId + "] --- Controlado por: " + Gang.Name + "\n");
-                        Message.Append("\n");
+                        if (Gang != null && !string.IsNullOrEmpty(Gang.Name))
+                        {
+                            gangName = Gang.Name;
+                        }
+                        else
+                        {
+                            gangName = "Pandilla desconocida";
+                        }
                     }
+
+                    Message.Append(TurfRoom.Name + " [RoomID: " + Turf.RoomId + "] --- Controlado por: " + gangName + "\n");
+                    Message.Append("\n");
                 }
+            }
+
+            if (turfs.Count == 0 || Message.ToString().EndsWith("--- Barrios ---\n\n"))
+            {
+                Message.Append("No hay barrios para mostrar.\n");
             }
 
             Session.SendMessage(new MOTDNotificationComposer(Message.ToString()));

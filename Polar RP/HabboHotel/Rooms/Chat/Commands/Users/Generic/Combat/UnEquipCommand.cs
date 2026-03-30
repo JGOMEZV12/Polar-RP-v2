@@ -1,16 +1,16 @@
-﻿using System;
-using System.Threading;
-using System.Linq;
-using System.Text;
-using System.Collections.Generic;
-
+﻿using Polar.Communication.Packets.Outgoing.Inventory.Weapons;
 using Polar.HabboHotel.Rooms;
 using Polar.HabboHotel.Rooms.Chat.Styles;
-using Polar.HabboRoleplay.RoleplayUsers;
-using Polar.HabboRoleplay.Misc;
 using Polar.HabboRoleplay.Combat;
+using Polar.HabboRoleplay.Misc;
+using Polar.HabboRoleplay.RoleplayUsers;
 using Polar.HabboRoleplay.Weapons;
 using Polar.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading;
 
 namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Combat
 {
@@ -35,6 +35,10 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Combat
         {
             #region Conditions
 
+            // ✅ FIX: GetRoomUser() puede ser null si el usuario se desconectó o salió de la sala
+            if (Session.GetRoomUser() == null)
+                return;
+
             if (Session.GetRoomUser().Frozen)
                 return;
 
@@ -44,8 +48,8 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Combat
                 return;
             }
 
-            if (Session.GetRoleplay().TryGetCooldown("unequip", true))
-                return;
+            //if (Session.GetRoleplay().TryGetCooldown("unequip", true))
+               // return;
 
             #endregion
 
@@ -75,9 +79,11 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Combat
                 if (Session.GetRoomUser().CarryItemID == Session.GetRoleplay().EquippedWeapon.HandItem)
                     Session.GetRoomUser().CarryItem(0);
 
-                Session.GetRoleplay().CooldownManager.CreateCooldown("unequip", 1000, 3);
+                //Session.GetRoleplay().CooldownManager.CreateCooldown("unequip", 1000, 3);
+                
                 Session.GetRoleplay().EquippedWeapon = null;
                 Session.GetRoleplay().Bullets = 0;
+                Session.SendMessage(new WeaponsComposer(Session));
                 Session.GetRoleplay().UpdateInteractingUserDialogues();
                 Session.GetRoleplay().RefreshStatDialogue();
                 return;

@@ -8,10 +8,10 @@ namespace Polar.Communication.Packets.Outgoing.BuildersClub
 {
     internal class BCBorrowedItemsComposer : ServerPacket
     {
-        public BCBorrowedItemsComposer()
+        public BCBorrowedItemsComposer(int mode)
             : base(ServerPacketHeader.BCBorrowedItemsMessageComposer)
         {
-            base.WriteInteger(0);
+            base.WriteInteger(mode);
         }
     }
 }

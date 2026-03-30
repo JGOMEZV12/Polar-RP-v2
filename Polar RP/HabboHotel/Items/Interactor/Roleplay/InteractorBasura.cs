@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Threading;
@@ -17,7 +17,6 @@ namespace Polar.HabboHotel.Items.Interactor
 {
     public class InteractorBasura : IFurniInteractor
     {
-        // Definir constantes para valores reutilizables
         private const int MaxTrashCount = 15;
         private const int TrashRequiredForAction = 10;
         private const int MinCraftingChance = 1;
@@ -26,22 +25,22 @@ namespace Polar.HabboHotel.Items.Interactor
         private const int MaxMoneyReward = 2500;
         private const int DefaultReward = 500;
 
-        public void OnPlace(GameClient session, Item item)
-        {
-        }
+        public void OnPlace(GameClient session, Item item) { }
 
-        public void OnRemove(GameClient session, Item item)
-        {
-        }
+        public void OnRemove(GameClient session, Item item) { }
 
         public void OnTrigger(GameClient session, Item item, int request, bool hasRights)
         {
-            if (session == null || session.GetRoomUser() == null)
+            if (session == null || session.GetHabbo() == null || session.GetRoomUser() == null)
                 return;
 
             var user = item.GetRoom().GetRoomUserManager().GetRoomUserByHabbo(session.GetHabbo().Id);
 
-            if (user == null || !Gamemap.TilesTouching(item.GetX, item.GetY, user.Coordinate.X, user.Coordinate.Y))
+            // FIX: Verificar user antes de acceder a user.CanWalk
+            if (user == null)
+                return;
+
+            if (!Gamemap.TilesTouching(item.GetX, item.GetY, user.Coordinate.X, user.Coordinate.Y))
             {
                 if (item.ExtraData == "0" || item.ExtraData == "1")
                 {
@@ -79,7 +78,6 @@ namespace Polar.HabboHotel.Items.Interactor
                 user.ClearMovement(true);
                 user.SetRot(Rotation.Calculate(user.Coordinate.X, user.Coordinate.Y, item.GetX, item.GetY), false);
 
-                // Cambiar el estado del objeto
                 item.ExtraData = "1";
                 item.UpdateState(false, true);
                 item.RequestUpdate(50 * minutes, true);
@@ -91,31 +89,26 @@ namespace Polar.HabboHotel.Items.Interactor
                 PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(session,
                     "compose_basurero|" +
                     "showinfo|" +
-                    session.GetHabbo().Username + "|" + // Chofer
-                    session.GetHabbo().Username + "|" + // Recolector
+                    session.GetHabbo().Username + "|" +
+                    session.GetHabbo().Username + "|" +
                     session.GetRoleplay().BasuTrashCount + "/15|" +
                     session.GetRoleplay().IsBasuChofer);
 
-                // Realizar la tarea en un hilo separado para evitar bloqueos
                 new Thread(() =>
                 {
                     user.CanWalk = false;
 
-                    // Aplica efecto solo si es necesario
                     if (user.CurrentEffect != 10 && session.GetRoleplay().EquippedWeapon == null)
                         user.ApplyEffect(10);
 
-                    Thread.Sleep(5000); // Espera de 5 segundos
+                    Thread.Sleep(5000);
 
-                    // Revertir efecto al finalizar
                     if (user.CurrentEffect == 10 && session.GetRoleplay().EquippedWeapon == null)
                         user.ApplyEffect(0);
 
-                    // Verificar que la sesión esté activa antes de otorgar recompensa
                     if (session != null && session.GetRoleplay() != null && session.GetHabbo() != null)
                         ChooseReward(session);
 
-                    // Permitir que el usuario camine nuevamente
                     user.CanWalk = true;
                 }).Start();
             }
@@ -125,9 +118,7 @@ namespace Polar.HabboHotel.Items.Interactor
             }
         }
 
-        public void OnWiredTrigger(Item item)
-        {
-        }
+        public void OnWiredTrigger(Item item) { }
 
         public void ChooseReward(GameClient session)
         {
@@ -136,7 +127,6 @@ namespace Polar.HabboHotel.Items.Interactor
             int chance = random.Next(MinCraftingChance, MaxCraftingChance);
             int secondChance = random.Next(MinCraftingChance, MaxCraftingChance);
 
-            // Ajuste en caso de que las probabilidades no se alineen con los objetos de crafting
             if (secondChance < 4 && chance > totalCraftingItems)
                 chance = random.Next(1, totalCraftingItems + 1);
 

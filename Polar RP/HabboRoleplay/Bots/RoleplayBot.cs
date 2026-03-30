@@ -1,33 +1,34 @@
-﻿using System;
+﻿using Polar.Communication.Packets.Outgoing.Messenger;
+using Polar.Communication.Packets.Outgoing.Rooms.Engine;
+using Polar.Core;
+using Polar.Database.Interfaces;
+using Polar.HabboHotel.GameClients;
+using Polar.HabboHotel.Groups;
+using Polar.HabboHotel.Items;
+using Polar.HabboHotel.Pathfinding;
+using Polar.HabboHotel.Rooms;
+using Polar.HabboHotel.Rooms.AI;
+using Polar.HabboHotel.Rooms.AI.Speech;
+using Polar.HabboHotel.Users;
+using Polar.HabboRoleplay.Bots;
+using Polar.HabboRoleplay.Bots.Manager;
+using Polar.HabboRoleplay.Bots.Manager.TimerHandlers;
+using Polar.HabboRoleplay.Bots.Manager.TimerHandlers.Types;
+using Polar.HabboRoleplay.Bots.Types;
+using Polar.HabboRoleplay.Cooldowns;
+using Polar.HabboRoleplay.Misc;
+using Polar.HabboRoleplay.Timers;
+using Polar.Utilities;
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Data;
+using System.Diagnostics;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Polar.HabboHotel.GameClients;
-using Polar.HabboHotel.Rooms;
-using Polar.HabboRoleplay.Bots.Types;
-using Polar.HabboRoleplay.Bots;
-using Polar.HabboHotel.Rooms.AI;
-using Polar.HabboHotel.Rooms.AI.Speech;
-using Polar.HabboHotel.Items;
-using System.Drawing;
-using Polar.Communication.Packets.Outgoing.Messenger;
-using Polar.Core;
-using Polar.HabboHotel.Pathfinding;
-using Polar.Utilities;
-using Polar.HabboHotel.Users;
-using Polar.HabboRoleplay.Bots.Manager;
-using Polar.HabboRoleplay.Cooldowns;
-using Polar.HabboRoleplay.Misc;
-using Polar.HabboHotel.Groups;
-using Polar.Database.Interfaces;
-using System.Collections.Concurrent;
-using Polar.HabboRoleplay.Timers;
-using Polar.Communication.Packets.Outgoing.Rooms.Engine;
-using System.Data;
-using Polar.HabboRoleplay.Bots.Manager.TimerHandlers;
 using static Polar.HabboRoleplay.Bots.Manager.TimerHandlers.TimerHandlerManager;
-using Polar.HabboRoleplay.Bots.Manager.TimerHandlers.Types;
 
 namespace Polar.HabboRoleplay.Bots
 {
@@ -192,8 +193,8 @@ namespace Polar.HabboRoleplay.Bots
             this.WorkUniform = WorkUniform;
 
             List<RandomSpeech> Null = new List<RandomSpeech>();
-            this.RoomBotInstance = new RoomBot(Id, SpawnId, "", "", Name, "", Figure, X, Y, Z, SpawnRot, 0, 0, 0, 0, ref Null, Gender, 0, 0, false, 0, false, 0);
-
+            this.RoomBotInstance = new RoomBot(Id, SpawnId, AITypeString, "stand", Name, Motto, Figure, X, Y, Z, SpawnRot, 0, 0, 0, 0, ref Null, Gender, 0, 0, false, 0, false, 0);
+            
             this.RoamBot = RoamBot;
             this.RoamCityBot = RoamCityBot;
             this.AddableBot = AddableBot;
@@ -225,7 +226,7 @@ namespace Polar.HabboRoleplay.Bots
 
             this.Boss = false;
 
-            this.HabboInstance = new Habbo(Id + RoleplayBotManager.BotFriendMultiplyer, Name, 1, Motto, Figure, Gender, 0, 0, SpawnId, true, 0, false, false, 0, 0, "", "", false, false, false, false, false, 0, 0, false, 0, 0, false, 0, false, false, 0, true, string.Empty, null, false, 0, 0, 0, Convert.ToString(0000), 0);
+            this.HabboInstance = new Habbo(Id + RoleplayBotManager.BotFriendMultiplyer, Name, 1, Motto, Figure, Gender, 0, 0, SpawnId, true, 0, false, false, 0, 0, "", "", false, false, false, false, false, 0, 0, false, 0, 0, false, 0, false, false, 0, true, string.Empty, null, false, 0, 0, 0, Convert.ToString(0000), 0, 0, 0, 0);
             this.Invisible = false;
 
             this.ActiveTimers = new ConcurrentDictionary<string, BotRoleplayTimer>();
@@ -242,9 +243,23 @@ namespace Polar.HabboRoleplay.Bots
             string[] PetParts = this.PetData.Replace(" ", "").Split('|');
 
             if (this.IsPet)
-                this.PetInstance = new Pet(this.Id, this.OwnerId, this.SpawnId, this.Name, Convert.ToInt32(PetParts[0]), PetParts[1], PetParts[2], 0, 0, 0, 0, 0, this.X, this.Y, this.Z, 0, 0, 0, 0, null);
+                this.PetInstance = new Pet(this.Id, this.OwnerId, this.SpawnId, this.Name, Convert.ToInt32(PetParts[0]), PetParts[1], PetParts[2], 0, 100, 100, 0, PolarEnvironment.GetUnixTimestamp(), this.X, this.Y, this.Z, 0, 0, 0, -1, "-1");
             else this.PetInstance = null;
         }
+
+        public static string GenerarStringAleatorio(int longitud)
+        {
+            Random random = new Random();
+            // Caracteres permitidos: letras mayúsculas, minúsculas y números
+            string caracteres = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+            // Genera el string aleatorio de forma eficiente
+            string resultado = new string(Enumerable.Repeat(caracteres, longitud)
+                .Select(s => s[random.Next(s.Length)]).ToArray());
+
+            return resultado;
+        }
+
 
         /// <summary>
         /// Follow cooldown
@@ -741,19 +756,21 @@ namespace Polar.HabboRoleplay.Bots
         public bool GetStopWorkItem(Room Room, out Item Item)
         {
             Item = null;
+
+            // ✅ FIX: Room, handler o GetFloor pueden ser null → ArgumentNullException en ToList()
+            if (Room == null || Room.GetRoomItemHandler() == null)
+                return false;
+
             var Items = Room.GetRoomItemHandler().GetFloor;
-            bool HasStopworkItem = Items.ToList().Where(x => x.GetBaseItem().ItemName == this.ItemWalkingTo).ToList().Count() > 0;
+            if (Items == null)
+                return false;
 
-            if (HasStopworkItem)
-            {
-                if (this.ItemWalkingTo != "none")
-                {
-                    Item = Items.FirstOrDefault(x => x.GetBaseItem().ItemName == this.ItemWalkingTo);
-                    return true;
-                }
-            }
+            // ✅ FIX: Verificar ItemWalkingTo antes de buscar. Una sola pasada con FirstOrDefault.
+            if (string.IsNullOrEmpty(this.ItemWalkingTo) || this.ItemWalkingTo == "none")
+                return false;
 
-            return false;
+            Item = Items.FirstOrDefault(x => x != null && x.GetBaseItem() != null && x.GetBaseItem().ItemName == this.ItemWalkingTo);
+            return Item != null;
         }
 
         /// <summary>

@@ -32,13 +32,13 @@ namespace Polar.HabboHotel.Rooms.Chat.Pets.Commands
             {
                 dbClient.SetQuery("SELECT * FROM `bots_pet_commands`");
                 Table = dbClient.getTable();
-
                 if (Table != null)
                 {
                     foreach (DataRow row in Table.Rows)
                     {
                         _commandRegister.Add(Convert.ToInt32(row[0]), row[1].ToString());
                         _commandDatabase.Add(row[1] + ".input", row[2].ToString());
+                        _commandDatabase.Add(row[1] + ".required_level", row[3].ToString()); // nivel de la DB
                     }
                 }
             }
@@ -48,14 +48,18 @@ namespace Polar.HabboHotel.Rooms.Chat.Pets.Commands
                 int commandID = pair.Key;
                 string commandStringedID = pair.Value;
                 string[] commandInput = this._commandDatabase[commandStringedID + ".input"].Split(',');
+                int commandLevel = Convert.ToInt32(this._commandDatabase[commandStringedID + ".required_level"]);
 
                 foreach (string command in commandInput)
                 {
-                    this._petCommands.Add(command, new PetCommand(commandID, command));
+                    this._petCommands.Add(command, new PetCommand(commandID, command, commandLevel));
                 }
             }
         }
-
+        public Dictionary<string, PetCommand> GetPetCommands()
+        {
+            return this._petCommands;
+        }
         public int TryInvoke(string Input)
         {
             PetCommand Command = null;

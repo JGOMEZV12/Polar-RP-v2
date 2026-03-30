@@ -35,23 +35,31 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Administrators
         public async Task Execute(GameClient Session, Rooms.Room Room, string[] Params)
         {
             #region Generate Instances / Sessions
-
-            if (Params[1] == "bot")
-            {
-                PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Session, "event_feedcomposer", "alert|" + Session.GetHabbo().Username + "|Bot|" + "Asesinó a");
-                PolarEnvironment.SendMs("**__¡LiveFeed!__ ** `|` **" + Session.GetHabbo().Username + "** **Habla claro**");
-                return;
-            }
             if (Params.Length == 1)
             {
                 Session.SendWhisper("Ejecuta bien el comando :text USUARIO MENSAJE");
                 return;
             }
 
-            GameClient TargetSession = PolarEnvironment.GetGame().GetClientManager().GetClientByUsername(Params[1]);
-            if (TargetSession == null)
+            if (Params[1] == "bot")
             {
-                Session.SendWhisper("Se ha producido un error al intentar encontrar a ese usuario, tal vez están sin conexión.", 1);
+                PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Session, "event_feedcomposer", "alert|" + Session.GetHabbo().Username + "|Bot|" + "Asesinó a");
+
+                return;
+            }
+
+            if (Params.Length < 3)
+            {
+                Session.SendWhisper("Debes especificar un mensaje. Ejemplo: :text usuario hola mundo");
+                return;
+            }
+
+            GameClient TargetSession = PolarEnvironment.GetGame().GetClientManager().GetClientByUsername(Params[1]);
+
+            // ✅ Bug 1 fix: validar TargetSession antes de todo
+            if (TargetSession == null || TargetSession.GetHabbo() == null)
+            {
+                Session.SendWhisper("Ese usuario no está conectado o no existe.", 34);
                 return;
             }
 
@@ -60,14 +68,14 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Administrators
             #endregion
 
             #region Conditions
-            
             if (Session.GetHabbo().Duckets < credit)
             {
                 Session.SendWhisper("¡No te queda ningún crédito telefónico!", 34);
                 return;
             }
 
-            if (TargetSession.GetHabbo().AllowConsoleMessages == false) {
+            if (TargetSession.GetHabbo().AllowConsoleMessages == false)
+            {
                 Session.SendWhisper("El destinario tiene su telefono apagado, intenta más tarde.", 34);
                 return;
             }
@@ -80,7 +88,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Administrators
 
             if (Session.GetRoleplay().TryGetCooldown("textcooldown", true))
             {
-                Session.SendWhisper("Debe esperar hasta que puedas enviar un mensaje nuevamente! ", 1);
+                Session.SendWhisper("Debe esperar hasta que puedas enviar un mensaje nuevamente!", 1);
                 return;
             }
             #endregion
@@ -90,26 +98,23 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Administrators
             RoomUser u2 = TargetSession.GetRoomUser();
 
             Session.GetRoleplay().EffectSeconds = 3;
-            u.ApplyEffect(65);
 
-           
-            //Session.GetRoleplay().CheckingMultiCooldown = true;
-            //TargetSession.GetRoleplay().LastTexter = Session;
+            // ✅ Bug 2 fix: verificar u antes de aplicar efecto
+            if (u != null)
+                u.ApplyEffect(65);
 
             Session.SendWhisper("*Envía un mensaje de texto a " + TargetSession.GetHabbo().Username + "*", 1);
             RoleplayManager.TakeMoneyCredits(Session, credit);
 
-            if (TargetSession.GetRoomUser().IsAsleep)
+            if (u2 != null && u2.IsAsleep)
                 Session.SendWhisper("Este usuario está AFK, ¡pero el mensaje aún se ha enviado!", 1);
 
             TargetSession.GetRoleplay().EffectSeconds = 3;
 
             if (u2 != null)
-            {
                 u2.ApplyEffect(65);
-            }
 
-           TargetSession.SendWhisper("*Recibe un nuevo mensaje de texto de " + Session.GetHabbo().Username + "*", 1);
+            TargetSession.SendWhisper("*Recibe un nuevo mensaje de texto de " + Session.GetHabbo().Username + "*", 1);
 
             StringBuilder view = new StringBuilder();
             view.Append("=====================================================\n¡Acabas de recibir un nuevo mensaje de texto!\n=====================================================\n");
@@ -122,18 +127,16 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Administrators
             TargetSession.SendMessage(new MOTDNotificationComposer(view.ToString()));
             TargetSession.GetRoleplay().LastMsgText = Session.GetHabbo().Username;
 
-            //TargetSession.SendWhisper(TargetSession.GetRoleplay().LastMsgText, 4);
+            // ✅ Bug 3 fix: CurrentRoom puede ser null, verificar antes de usar
+            if (Session.GetHabbo().CurrentRoom != null)
+            {
+                var roomUserByRank = Session.GetHabbo().CurrentRoom.GetRoomUserManager().GetRoomUserByRank(2);
+            }
 
-            var roomUserByRank = Session.GetHabbo().CurrentRoom.GetRoomUserManager().GetRoomUserByRank(2);
-
-
-
-            //Session.GetRoleplay().MultiCoolDown["textusee"] = 600;
             Session.GetRoleplay().CooldownManager.CreateCooldown("textcooldown", 1000, 3);
             TargetSession.GetRoleplay().CooldownManager.CreateCooldown("textcooldown", 1000, 3);
-            //Session.GetRoleplay().SpecialCooldowns.TryUpdate("text_cooldown", 3, Session.GetRoleplay().SpecialCooldowns["text_cooldown"]);
-
             #endregion
         }
+
     }
 }

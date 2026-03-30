@@ -166,8 +166,7 @@ namespace Polar.HabboRoleplay.Bots.Types
             if (!OnDuty)
                 return;
 
-            if (GetBotRoleplay().TimerManager.ActiveTimers.ContainsKey("trabajar"))
-                GetBotRoleplay().TimerManager.ActiveTimers["trabajar"].EndTimer();
+            EndTimerSafe("trabajar");
 
             GetRoomUser().Chat("Bien, he culmiado mi turno. ¡Nos vemos!", true);
             OnDuty = false;
@@ -190,8 +189,7 @@ namespace Polar.HabboRoleplay.Bots.Types
             if (OnDuty)
                 return;
 
-            if (GetBotRoleplay().TimerManager.ActiveTimers.ContainsKey("notrabajar"))
-                GetBotRoleplay().TimerManager.ActiveTimers["notrabajar"].EndTimer();
+            EndTimerSafe("notrabajar");
 
             GetBotRoleplay().Invisible = false;
             GetRoom().SendMessage(new UsersComposer(GetRoomUser()));

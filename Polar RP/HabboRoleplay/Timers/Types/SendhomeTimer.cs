@@ -67,7 +67,7 @@ namespace Polar.HabboRoleplay.Timers.Types
                 }
 
                 base.Client.GetRoleplay().SendHomeTimeLeft = 0;
-                RoleplayManager.Shout(base.Client, "*Completa su duración sendhome y puede finalmente volver a trabajar*", 4);
+                RoleplayManager.Shout(base.Client, "*Completa su duración de suspensión y puede volver finalmente volver a trabajar*", 4);
 
                 base.EndTimer();
                 return;

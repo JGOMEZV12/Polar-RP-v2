@@ -156,143 +156,98 @@ namespace Polar.HabboRoleplay.Timers
 
     public abstract class BotRoleplayTimer
     {
-        /// <summary>
-        /// The bot
-        /// </summary>
         public RoleplayBot CachedBot;
+        private Timer      _timer;
+        public  string     Type;
+        private int        _time;
+        private bool       _forever;
 
-        /// <summary>
-        /// The timer
-        /// </summary>
-        private Timer Timer;
+        // Flag atómico: evita que Finished() reprograme el timer después de EndTimer()
+        private volatile bool _stopped = false;
 
-        /// <summary>
-        /// The type of timer
-        /// </summary>
-        public string Type;
+        public CryptoRandom Random      = new CryptoRandom();
+        public int          TimeLeft    = 0;
+        public int          TimeCount   = 0;
+        public int          TimeCount2  = 0;
+        public int          OriginalTime = 0;
+        public object[]     Params;
 
-        /// <summary>
-        /// Time interval
-        /// </summary>
-        private int Time;
-
-        /// <summary>
-        /// Random number generator
-        /// </summary>
-        public CryptoRandom Random = new CryptoRandom();
-
-        /// <summary>
-        /// Represents if the timer should last forever
-        /// </summary>
-        private bool Forever;
-
-        /// <summary>
-        /// Represents the time left if specified
-        /// </summary>
-        public int TimeLeft = 0;
-
-        /// <summary>
-        /// Represents the amount of times the timer has looped
-        /// </summary>
-        public int TimeCount = 0;
-
-        /// <summary>
-        /// Represents the amount of times the timer has looped
-        /// </summary>
-        public int TimeCount2 = 0;
-
-        /// <summary>
-        /// Represents the original time
-        /// </summary>
-        public int OriginalTime = 0;
-
-        /// <summary>
-        /// Represents any special data
-        /// </summary>
-        public object[] Params;
-
-        /// <summary>
-        /// Constructor
-        /// </summary>
         public BotRoleplayTimer(string Type, RoleplayBot CachedBot, int Time, bool Forever, object[] Params)
         {
-            this.Type = Type;
-            this.Time = Time;
-            this.Forever = Forever;
+            this.Type      = Type;
+            this._time     = Time;
+            this._forever  = Forever;
             this.CachedBot = CachedBot;
-            this.Params = Params;
-            this.Timer = new Timer(Finished, null, Time, Time);
+            this.Params    = Params;
+            // dueTime = Time para el primer tick, period = Timeout.Infinite
+            // (el reprogramado lo hace Finished() manualmente, controlado por _stopped)
+            this._timer = new Timer(Finished, null, Time, Timeout.Infinite);
         }
 
-        /// <summary>
-        /// Called when the timer finishes/ticks
-        /// </summary>
         private void Finished(object State)
         {
+            // Si ya se detuvo, no hacer nada
+            if (_stopped) return;
+
             try
             {
                 Execute();
-
-                if (Forever && Timer != null)
-                {
-                    Timer.Change(Time, Time);
-                    return;
-                }
-
-                if (TimeLeft <= 0)
-                    EndTimer();
             }
             catch (Exception e)
             {
-                Logging.LogRPTimersError("Se ha producido un error al intentar finalizar un temporizador: " + e);
+                Logging.LogRPTimersError("Error en BotRoleplayTimer.Execute(): " + e);
+                EndTimer();
+                return;
+            }
+
+            // Reprogramar solo si sigue activo y es forever
+            if (!_stopped && _forever)
+            {
+                try { _timer?.Change(_time, Timeout.Infinite); }
+                catch { /* timer ya dispuesto */ }
+            }
+            else if (!_stopped && TimeLeft <= 0)
+            {
                 EndTimer();
             }
         }
 
-        /// <summary>
-        /// Ends our timer
-        /// </summary>
         public void EndTimer()
         {
+            // Marcar como detenido primero para que Finished() no reprograme
+            _stopped = true;
+
             try
             {
-                if (Timer == null)
-                    return;
+                if (_timer != null)
+                {
+                    _timer.Change(Timeout.Infinite, Timeout.Infinite);
+                    _timer.Dispose();
+                    _timer = null;
+                }
+            }
+            catch { }
 
-                Timer.Change(Timeout.Infinite, Timeout.Infinite);
-                Timer.Dispose();
-                Timer = null;
+            // Remover del diccionario — usar el bot directamente en lugar de DRoomUser
+            // para evitar el null check que antes impedía la remoción
+            try
+            {
+                var timerManager = CachedBot?.TimerManager
+                    ?? CachedBot?.DRoomUser?.GetBotRoleplay()?.TimerManager;
 
-                if (CachedBot == null)
-                    return;
-
-                if (CachedBot.DRoomUser == null)
-                    return;
-
-                if (CachedBot.DRoomUser.GetBotRoleplay().TimerManager == null)
-                    return;
-
-                if (CachedBot.DRoomUser.GetBotRoleplay().TimerManager.ActiveTimers == null)
-                    return;
-
-                if (Type == null)
-                    return;
-
-                BotRoleplayTimer Junk;
-                CachedBot.DRoomUser.GetBotRoleplay().TimerManager.ActiveTimers.TryRemove(Type, out Junk);
+                if (timerManager?.ActiveTimers != null && Type != null)
+                {
+                    timerManager.ActiveTimers.TryRemove(Type, out _);
+                }
             }
             catch (Exception e)
             {
-                Logging.LogRPTimersError("Error in EndTimer() void: " + e);
+                Logging.LogRPTimersError("Error en BotRoleplayTimer.EndTimer() al remover: " + e);
             }
         }
 
-        /// <summary>
-        /// Called when the timer finishes/ticks
-        /// </summary>
         public abstract void Execute();
     }
-
     public abstract class SystemRoleplayTimer
     {
         /// <summary>

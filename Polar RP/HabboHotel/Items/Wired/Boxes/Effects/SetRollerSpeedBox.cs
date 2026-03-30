@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections;
@@ -9,9 +9,10 @@ using Polar.Communication.Packets.Incoming;
 using Polar.HabboHotel.Rooms;
 using Polar.HabboHotel.Users;
 using Polar.Communication.Packets.Outgoing.Rooms.Chat;
+
 namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
 {
-    class SetRollerSpeedBox: IWiredItem
+    class SetRollerSpeedBox : IWiredItem
     {
         public Room Instance { get; set; }
         public Item Item { get; set; }
@@ -25,10 +26,8 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
         {
             this.Instance = instance;
             this.Item = item;
+            // FIX: Eliminado el Clear() inútil — el diccionario se acaba de crear, siempre estará vacío
             this.SetItems = new ConcurrentDictionary<int, Item>();
-
-            if (this.SetItems.Count > 0)
-                this.SetItems.Clear();
         }
 
         public void HandleSave(ClientPacket Packet)

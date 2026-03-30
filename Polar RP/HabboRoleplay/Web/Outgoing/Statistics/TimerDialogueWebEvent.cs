@@ -1,10 +1,5 @@
-﻿using System;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Fleck;
-
+using ConnectionManager;
+using Polar.Net;
 using Polar.HabboHotel.GameClients;
 using System.IO;
 using Polar.HabboRoleplay.Misc;
@@ -23,7 +18,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
                 return;
@@ -32,7 +27,15 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
             string Timer = Data.Split(',')[1].Split(':')[1];
             string Value = Data.Split(',')[2].Split(':')[1];
 
-            Socket.Send("compose_timer|" + Timer + ",action:" + Action + ",value:" + Value);
+            Socket.SendWS( "compose_timer|" + Timer + ",action:" + Action + ",value:" + Value);
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

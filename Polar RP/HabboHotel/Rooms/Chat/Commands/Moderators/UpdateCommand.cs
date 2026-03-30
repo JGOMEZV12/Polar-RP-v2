@@ -136,7 +136,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Moderators
                     }
 
                 case "pinatas":
-				case "pinata":
+                case "pinata":
                     if (!Session.GetHabbo().GetPermissions().HasCommand("command_update_catalog"))
                     {
                         Session.SendWhisper("Oops, usted no tiene permiso para actualizar los premios de las piñatas.");
@@ -242,7 +242,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Moderators
                 case "ecotron":
                 case "piñata":
                     PolarEnvironment.GetGame().GetPinataManager().Initialize(PolarEnvironment.GetDatabaseManager().GetQueryReactor());
-                    PolarEnvironment.GetGame().GetFurniMaticRewardsMnager().Initialize(PolarEnvironment.GetDatabaseManager().GetQueryReactor());
+                    //PolarEnvironment.GetGame().GetFurniMaticRewardsMnager().Initialize(PolarEnvironment.GetDatabaseManager().GetQueryReactor());
                     PolarEnvironment.GetGame().GetTargetedOffersManager().Initialize(PolarEnvironment.GetDatabaseManager().GetQueryReactor());
                     break;
 
@@ -428,7 +428,34 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Moderators
                         Session.SendWhisper("Anti mutant successfully reloaded.", 1);
                         break;
                     }
+                case "botroom":
+                case "botsroom":
+                    {
+                        if (!Session.GetHabbo().GetPermissions().HasCommand("command_update_bots"))
+                        {
+                            Session.SendWhisper("No tienes permiso para refrescar eso.", 1);
+                            break;
+                        }
 
+                        int redeployed = 0;
+
+                        foreach (RoomUser BotUser in Room.GetRoomUserManager().GetRoleplayBots())
+                        {
+                            if (BotUser == null || BotUser.GetBotRoleplay() == null) continue;
+
+                            int BotId = BotUser.GetBotRoleplay().Id;
+
+                            if (RoleplayBotManager.CachedRoleplayBots.ContainsKey(BotId))
+                            {
+                                RoleplayBotManager.EjectDeployedBot(BotUser, Room);
+                                RoleplayBotManager.DeployBotByID(BotId, "default");
+                                redeployed++;
+                            }
+                        }
+
+                        Session.SendWhisper("Se recargaron " + redeployed + " bot(s) RP en esta sala.", 1);
+                        break;
+                    }
                 case "bots":
                     {
                         if (!Session.GetHabbo().GetPermissions().HasCommand("command_update_bots"))

@@ -1,12 +1,11 @@
-﻿using System;
+using ConnectionManager;
+using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Polar.HabboHotel.Rooms;
-using Fleck;
 using Polar.Database.Interfaces;
-using Polar.Database.Adapter;
-using System.Collections.Generic;
+using Polar.Net;
 using System.Data;
 using Polar.HabboHotel.GameClients;
 using System.IO;
@@ -26,7 +25,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
                 return;
@@ -98,8 +97,16 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
             if (String.IsNullOrEmpty(Message2))
                 return;
 
-            Socket.Send("compose_mapa_new|" + Message2);
+            Socket.SendWS( "compose_mapa_new|" + Message2);
 
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

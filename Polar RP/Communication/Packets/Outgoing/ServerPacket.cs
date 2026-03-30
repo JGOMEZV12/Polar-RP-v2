@@ -1,9 +1,9 @@
-﻿using System;
+﻿using Polar.Communication.Interfaces;
+using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Text;
-using Polar.Communication.Interfaces;
+using System.Threading;
 
 namespace Polar.Communication.Packets.Outgoing
 {
@@ -12,74 +12,67 @@ namespace Polar.Communication.Packets.Outgoing
         private readonly Encoding _encoding;
         private byte[] _buffer;
         private int _position;
-        private bool _disposed;
+        private int _disposed; // ✅ FIX #1: int + Interlocked en lugar de bool, igual que ClientPacket
         private readonly int _initialCapacity;
 
         public int Id { get; private set; }
         public int Length => _position;
-        public int Capacity => _buffer.Length;
+        public int Capacity => _buffer?.Length ?? 0;
 
         private const int DefaultInitialCapacity = 64;
-        private const int MaxPacketSize = 10000000; // 10MB máximo
+        private const int MaxPacketSize = 10_000_000; // 10MB
 
-        public ServerPacket(int id) : this(id, DefaultInitialCapacity)
-        {
-        }
+        public ServerPacket(int id) : this(id, DefaultInitialCapacity) { }
 
         public ServerPacket(int id, int initialCapacity)
         {
             if (initialCapacity <= 0)
                 initialCapacity = DefaultInitialCapacity;
 
-            _encoding = Encoding.UTF8;
+            _encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: false);
             _initialCapacity = initialCapacity;
             _buffer = ArrayPool<byte>.Shared.Rent(initialCapacity);
             _position = 0;
+            _disposed = 0;
             Id = id;
 
-            // Escribir el ID al inicio (2 bytes, BIG-ENDIAN)
             WriteShort(id);
         }
 
-        #region Core Write Methods - Optimizadas
+        // ── Core Write Methods ─────────────────────────────────────────────────
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void EnsureCapacity(int additionalBytes)
         {
-            int requiredCapacity = _position + additionalBytes;
+            int required = _position + additionalBytes;
 
-            if (requiredCapacity > MaxPacketSize)
-                throw new InvalidOperationException($"Packet size exceeds maximum allowed ({MaxPacketSize} bytes)");
+            if (required > MaxPacketSize)
+                throw new InvalidOperationException(
+                    $"Packet size exceeds maximum allowed ({MaxPacketSize} bytes)");
 
-            if (requiredCapacity <= _buffer.Length)
+            if (required <= _buffer.Length)
                 return;
 
-            // Duplicar tamaño o alcanzar capacidad requerida
-            int newCapacity = Math.Max(_buffer.Length * 2, requiredCapacity);
+            int newCapacity = Math.Max(_buffer.Length * 2, required);
             byte[] newBuffer = ArrayPool<byte>.Shared.Rent(newCapacity);
-
             Buffer.BlockCopy(_buffer, 0, newBuffer, 0, _position);
             ArrayPool<byte>.Shared.Return(_buffer);
-
             _buffer = newBuffer;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteByte(byte value)
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
             EnsureCapacity(1);
             _buffer[_position++] = value;
         }
 
-        public void WriteByte(int value)
-        {
-            WriteByte((byte)value);
-        }
+        public void WriteByte(int value) => WriteByte((byte)value);
 
         public void WriteBytes(byte[] bytes, bool isBigEndian = false)
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
 
             if (bytes == null || bytes.Length == 0)
                 return;
@@ -88,15 +81,11 @@ namespace Polar.Communication.Packets.Outgoing
 
             if (isBigEndian)
             {
-                // Escribir en orden BIG-ENDIAN (byte más significativo primero)
                 for (int i = bytes.Length - 1; i >= 0; i--)
-                {
                     _buffer[_position++] = bytes[i];
-                }
             }
             else
             {
-                // Escribir en orden normal
                 Buffer.BlockCopy(bytes, 0, _buffer, _position, bytes.Length);
                 _position += bytes.Length;
             }
@@ -104,7 +93,7 @@ namespace Polar.Communication.Packets.Outgoing
 
         public void WriteBytes(ReadOnlySpan<byte> bytes, bool isBigEndian = false)
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
 
             if (bytes.Length == 0)
                 return;
@@ -114,9 +103,7 @@ namespace Polar.Communication.Packets.Outgoing
             if (isBigEndian)
             {
                 for (int i = bytes.Length - 1; i >= 0; i--)
-                {
                     _buffer[_position++] = bytes[i];
-                }
             }
             else
             {
@@ -125,13 +112,11 @@ namespace Polar.Communication.Packets.Outgoing
             }
         }
 
-        #endregion
-
-        #region Data Type Methods
+        // ── Data Type Methods ──────────────────────────────────────────────────
 
         public void WriteString(string value)
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
 
             if (string.IsNullOrEmpty(value))
             {
@@ -146,90 +131,65 @@ namespace Polar.Communication.Packets.Outgoing
                 return;
 
             EnsureCapacity(byteCount);
-
-            // Codificar directamente al buffer
-            int encodedBytes = _encoding.GetBytes(value, 0, value.Length, _buffer, _position);
-            _position += encodedBytes;
+            _position += _encoding.GetBytes(value, 0, value.Length, _buffer, _position);
         }
 
         public void WriteString(string value, int fixedLength)
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
 
             if (fixedLength <= 0)
                 return;
 
+            EnsureCapacity(fixedLength);
+
             if (string.IsNullOrEmpty(value))
             {
-                WriteBytes(new byte[fixedLength], false);
+                Array.Clear(_buffer, _position, fixedLength);
+                _position += fixedLength;
                 return;
             }
 
-            byte[] bytes = _encoding.GetBytes(value);
-            int bytesToWrite = Math.Min(bytes.Length, fixedLength);
+            // ✅ FIX #2: Codificar directo al buffer sin allocar byte[] intermedio
+            int encoded = _encoding.GetBytes(value, 0, value.Length, _buffer, _position);
+            int bytesToWrite = Math.Min(encoded, fixedLength);
 
-            EnsureCapacity(fixedLength);
-
-            // Escribir bytes del string
-            if (bytesToWrite > 0)
-            {
-                Buffer.BlockCopy(bytes, 0, _buffer, _position, bytesToWrite);
-            }
-
-            // Rellenar con ceros si es necesario
+            // Si encodó más de fixedLength, truncar (ya está escrito en el buffer)
             int padding = fixedLength - bytesToWrite;
             if (padding > 0)
-            {
                 Array.Clear(_buffer, _position + bytesToWrite, padding);
-            }
 
             _position += fixedLength;
         }
 
-        public void WriteShort(int value)
-        {
-            ValidateNotDisposed();
-            WriteShort((short)value);
-        }
+        public void WriteShort(int value) => WriteShort((short)value);
 
         public void WriteShort(short value)
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
             EnsureCapacity(2);
-
-            // BIG-ENDIAN: byte más significativo primero
             _buffer[_position++] = (byte)(value >> 8);
             _buffer[_position++] = (byte)value;
         }
 
-        public void WriteUShort(ushort value)
-        {
-            WriteShort((short)value);
-        }
+        public void WriteUShort(ushort value) => WriteShort((short)value);
 
         public void WriteInteger(int value)
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
             EnsureCapacity(4);
-
-            // BIG-ENDIAN: byte más significativo primero
             _buffer[_position++] = (byte)(value >> 24);
             _buffer[_position++] = (byte)(value >> 16);
             _buffer[_position++] = (byte)(value >> 8);
             _buffer[_position++] = (byte)value;
         }
 
-        public void WriteUInteger(uint value)
-        {
-            WriteInteger((int)value);
-        }
+        public void WriteUInteger(uint value) => WriteInteger((int)value);
 
         public void WriteLong(long value)
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
             EnsureCapacity(8);
-
-            // BIG-ENDIAN: byte más significativo primero
             _buffer[_position++] = (byte)(value >> 56);
             _buffer[_position++] = (byte)(value >> 48);
             _buffer[_position++] = (byte)(value >> 40);
@@ -240,90 +200,58 @@ namespace Polar.Communication.Packets.Outgoing
             _buffer[_position++] = (byte)value;
         }
 
-        public void WriteULong(ulong value)
-        {
-            WriteLong((long)value);
-        }
+        public void WriteULong(ulong value) => WriteLong((long)value);
 
-        public void WriteBoolean(bool value)
-        {
-            WriteByte(value ? (byte)1 : (byte)0);
-        }
+        public void WriteBoolean(bool value) => WriteByte(value ? (byte)1 : (byte)0);
 
         public void WriteDouble(double value, string format = "0.0")
         {
-            ValidateNotDisposed();
-
-            string formatted = value.ToString(format, System.Globalization.CultureInfo.InvariantCulture);
-            WriteString(formatted);
+            ThrowIfDisposed();
+            WriteString(value.ToString(format, System.Globalization.CultureInfo.InvariantCulture));
         }
 
-        public void WriteFloat(float value, string format = "0.0")
-        {
-            WriteDouble(value, format);
-        }
+        public void WriteFloat(float value, string format = "0.0") => WriteDouble(value, format);
 
-        #endregion
-
-        #region Array and Collection Methods
+        // ── Array / Collection Methods ─────────────────────────────────────────
 
         public void WriteIntArray(int[] array)
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
 
-            if (array == null)
-            {
-                WriteInteger(0);
-                return;
-            }
+            if (array == null) { WriteInteger(0); return; }
 
             WriteInteger(array.Length);
-            foreach (int value in array)
-            {
-                WriteInteger(value);
-            }
+            foreach (int v in array)
+                WriteInteger(v);
         }
 
         public void WriteStringArray(string[] array)
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
 
-            if (array == null)
-            {
-                WriteInteger(0);
-                return;
-            }
+            if (array == null) { WriteInteger(0); return; }
 
             WriteInteger(array.Length);
-            foreach (string value in array)
-            {
-                WriteString(value);
-            }
+            foreach (string v in array)
+                WriteString(v);
         }
 
         public void WriteByteArray(byte[] array)
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
 
-            if (array == null)
-            {
-                WriteInteger(0);
-                return;
-            }
+            if (array == null) { WriteInteger(0); return; }
 
             WriteInteger(array.Length);
             WriteBytes(array, false);
         }
 
-        #endregion
-
-        #region Packet Assembly
+        // ── Packet Assembly ────────────────────────────────────────────────────
 
         public byte[] GetBytes()
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
 
-            // Calcular tamaño total: 4 bytes (longitud) + cuerpo
             int totalLength = 4 + _position;
 
             if (totalLength > MaxPacketSize)
@@ -331,27 +259,22 @@ namespace Polar.Communication.Packets.Outgoing
 
             byte[] finalPacket = new byte[totalLength];
 
-            // 1. Escribir longitud (4 bytes, BIG-ENDIAN)
-            int bodyLength = _position;
-            finalPacket[0] = (byte)(bodyLength >> 24);
-            finalPacket[1] = (byte)(bodyLength >> 16);
-            finalPacket[2] = (byte)(bodyLength >> 8);
-            finalPacket[3] = (byte)bodyLength;
+            // 4 bytes longitud (BIG-ENDIAN)
+            finalPacket[0] = (byte)(_position >> 24);
+            finalPacket[1] = (byte)(_position >> 16);
+            finalPacket[2] = (byte)(_position >> 8);
+            finalPacket[3] = (byte)_position;
 
-            // 2. Copiar cuerpo del paquete
             if (_position > 0)
-            {
                 Buffer.BlockCopy(_buffer, 0, finalPacket, 4, _position);
-            }
 
             return finalPacket;
         }
 
         public byte[] GetBytesWithoutLength()
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
 
-            // Versión para WebSocket que no necesita longitud
             byte[] packet = new byte[_position];
             Buffer.BlockCopy(_buffer, 0, packet, 0, _position);
             return packet;
@@ -359,39 +282,31 @@ namespace Polar.Communication.Packets.Outgoing
 
         public ReadOnlySpan<byte> GetBody()
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
             return new ReadOnlySpan<byte>(_buffer, 0, _position);
         }
 
-        #endregion
-
-        #region Utility Methods
+        // ── Utility Methods ────────────────────────────────────────────────────
 
         public void Clear()
         {
-            ValidateNotDisposed();
-
+            ThrowIfDisposed();
             _position = 0;
             Id = 0;
-
-            // Reescribir el ID
             WriteShort(Id);
         }
 
         public void Reset(int newId)
         {
-            ValidateNotDisposed();
-
+            ThrowIfDisposed();
             _position = 0;
             Id = newId;
-
-            // Reescribir el nuevo ID
             WriteShort(newId);
         }
 
         public void TrimExcess()
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
 
             if (_buffer.Length > _position * 2 && _buffer.Length > _initialCapacity)
             {
@@ -404,39 +319,27 @@ namespace Polar.Communication.Packets.Outgoing
 
         public string ToDebugString()
         {
-            if (_disposed)
-                return $"[DISPOSED]";
+            if (_disposed == 1) return "[DISPOSED]";
 
-            string hex = BitConverter.ToString(_buffer, 0, Math.Min(_position, 32));
-            if (_position > 32)
-                hex += "...";
-
-            return $"[{Id}] Length: {_position} bytes | Hex: {hex}";
+            int preview = Math.Min(_position, 32);
+            string hex = BitConverter.ToString(_buffer, 0, preview);
+            return $"[{Id}] Length: {_position} bytes | Hex: {hex}{(_position > 32 ? "..." : "")}";
         }
 
         public string GetBodyAsString()
         {
-            ValidateNotDisposed();
-
-            if (_position == 0)
-                return string.Empty;
-
-            return _encoding.GetString(_buffer, 0, _position);
+            ThrowIfDisposed();
+            return _position == 0 ? string.Empty : _encoding.GetString(_buffer, 0, _position);
         }
 
-        #endregion
+        // ── IDisposable ────────────────────────────────────────────────────────
 
-        #region IDisposable Implementation
-
-        private void ValidateNotDisposed()
-        {
-            if (_disposed)
-                throw new ObjectDisposedException(nameof(ServerPacket));
-        }
-
+        // ✅ FIX #3: Finalizer llamando Dispose puede corromper el ArrayPool si el
+        //           GC lo llama en un thread distinto mientras otro usa el buffer.
+        //           Con Interlocked.Exchange garantizamos ejecución única y segura.
         public void Dispose()
         {
-            if (_disposed)
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
                 return;
 
             if (_buffer != null)
@@ -447,19 +350,12 @@ namespace Polar.Communication.Packets.Outgoing
 
             _position = 0;
             Id = 0;
-            _disposed = true;
-
             GC.SuppressFinalize(this);
         }
 
-        ~ServerPacket()
-        {
-            Dispose();
-        }
+        ~ServerPacket() => Dispose();
 
-        #endregion
-
-        #region Static Helper Methods
+        // ── Static Helpers ─────────────────────────────────────────────────────
 
         public static byte[] CreateQuickPacket(int id, Action<ServerPacket> writer)
         {
@@ -475,41 +371,26 @@ namespace Polar.Communication.Packets.Outgoing
             return packet.GetBytes();
         }
 
-        public static byte[] EncodeShort(short value)
-        {
-            return new byte[]
-            {
-                (byte)(value >> 8),
-                (byte)value
-            };
-        }
+        public static byte[] EncodeShort(short value) =>
+            new byte[] { (byte)(value >> 8), (byte)value };
 
-        public static byte[] EncodeInt(int value)
-        {
-            return new byte[]
-            {
-                (byte)(value >> 24),
-                (byte)(value >> 16),
-                (byte)(value >> 8),
-                (byte)value
-            };
-        }
+        public static byte[] EncodeInt(int value) =>
+            new byte[] { (byte)(value >> 24), (byte)(value >> 16), (byte)(value >> 8), (byte)value };
 
-        public static byte[] EncodeLong(long value)
-        {
-            return new byte[]
+        public static byte[] EncodeLong(long value) =>
+            new byte[]
             {
-                (byte)(value >> 56),
-                (byte)(value >> 48),
-                (byte)(value >> 40),
-                (byte)(value >> 32),
-                (byte)(value >> 24),
-                (byte)(value >> 16),
-                (byte)(value >> 8),
-                (byte)value
+                (byte)(value >> 56), (byte)(value >> 48), (byte)(value >> 40), (byte)(value >> 32),
+                (byte)(value >> 24), (byte)(value >> 16), (byte)(value >> 8),  (byte)value
             };
-        }
 
-        #endregion
+        // ── Private Helpers ────────────────────────────────────────────────────
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void ThrowIfDisposed()
+        {
+            if (Volatile.Read(ref _disposed) == 1)
+                throw new ObjectDisposedException(nameof(ServerPacket));
+        }
     }
 }

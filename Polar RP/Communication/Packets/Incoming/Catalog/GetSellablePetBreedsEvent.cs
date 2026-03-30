@@ -12,13 +12,9 @@ namespace Polar.Communication.Packets.Incoming.Catalog
         {
             string Type = Packet.PopString();
             string PacketType = "";
-            ItemData item = PolarEnvironment.GetGame().GetItemManager().GetItemByName(Type);
-            if (item == null)
-                return;
-
-            int petId = item.BehaviourData;
-
-            Session.SendMessage(new SellablePetBreedsComposer(PacketType, petId, PolarEnvironment.GetGame().GetCatalog().GetPetRaceManager().GetRacesForRaceId(petId)));
+            //Console.WriteLine($"GetSellablePetBreeds Type recibido: '{Type}'");
+            int PetId = PolarEnvironment.GetGame().GetCatalog().GetPetRaceManager().GetPetId(Type, out PacketType);
+            Session.SendMessage(new SellablePetBreedsComposer(PacketType, PetId, PolarEnvironment.GetGame().GetCatalog().GetPetRaceManager().GetRacesForRaceId(PetId)));
         }
     }
 }

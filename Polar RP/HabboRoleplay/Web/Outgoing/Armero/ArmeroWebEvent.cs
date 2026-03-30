@@ -1,9 +1,9 @@
+using ConnectionManager;
 ﻿using System;
 using System.Linq;
-using System.Text;
+using Polar.Net;
 using System.Threading.Tasks;
 using Polar.HabboHotel.Users;
-using Fleck;
 using Polar.HabboHotel.Items;
 using Polar.HabboHotel.GameClients;
 using System.IO;
@@ -29,7 +29,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -46,7 +46,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         if (Client.GetRoleplay().TryGetCooldown("viewarmero"))
                             return;
 
-                        Socket.Send("compose_armero|open_pieces|" + Client.GetRoleplay().ArmPieces + "|" + Client.GetRoleplay().ArmMat + "|" + Client.GetRoleplay().ArmMat / 10);
+                        Socket.SendWS( "compose_armero|open_pieces|" + Client.GetRoleplay().ArmPieces + "|" + Client.GetRoleplay().ArmMat + "|" + Client.GetRoleplay().ArmMat / 10);
                         Client.GetRoleplay().ViewArmeroPieces = true;
                         Client.GetRoleplay().CooldownManager.CreateCooldown("viewarmero", 1000, 3);
                     }
@@ -59,7 +59,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         if (Client.GetRoleplay().TryGetCooldown("viewarmero"))
                             return;
 
-                        Socket.Send("compose_armero|open_weapons|" + Client.GetRoleplay().ArmPieces);
+                        Socket.SendWS( "compose_armero|open_weapons|" + Client.GetRoleplay().ArmPieces);
                         Client.GetRoleplay().ViewArmeroWeapons = true;
                         Client.GetRoleplay().CooldownManager.CreateCooldown("viewarmero", 1000, 3);
                     }
@@ -70,7 +70,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 case "close_pieces":
                     {
                         Client.GetRoleplay().ViewArmeroPieces = false;
-                        Socket.Send("compose_armero|close_pieces|");
+                        Socket.SendWS( "compose_armero|close_pieces|");
                         break;
                     }
                 #endregion
@@ -79,7 +79,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 case "close_weapons":
                     {
                         Client.GetRoleplay().ViewArmeroWeapons = false;
-                        Socket.Send("compose_armero|close_weapons|");
+                        Socket.SendWS( "compose_armero|close_weapons|");
                         break;
                     }
                 #endregion
@@ -91,7 +91,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             return;
                         if (Client.GetRoleplay().PassiveMode)
                         {
-                            Socket.Send("compose_armero|armmsg|No puedes hacer eso mientras estás en modo pasivo.");
+                            Socket.SendWS( "compose_armero|armmsg|No puedes hacer eso mientras estás en modo pasivo.");
                             return;
                         }
                         if (Client.GetRoomUser() == null || Client.GetRoomUser().GetRoom() == null)
@@ -109,7 +109,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (Groups.Count <= 0)
                         {
-                            Socket.Send("compose_armero|armmsg|No tienes ningún trabajo para hacer eso.");
+                            Socket.SendWS( "compose_armero|armmsg|No tienes ningún trabajo para hacer eso.");
                             return;
                         }
 
@@ -121,14 +121,14 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             {
                                 if (Groups[1].GType != 2)
                                 {
-                                    Socket.Send("compose_armero|armmsg|((No perteneces a ningún trabajo usar ese comando))");
+                                    Socket.SendWS( "compose_armero|armmsg|((No perteneces a ningún trabajo usar ese comando))");
                                     return;
                                 }
                                 GroupNumber = 1; // Segundo indicie de variable
                             }
                             else
                             {
-                                Socket.Send("compose_armero|armmsg|((No perteneces a ningún trabajo para usar ese comando))");
+                                Socket.SendWS( "compose_armero|armmsg|((No perteneces a ningún trabajo para usar ese comando))");
                                 return;
                             }
                         }
@@ -151,47 +151,47 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             //Room.Group.DeleteMember(Client.GetHabbo().Id);// OJO ACÁ
 
-                            Socket.Send("compose_armero|armmsg|Lo sentimos, ese trabajo no existe. Te hemos removido ese trabajo.");
+                            Socket.SendWS( "compose_armero|armmsg|Lo sentimos, ese trabajo no existe. Te hemos removido ese trabajo.");
                             return;
                         }
 
                         if (!GroupManager.HasJobCommand(Client, "armero"))
                         {
-                            Socket.Send("compose_armero|armmsg|Debes tener el trabajo de Armero para usar ese comando.");
+                            Socket.SendWS( "compose_armero|armmsg|Debes tener el trabajo de Armero para usar ese comando.");
                             return;
                         }
                         RPRoom mData;
                         int ArmID = PolarEnvironment.GetGame().GetRPRoomManager().TryToGetArmeros(MyCity, out mData);//armeros de la cd.
                         if (Client.GetHabbo().CurrentRoomId != ArmID)
                         {
-                            Socket.Send("compose_armero|armmsg|Debes ir a la Fábrica de Armas para hacer eso.");
+                            Socket.SendWS( "compose_armero|armmsg|Debes ir a la Fábrica de Armas para hacer eso.");
                             return;
                         }
 
             
                         #endregion
 
-                        #region Comodin Conditions
+                        /*#region Comodin Conditions
                         Item BTile = null;
                         BTile = Room.GetRoomItemHandler().GetFloor.FirstOrDefault(x => x.GetBaseItem().ItemName.ToLower() == "comodin_carro" && x.Coordinate == Client.GetRoomUser().Coordinate);
                         if (BTile == null)
                         {
-                            Socket.Send("compose_armero|armmsg|Debes acercarte al punto de creación de Piezas de la Fábrica.");
+                            Socket.SendWS( "compose_armero|armmsg|Debes acercarte al punto de creación de Piezas de la Fábrica.");
                             return;
                         }
-                        #endregion
+                        #endregion*/
 
                         #region Execute
                         if (Client.GetRoleplay().ArmMat <= 0)
                         {
-                            Socket.Send("compose_armero|armmsg|No tienes materiales para crear piezas.");
+                            Socket.SendWS( "compose_armero|armmsg|No tienes materiales para crear piezas.");
                             return;
                         }
 
                         int Pieces = Client.GetRoleplay().ArmMat / 1;
 
                         RoleplayManager.Shout(Client, "*Usa " + Client.GetRoleplay().ArmMat + " materiales para crear " + Pieces + " piezas*", 5);
-                        Socket.Send("compose_armero|armmsg|<b style='color:green;'>¡Bien hecho! Ahora dirígte al punto de fabricación de armas.</b>");
+                        Socket.SendWS( "compose_armero|armmsg|<b style='color:green;'>¡Bien hecho! Ahora dirígte al punto de fabricación de armas.</b>");
                         Client.GetRoleplay().ArmPieces += Pieces;
                         Client.GetRoleplay().ArmMat = 0;
                         RoleplayManager.JobSkills(Client, Client.GetRoleplay().JobId, Client.GetRoleplay().ArmLvl, Client.GetRoleplay().ArmXP);
@@ -210,7 +210,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             return;
                         if (Client.GetRoleplay().PassiveMode)
                         {
-                            Socket.Send("compose_armero|armmsg|No puedes hacer eso mientras estás en modo pasivo.");
+                            Socket.SendWS( "compose_armero|armmsg|No puedes hacer eso mientras estás en modo pasivo.");
                             return;
                         }
                         if (Client.GetRoomUser() == null || Client.GetRoomUser().GetRoom() == null)
@@ -228,7 +228,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (Groups.Count <= 0)
                         {
-                            Socket.Send("compose_armero|armmsg|No tienes ningún trabajo para hacer eso.");
+                            Socket.SendWS( "compose_armero|armmsg|No tienes ningún trabajo para hacer eso.");
                             return;
                         }
 
@@ -240,14 +240,14 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             {
                                 if (Groups[1].GType != 2)
                                 {
-                                    Socket.Send("compose_armero|armmsg|((No perteneces a ningún trabajo usar ese comando))");
+                                    Socket.SendWS( "compose_armero|armmsg|((No perteneces a ningún trabajo usar ese comando))");
                                     return;
                                 }
                                 GroupNumber = 1; // Segundo indicie de variable
                             }
                             else
                             {
-                                Socket.Send("compose_armero|armmsg|((No perteneces a ningún trabajo para usar ese comando))");
+                                Socket.SendWS( "compose_armero|armmsg|((No perteneces a ningún trabajo para usar ese comando))");
                                 return;
                             }
                         }
@@ -270,20 +270,20 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             //Room.Group.DeleteMember(Client.GetHabbo().Id);// OJO ACÁ
 
-                            Socket.Send("compose_armero|armmsg|Lo sentimos, ese trabajo no existe. Te hemos removido ese trabajo.");
+                            Socket.SendWS( "compose_armero|armmsg|Lo sentimos, ese trabajo no existe. Te hemos removido ese trabajo.");
                             return;
                         }
 
                         if (!GroupManager.HasJobCommand(Client, "armero"))
                         {
-                            Socket.Send("compose_armero|armmsg|Debes tener el trabajo de Armero para usar ese comando.");
+                            Socket.SendWS( "compose_armero|armmsg|Debes tener el trabajo de Armero para usar ese comando.");
                             return;
                         }
                         RPRoom mData;
                         int ArmID = PolarEnvironment.GetGame().GetRPRoomManager().TryToGetArmeros(MyCity, out mData);//armeros de la cd.
                         if (Client.GetHabbo().CurrentRoomId != ArmID)
                         {
-                            Socket.Send("compose_armero|armmsg|Debes ir a la Fábrica de Armas para hacer eso.");
+                            Socket.SendWS( "compose_armero|armmsg|Debes ir a la Fábrica de Armas para hacer eso.");
                             return;
                         }
 
@@ -295,7 +295,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         BTile = Room.GetRoomItemHandler().GetFloor.FirstOrDefault(x => x.GetBaseItem().ItemName.ToLower() == "comodin_carr2" && x.Coordinate == Client.GetRoomUser().Coordinate);
                         if (BTile == null)
                         {
-                            Socket.Send("compose_armero|armmsg|Debes acercarte al punto de creación de Piezas de la Fábrica.");
+                            Socket.SendWS( "compose_armero|armmsg|Debes acercarte al punto de creación de Piezas de la Fábrica.");
                             return;
                         }
                         #endregion
@@ -318,22 +318,22 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         #region Weapon Conditions
                         if (weapon == null)
                         {
-                            Socket.Send("compose_armero|armmsg|'" + Type + "' no es un arma válida.");
+                            Socket.SendWS( "compose_armero|armmsg|'" + Type + "' no es un arma válida.");
                             return;
                         }
                         if (Client.GetRoleplay().OwnedWeapons.ContainsKey(weapon.Name))
                         {
-                            Socket.Send("compose_armero|armmsg|Ya tienes una " + weapon.PublicName + " en tu inventario. ¡No es posible tener dos armas del mismo tipo en tu Inventario!");
+                            Socket.SendWS( "compose_armero|armmsg|Ya tienes una " + weapon.PublicName + " en tu inventario. ¡No es posible tener dos armas del mismo tipo en tu Inventario!");
                             return;
                         }
                         if (Client.GetRoleplay().ArmPieces < weapon.CostFine)
                         {
-                            Socket.Send("compose_armero|armmsg|Necesitas al menos " + weapon.CostFine + " piezas para crear una " + weapon.PublicName + ".");
+                            Socket.SendWS( "compose_armero|armmsg|Necesitas al menos " + weapon.CostFine + " piezas para crear una " + weapon.PublicName + ".");
                             return;
                         }
                         if (Client.GetRoleplay().ArmLvl < weapon.LevelRequirement)
                         {
-                            Socket.Send("compose_armero|armmsg|Necesitas al menos nivel " + weapon.LevelRequirement + "de Armero para crear una " + weapon.PublicName + ".");
+                            Socket.SendWS( "compose_armero|armmsg|Necesitas al menos nivel " + weapon.LevelRequirement + "de Armero para crear una " + weapon.PublicName + ".");
                             return;
                         }
                         #endregion
@@ -347,7 +347,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         RoleplayManager.JobSkills(Client, Client.GetRoleplay().JobId, Client.GetRoleplay().ArmLvl, Client.GetRoleplay().ArmXP);
                         Client.GetRoleplay().CooldownManager.CreateCooldown("crear", 1000, 3);
 
-                        Socket.Send("compose_armero|armmsg|<b style='color:green;'>¡Has fabricado una "+ weapon.PublicName +" nueva!.</b>");
+                        Socket.SendWS( "compose_armero|armmsg|<b style='color:green;'>¡Has fabricado una "+ weapon.PublicName +" nueva!.</b>");
 
                         PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_armero", "open_weapons");
 
@@ -392,5 +392,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                     #endregion
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

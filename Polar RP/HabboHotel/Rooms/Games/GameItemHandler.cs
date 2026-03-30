@@ -61,7 +61,7 @@ namespace Polar.HabboHotel.Rooms
                         {
                             item.ExtraData = "0";
                             item.UpdateState();
-                            room.GetGameMap().AddItemToMap(item);
+                            room.GetGameMap().AddItemToMap(item, false);
                         }
                     }
                 }

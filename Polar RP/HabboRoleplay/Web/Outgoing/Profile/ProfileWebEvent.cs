@@ -1,10 +1,5 @@
-﻿using System;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Fleck;
-using Polar.HabboHotel.Items;
+using ConnectionManager;
+using Polar.Net;
 using Polar.HabboHotel.GameClients;
 using Polar.Database.Interfaces;
 using System.Data;
@@ -23,7 +18,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -43,16 +38,8 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
             GameClient Session = PolarEnvironment.GetGame().GetClientManager().GetClientByUserID(Convert.ToInt32(ReceivedData));
 
-            if (Session != null && Session.GetHabbo() != null)
+            if (Session == null || Session.GetHabbo() == null)
             {
-                CachedTargetString = GetUserComponent.ReturnWebUserStatistics(Session);
-                string SendData = "";
-                SendData += CachedTargetString;
-                Socket.Send("compose_userprofile|" + SendData);
-            }
-            else
-            {
-
                 using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                 {
                     dbClient.SetQuery("SELECT * FROM `users` WHERE `id` = @id LIMIT 1");
@@ -68,14 +55,30 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         CachedTargetString = GetUserComponent.ReturnWebUserStatistics(dRow, dRowRP);
                         string SendData = "";
                         SendData += CachedTargetString;
-                        Socket.Send("compose_userprofile|" + SendData);
+                        Socket.SendWS( "compose_userprofile|" + SendData);
                     }
 
                     dRow = null;
                     dRowRP = null;
                 }
             }
+            else
+            {
+                CachedTargetString = GetUserComponent.ReturnWebUserStatistics(Session);
+                string SendData = "";
+                SendData += CachedTargetString;
+                Socket.SendWS( "compose_userprofile|" + SendData);
+                
+            }
 
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

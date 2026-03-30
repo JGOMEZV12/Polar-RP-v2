@@ -365,6 +365,24 @@ namespace Polar.Messages.Net.MusCommunication.Incoming.Phones
                         break;
                     }
                 #endregion
+                #region :reload_groups
+                case "reload_groups":
+                    {
+                        int gId = Convert.ToInt32(Params[1]);
+                        PolarEnvironment.GetGame().GetGroupManager().ReloadGroup(gId);
+                        var webEventManager = PolarEnvironment.GetGame()?.GetWebEventManager();
+                        foreach (var client in PolarEnvironment.GetGame().GetClientManager().GetClients.ToList())
+                        {
+                            if (client == null || client.GetHabbo() == null)
+                                continue;
+
+                            webEventManager?.ExecuteWebEvent(client, "event_group", "close");
+                            webEventManager?.ExecuteWebEvent(client, "event_group", "open");
+                        }
+                        break;
+                    }
+                #endregion
+                
                 #endregion
 
                 #region Fastfood

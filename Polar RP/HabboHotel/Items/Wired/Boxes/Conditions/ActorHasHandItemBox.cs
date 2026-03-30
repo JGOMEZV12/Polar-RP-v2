@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -24,7 +24,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
         {
             Instance = instance;
             Item = item;
-
             SetItems = new();
         }
 
@@ -38,7 +37,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
 
         public bool Execute(params object[] Params)
         {
-            if (Params.Length == 0 || Instance == null || String.IsNullOrEmpty(this.StringData))
+            if (Params.Length == 0 || Instance == null || string.IsNullOrEmpty(this.StringData))
                 return false;
 
             Habbo Player = (Habbo)Params[0];

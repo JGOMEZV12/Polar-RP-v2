@@ -1,19 +1,22 @@
-﻿using System;
-using System.Drawing;
-using System.Threading;
-using System.Linq;
-using System.Text;
-using Polar.HabboRoleplay.Weapons;
+﻿using Nancy.Session;
+using Polar.Communication.Packets.Outgoing.Inventory.Weapons;
+using Polar.Communication.Packets.Outgoing.Rooms.Engine;
+using Polar.Database.Interfaces;
 using Polar.HabboHotel.GameClients;
-using Polar.HabboRoleplay.Misc;
+using Polar.HabboHotel.Groups;
 using Polar.HabboHotel.Quests;
 using Polar.HabboHotel.Rooms;
-using Polar.HabboHotel.Groups;
-using Polar.Database.Interfaces;
-using Polar.Utilities;
-using Polar.HabboRoleplay.RoleplayUsers;
 using Polar.HabboRoleplay.Bots;
+using Polar.HabboRoleplay.Misc;
+using Polar.HabboRoleplay.RoleplayUsers;
 using Polar.HabboRoleplay.Turfs;
+using Polar.HabboRoleplay.Weapons;
+using Polar.Utilities;
+using System;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading;
 
 namespace Polar.HabboRoleplay.Combat.Types
 {
@@ -22,7 +25,9 @@ namespace Polar.HabboRoleplay.Combat.Types
         /// <summary>
         /// Executes this type of combat
         /// </summary>
-        /// 
+        ///
+        private static Dictionary<int, DateTime> _lastShotTime = new Dictionary<int, DateTime>();
+        private static readonly TimeSpan ShotCooldown = TimeSpan.FromMilliseconds(500); // 500ms entre disparos
         public void Execute(GameClient Client, GameClient TargetClient, bool HitClosest = false)
         {
             if (!CanCombat(Client, TargetClient))
@@ -68,6 +73,7 @@ namespace Polar.HabboRoleplay.Combat.Types
                     FreezeTarget(TargetClient);
                     Client.GetRoleplay().CooldownManager.CreateCooldown("stun", 1000, 3);
                 }
+                return;
             }
 
             // Ammunition Check
@@ -150,12 +156,281 @@ namespace Polar.HabboRoleplay.Combat.Types
                 return;
             }
             #endregion
-
+            Random Random = new Random();
+            int bulletsPerShot = 1;
+            int RandomNumber = Random.Next(1, 4);
+            for (int i = 0; i < bulletsPerShot; i++)
+            {
+                //bbullets++;
+            }
 
             // Procedimiento de daño al objetivo
-            HandleTargetDamage(Client, TargetClient, Damage, Weapon);
+            if (TargetClient.GetRoleplay().CurHealth - Damage <= 0)
+            {
+                Client.GetRoleplay().ClearWebSocketDialogue();
 
-            
+                string Text = Weapon.FiringText.Split(':')[1];
+                string GunName = Weapon.PublicName;
+
+                RoleplayManager.Shout(Client, FormatFiringText(Text, GunName, TargetClient.GetHabbo().Username, Damage, Weapon.Energy), 6);
+
+
+                PolarEnvironment.GetGame().GetQuestManager().ProgressUserQuest(Client, QuestType.KILL_USER);
+                PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Client, "ACH_Kills", 1);
+                PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(TargetClient, "ACH_Death", 1);
+
+                #region Player Stats
+                Client.GetRoleplay().LastKilled = TargetClient.GetHabbo().Id;
+                Client.GetRoleplay().Kills += 1;
+                Client.GetRoleplay().GunKills += 1;
+
+                string RoomId = Client.GetHabbo().CurrentRoomId.ToString() != "0" ? Client.GetHabbo().CurrentRoomId.ToString() : "Unknown";
+                Wanted NewWanted = new Wanted(Convert.ToUInt32(Client.GetHabbo().Id), RoomId, 5);
+                if (GroupManager.HasJobCommand(TargetClient, "law") && TargetClient.GetRoleplay().IsWorking)
+                    TargetClient.GetRoleplay().CopDeaths += 1;
+                else
+                    TargetClient.GetRoleplay().Deaths += 1;
+
+                if (!Client.GetRoleplay().WantedFor.Contains("Asesinato"))
+                    Client.GetRoleplay().WantedFor = Client.GetRoleplay().WantedFor + "Asesinato, ";
+                #endregion
+
+                #region Exp Calculator
+                int Multiplier = 2;
+
+                int Chance = Random.Next(1, 101);
+
+                if (Chance <= 16)
+                {
+                    if (Chance <= 8)
+                        Multiplier = 6;
+                    else
+                        Multiplier = 5;
+                }
+
+
+                #endregion
+
+                #region Check Gangs
+                List<Group> MyGang = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(Client.GetHabbo().Id);
+                List<Group> EnemyGang = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(TargetClient.GetHabbo().Id);
+
+                if (MyGang != null && MyGang.Count > 0)
+                {
+                    if (MyGang[0].BankRuptcy)
+                    {
+                        Client.SendWhisper("Tu banda está en bancarota y no podrás gozar de los beneficios de ella.", 1);
+                    }
+                    else
+                    {
+                        if (EnemyGang != null && EnemyGang.Count > 0 && EnemyGang[0] != MyGang[0])
+                        {
+                            int NewTurfsCount = 0;
+                            List<Turf> TF = PolarEnvironment.GetGame().GetGangTurfsManager().getTurfsbyGang(MyGang[0].Id);
+                            if (TF != null && TF.Count > 0)
+                                NewTurfsCount = TF.Count;
+
+                            int Bonif = NewTurfsCount * RoleplayManager.GangsTurfBonif;
+
+                            if (Bonif > 0)
+                            {
+                                if (!EnemyGang[0].BankRuptcy && EnemyGang[0].Balance > 0)
+                                {
+                                    MyGang[0].Balance += (Bonif / 2);
+                                    MyGang[0].SetBussines(MyGang[0].Balance, MyGang[0].Stock);
+                                    if (RoleplayManager.DoubleExp == true)
+                                        LevelManager.AddLevelEXP(Client, GetEXP(Client, TargetClient) * (Multiplier + 2));
+                                    else
+                                        LevelManager.AddLevelEXP(Client, GetEXP(Client, TargetClient) * Multiplier);
+
+                                    EnemyGang[0].Balance -= Bonif;
+                                    EnemyGang[0].SetBussines(EnemyGang[0].Balance, EnemyGang[0].Stock);
+
+                                    MyGang[0].AddLog(Client.GetHabbo().Id, Client.GetHabbo().Username + " mata a " + TargetClient.GetHabbo().Username + ", integrante de la banda " + EnemyGang[0].Name + ", ganando $ " + String.Format("{0:N0}", (Bonif / 2)), (Bonif / 2));
+
+                                    Client.GetHabbo().Credits += (Bonif / 2);
+                                    Client.GetHabbo().UpdateCreditsBalance();
+                                    Client.SendWhisper("¡Has ganado $ " + String.Format("{0:N0}", (Bonif / 2)) + " y " + GetEXP(Client, TargetClient) + " Experiencia, de bonificación por matar a un miembro de la banda " + EnemyGang[0].Name + "!", 1);
+
+                                    TargetClient.SendWhisper("¡Tu banda pierde $ " + String.Format("{0:N0}", Bonif) + " por haber sido asesinad@ por un miembro de la banda " + MyGang[0].Name + "!", 1);
+                                }
+                                else
+                                    Client.SendWhisper("¡Has matado a un miembro de la banda " + EnemyGang[0].Name + "! Pero no has ganado ninguna bonificación porque su banda está en bancarota.", 1);
+                            }
+                            else
+                            {
+                                Client.SendWhisper("¡Has matado a un miembro de la banda " + EnemyGang[0].Name + "! Pero no has ganado ninguna bonificación porque tu banda no tienen ningún barrio controlado.", 1);
+                            }
+
+                            MyGang[0].GangKills += 1;
+                            MyGang[0].UpdateStat(MyGang[0].Id, "gang_kills", MyGang[0].GangKills);
+                        }
+
+                        if (EnemyGang == null || EnemyGang.Count <= 0)
+                        {
+                            MyGang[0].GangKills += 1;
+                            MyGang[0].UpdateStat(MyGang[0].Id, "gang_kills", MyGang[0].GangKills);
+                        }
+
+                        if (GroupManager.HasJobCommand(TargetClient, "law"))
+                        {
+                            MyGang[0].GangCopKills += 1;
+                            MyGang[0].UpdateStat(MyGang[0].Id, "gang_cop_kills", MyGang[0].GangCopKills);
+                        }
+                    }
+                }
+                else
+                {
+                    if (RoleplayManager.DoubleExp == true)
+                        LevelManager.AddLevelEXP(Client, GetEXP(Client, TargetClient) * (Multiplier + 2));
+                    else
+                        LevelManager.AddLevelEXP(Client, GetEXP(Client, TargetClient) * Multiplier);
+                }
+
+                if (EnemyGang != null && EnemyGang.Count > 0)
+                {
+                    EnemyGang[0].GangDeaths += 1;
+                    EnemyGang[0].UpdateStat(EnemyGang[0].Id, "gang_deaths", EnemyGang[0].GangDeaths);
+                }
+                #endregion
+
+                #region Gang Stats 
+                Group Gang = GroupManager.GetGang(Client.GetRoleplay().GangId);
+                Group TarGetGang = GroupManager.GetGang(TargetClient.GetRoleplay().GangId);
+
+                using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+                {
+                    if (Gang != null)
+                    {
+                        if (Gang.Id > 1000)
+                        {
+                            int ScoreIncrease = Random.Next(1, 11);
+
+                            Gang.GangKills += 1;
+                            Gang.GangScore += ScoreIncrease;
+
+                            dbClient.RunQuery("UPDATE `rp_gangs` SET `gang_kills` = '" + Gang.GangKills + "', `gang_score` = '" + Gang.GangScore + "' WHERE `id` = '" + Gang.Id + "'");
+                        }
+                    }
+                    if (TarGetGang != null)
+                    {
+                        if (TarGetGang.Id > 1000)
+                        {
+                            TarGetGang.GangDeaths += 1;
+
+                            dbClient.RunQuery("UPDATE `rp_gangs` SET `gang_deaths` = '" + TarGetGang.GangDeaths + "' WHERE `id` = '" + TarGetGang.Id + "'");
+                        }
+                    }
+                }
+                #endregion
+
+                //PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(Client, "compose_discord|" + Client.GetHabbo().Username + "|Asesinó a|" + TargetClient.GetHabbo().Username);
+
+                BountyManager.CheckBounty(Client, TargetClient.GetHabbo().Id);
+                RoleplayManager.Shout(TargetClient, "*" + Client.GetHabbo().Username + " me ha asesinado!*", 32);
+                TargetClient.GetRoleplay().CurHealth = 0;
+                TargetClient.GetRoleplay().IsDead = true;
+                TargetClient.GetRoleplay().DeadTimeLeft = RoleplayManager.DeathTime;
+
+
+                #region Live Feed
+                foreach (GameClient client in PolarEnvironment.GetGame().GetClientManager().GetClients.ToList())
+                {
+                    if (client == null)
+                        continue;
+
+                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(client, "event_feedcomposer", "alert|" + Client.GetHabbo().Username + "|" + TargetClient.GetHabbo().Username + "|" + "Asesinó a");
+                }
+                #endregion
+            }
+            else
+            {
+                // Diccionario estático para rastrear el último disparo por usuario
+
+
+        // Dentro de tu método de disparo:
+        int userId = Client.GetHabbo().Id;
+        DateTime now = DateTime.Now;
+
+// Verificar cooldown
+if (_lastShotTime.ContainsKey(userId) && (now - _lastShotTime[userId]) < ShotCooldown)
+{
+    return; // Ignorar el disparo si está en cooldown
+}
+
+// Actualizar tiempo del último disparo
+_lastShotTime[userId] = now;
+
+string Text = Weapon.FiringText.Split(':')[0];
+        string GunName = Weapon.PublicName;
+        string modifiedText;
+
+if (RandomNumber > 1)
+{
+    modifiedText = "*Dispara (" + RandomNumber + ") balas con su " + GunName + 
+                   " contra " + TargetClient.GetHabbo().Username + 
+                   ", causando " + Damage + " de daño*";
+}
+else
+{
+    modifiedText = "*Dispara (" + RandomNumber + ") bala con su " + GunName + 
+                   " contra " + TargetClient.GetHabbo().Username + 
+                   ", causando " + Damage + " de daño*";
+}
+
+RoleplayManager.Shout(Client, modifiedText, 6);
+
+Client.GetRoleplay().OpenUsersDialogue(TargetClient);
+                TargetClient.GetRoleplay().OpenUsersDialogue(Client);
+
+                PolarEnvironment.GetGame().GetQuestManager().ProgressUserQuest(Client, QuestType.SHOOT_USER);
+            }
+
+            if (TargetClient.GetRoleplay().ChalecoPor > 0)
+            {
+                if (TargetClient.GetRoleplay().ChalecoPor - Damage <= 0)
+
+                {
+                    TargetClient.SendMessage(new WeaponsComposer(TargetClient));
+                    TargetClient.GetRoleplay().ChalecoPor = 0;
+                    RoleplayManager.GetLookAndMotto(TargetClient, "poof");
+                    TargetClient.SendMessage(new UserChangeComposer(TargetClient.GetRoomUser(), true));
+                    TargetClient.GetHabbo().CurrentRoom.SendMessage(new UserChangeComposer(TargetClient.GetRoomUser(), false));
+                }
+                else
+                {
+                    TargetClient.GetRoleplay().ChalecoPor -= Damage;
+                    TargetClient.SendMessage(new UserChangeComposer(TargetClient.GetRoomUser(), true));
+                    TargetClient.GetHabbo().CurrentRoom.SendMessage(new UserChangeComposer(TargetClient.GetRoomUser(), false));
+                }
+
+            }
+            else if (TargetClient.GetRoleplay().ChalecoPor <= 0)
+            {
+                if (TargetClient.GetRoleplay().CurHealth - Damage <= 0)
+                    TargetClient.GetRoleplay().CurHealth = 0;
+                else
+                    TargetClient.GetRoleplay().CurHealth -= Damage;
+            }
+            else if (TargetClient.GetRoleplay().HechizoShield > 0)
+            {
+                if (TargetClient.GetRoleplay().HechizoShield - Damage <= 0)
+                    TargetClient.GetRoleplay().HechizoShield = 0;
+                else
+                    TargetClient.GetRoleplay().HechizoShield -= Damage;
+            }
+
+            Client.GetRoleplay().Bullets--;
+
+            Client.GetRoleplay().CurEnergy -= Weapon.Energy;
+
+            Client.GetRoleplay().GunShots++;
+
+
+            if (!Client.GetRoleplay().WantedFor.Contains("intento de asalto"))
+                Client.GetRoleplay().WantedFor = Client.GetRoleplay().WantedFor + "intento de asalto, ";
+
+
         }
 
         private bool IsPlayerWorking(GameClient Client, GameClient TargetClient)
@@ -198,233 +473,15 @@ namespace Polar.HabboRoleplay.Combat.Types
             TargetClient.GetRoomUser().ClearMovement(true);
         }
 
-        private void HandleTargetDamage(GameClient Client, GameClient TargetClient, int Damage, Weapon Weapon)
+
+        private void HandleTargetDamage(GameClient Client, GameClient TargetClient, int Damage, Weapon Weapon, int bulletsPerShot)
         {
-            if (TargetClient.GetRoleplay().CurHealth - Damage <= 0)
-            {
-                KillTarget(Client, TargetClient, Damage, Weapon);
-            }
-            else
-            {
-                string Text = Weapon.FiringText.Split(':')[0];
-                string GunName = Weapon.PublicName;
-                Client.GetRoleplay().OpenUsersDialogue(TargetClient);
-                TargetClient.GetRoleplay().OpenUsersDialogue(Client);
-
-                PolarEnvironment.GetGame().GetQuestManager().ProgressUserQuest(Client, QuestType.SHOOT_USER);
-            }
-
-            if (TargetClient.GetRoleplay().ChalecoPor <= 0)
-            {
-                if (TargetClient.GetRoleplay().CurHealth - Damage <= 0)
-                    TargetClient.GetRoleplay().CurHealth = 0;
-                else
-                    TargetClient.GetRoleplay().CurHealth -= Damage;
-            }
-            else if (TargetClient.GetRoleplay().ChalecoPor > 0)
-            {
-                if (TargetClient.GetRoleplay().ChalecoPor - Damage <= 0)
-                    TargetClient.GetRoleplay().ChalecoPor = 0;
-                else
-                    TargetClient.GetRoleplay().ChalecoPor -= Damage;
-            }
-            else if (TargetClient.GetRoleplay().HechizoShield > 0)
-            {
-                if (TargetClient.GetRoleplay().HechizoShield - Damage <= 0)
-                    TargetClient.GetRoleplay().HechizoShield = 0;
-                else
-                    TargetClient.GetRoleplay().HechizoShield -= Damage;
-            }
-
-            Client.GetRoleplay().Bullets--;
-
-            Client.GetRoleplay().CurEnergy -= Weapon.Energy;
-
-            Client.GetRoleplay().GunShots++;
-
             
-            if (!Client.GetRoleplay().WantedFor.Contains("intento de asalto"))
-                Client.GetRoleplay().WantedFor = Client.GetRoleplay().WantedFor + "intento de asalto, ";
         }
 
         private void KillTarget(GameClient Client, GameClient TargetClient, int Damage, Weapon Weapon)
         {
-            Client.GetRoleplay().ClearWebSocketDialogue();
-
-            string Text = Weapon.FiringText.Split(':')[1];
-            string GunName = Weapon.PublicName;
-
-            //RoleplayManager.Shout(Client, FormatFiringText(Text, GunName, TargetClient.GetHabbo().Username, Damage, Weapon.Energy), 6);
-
-
-            PolarEnvironment.GetGame().GetQuestManager().ProgressUserQuest(Client, QuestType.KILL_USER);
-            PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Client, "ACH_Kills", 1);
-            PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(TargetClient, "ACH_Death", 1);
-
-            #region Player Stats
-            Client.GetRoleplay().LastKilled = TargetClient.GetHabbo().Id;
-            Client.GetRoleplay().Kills += 1;
-            Client.GetRoleplay().GunKills += 1;
-
-            string RoomId = Client.GetHabbo().CurrentRoomId.ToString() != "0" ? Client.GetHabbo().CurrentRoomId.ToString() : "Unknown";
-            Wanted NewWanted = new Wanted(Convert.ToUInt32(Client.GetHabbo().Id), RoomId, 5);
-            if (GroupManager.HasJobCommand(TargetClient, "law") && TargetClient.GetRoleplay().IsWorking)
-                TargetClient.GetRoleplay().CopDeaths += 1;
-            else
-                TargetClient.GetRoleplay().Deaths += 1;
-
-            if (!Client.GetRoleplay().WantedFor.Contains("Asesinato"))
-                Client.GetRoleplay().WantedFor = Client.GetRoleplay().WantedFor + "Asesinato, ";
-            #endregion
-
-            #region Exp Calculator
-            CryptoRandom Random = new CryptoRandom();
-            int Multiplier = 2;
-
-            int Chance = Random.Next(1, 101);
-
-            if (Chance <= 16)
-            {
-                if (Chance <= 8)
-                    Multiplier = 6;
-                else
-                    Multiplier = 5;
-            }
-
-
-            #endregion
-
-            #region Check Gangs
-            List<Group> MyGang = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(Client.GetHabbo().Id);
-            List<Group> EnemyGang = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(TargetClient.GetHabbo().Id);
-
-            if (MyGang != null && MyGang.Count > 0)
-            {
-                if (MyGang[0].BankRuptcy)
-                {
-                    Client.SendWhisper("Tu banda está en bancarota y no podrás gozar de los beneficios de ella.", 1);
-                }
-                else
-                {
-                    if (EnemyGang != null && EnemyGang.Count > 0 && EnemyGang[0] != MyGang[0])
-                    {
-                        int NewTurfsCount = 0;
-                        List<Turf> TF = PolarEnvironment.GetGame().GetGangTurfsManager().getTurfsbyGang(MyGang[0].Id);
-                        if (TF != null && TF.Count > 0)
-                            NewTurfsCount = TF.Count;
-
-                        int Bonif = NewTurfsCount * RoleplayManager.GangsTurfBonif;
-
-                        if (Bonif > 0)
-                        {
-                            if (!EnemyGang[0].BankRuptcy && EnemyGang[0].Balance > 0)
-                            {
-                                MyGang[0].Balance += (Bonif / 2);
-                                MyGang[0].SetBussines(MyGang[0].Balance, MyGang[0].Stock);
-                                if (RoleplayManager.DoubleExp == true)
-                                    LevelManager.AddLevelEXP(Client, GetEXP(Client, TargetClient) * (Multiplier + 2));
-                                else
-                                    LevelManager.AddLevelEXP(Client, GetEXP(Client, TargetClient) * Multiplier);
-
-                                EnemyGang[0].Balance -= Bonif;
-                                EnemyGang[0].SetBussines(EnemyGang[0].Balance, EnemyGang[0].Stock);
-
-                                MyGang[0].AddLog(Client.GetHabbo().Id, Client.GetHabbo().Username + " mata a " + TargetClient.GetHabbo().Username + ", integrante de la banda " + EnemyGang[0].Name + ", ganando $ " + String.Format("{0:N0}", (Bonif / 2)), (Bonif / 2));
-
-                                Client.GetHabbo().Credits += (Bonif / 2);
-                                Client.GetHabbo().UpdateCreditsBalance();
-                                Client.SendWhisper("¡Has ganado $ " + String.Format("{0:N0}", (Bonif / 2)) + " y " + GetEXP(Client, TargetClient) + " Experiencia, de bonificación por matar a un miembro de la banda " + EnemyGang[0].Name + "!", 1);
-
-                                TargetClient.SendWhisper("¡Tu banda pierde $ " + String.Format("{0:N0}", Bonif) + " por haber sido asesinad@ por un miembro de la banda " + MyGang[0].Name + "!", 1);
-                            }
-                            else
-                                Client.SendWhisper("¡Has matado a un miembro de la banda " + EnemyGang[0].Name + "! Pero no has ganado ninguna bonificación porque su banda está en bancarota.", 1);
-                        }
-                        else
-                        {
-                            Client.SendWhisper("¡Has matado a un miembro de la banda " + EnemyGang[0].Name + "! Pero no has ganado ninguna bonificación porque tu banda no tienen ningún barrio controlado.", 1);
-                        }
-
-                        MyGang[0].GangKills += 1;
-                        MyGang[0].UpdateStat(MyGang[0].Id, "gang_kills", MyGang[0].GangKills);
-                    }
-
-                    if (EnemyGang == null || EnemyGang.Count <= 0)
-                    {
-                        MyGang[0].GangKills += 1;
-                        MyGang[0].UpdateStat(MyGang[0].Id, "gang_kills", MyGang[0].GangKills);
-                    }
-
-                    if (GroupManager.HasJobCommand(TargetClient, "law"))
-                    {
-                        MyGang[0].GangCopKills += 1;
-                        MyGang[0].UpdateStat(MyGang[0].Id, "gang_cop_kills", MyGang[0].GangCopKills);
-                    }
-                }
-            }
-            else
-            {
-                if (RoleplayManager.DoubleExp == true)
-                    LevelManager.AddLevelEXP(Client, GetEXP(Client, TargetClient) * (Multiplier + 2));
-                else
-                    LevelManager.AddLevelEXP(Client, GetEXP(Client, TargetClient) * Multiplier);
-            }
-
-            if (EnemyGang != null && EnemyGang.Count > 0)
-            {
-                EnemyGang[0].GangDeaths += 1;
-                EnemyGang[0].UpdateStat(EnemyGang[0].Id, "gang_deaths", EnemyGang[0].GangDeaths);
-            }
-            #endregion
-
-            #region Gang Stats 
-            Group Gang = GroupManager.GetGang(Client.GetRoleplay().GangId);
-            Group TarGetGang = GroupManager.GetGang(TargetClient.GetRoleplay().GangId);
-
-            using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-            {
-                if (Gang != null)
-                {
-                    if (Gang.Id > 1000)
-                    {
-                        int ScoreIncrease = Random.Next(1, 11);
-
-                        Gang.GangKills += 1;
-                        Gang.GangScore += ScoreIncrease;
-
-                        dbClient.RunQuery("UPDATE `rp_gangs` SET `gang_kills` = '" + Gang.GangKills + "', `gang_score` = '" + Gang.GangScore + "' WHERE `id` = '" + Gang.Id + "'");
-                    }
-                }
-                if (TarGetGang != null)
-                {
-                    if (TarGetGang.Id > 1000)
-                    {
-                        TarGetGang.GangDeaths += 1;
-
-                        dbClient.RunQuery("UPDATE `rp_gangs` SET `gang_deaths` = '" + TarGetGang.GangDeaths + "' WHERE `id` = '" + TarGetGang.Id + "'");
-                    }
-                }
-            }
-            #endregion
-            //PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(Client, "compose_discord|" + Client.GetHabbo().Username + "|Asesinó a|" + TargetClient.GetHabbo().Username);
-
-            BountyManager.CheckBounty(Client, TargetClient.GetHabbo().Id);
-            RoleplayManager.Shout(TargetClient, "*" + Client.GetHabbo().Username + " me ha asesinado!*", 32);
-            TargetClient.GetRoleplay().CurHealth = 0;
-            TargetClient.GetRoleplay().IsDead = true;
-            TargetClient.GetRoleplay().DeadTimeLeft = RoleplayManager.DeathTime;
-
-            PolarEnvironment.SendMs("**__¡LiveFeed!__** `|` **" + Client.GetHabbo().Username + "** Asesinó a **" + TargetClient.GetHabbo().Username + "**");
-
-            #region Live Feed
-            foreach (GameClient client in PolarEnvironment.GetGame().GetClientManager().GetClients.ToList())
-            {
-                if (client == null)
-                    continue;
-
-                PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(client, "event_feedcomposer", "alert|" + Client.GetHabbo().Username + "|" + TargetClient.GetHabbo().Username + "|" + "Asesinó a");
-            }
-            #endregion
+           
         }
 
         public void Executex(GameClient Client, GameClient TargetClient, bool HitClosest = false)
@@ -767,8 +824,6 @@ namespace Polar.HabboRoleplay.Combat.Types
                     TargetClient.GetRoleplay().IsDead = true;
                     TargetClient.GetRoleplay().DeadTimeLeft = RoleplayManager.DeathTime;
 
-                    PolarEnvironment.SendMs("**__¡LiveFeed!__** `|` **" + Client.GetHabbo().Username + "** Asesinó a **" + TargetClient.GetHabbo().Username + "**");
-
                     #region Live Feed
                     foreach (GameClient client in PolarEnvironment.GetGame().GetClientManager().GetClients.ToList())
                     {
@@ -898,6 +953,11 @@ namespace Polar.HabboRoleplay.Combat.Types
                 return;
             }
 
+            if (BotUser.GetRoom().SafeZoneEnabled)
+            {
+                Client.SendWhisper("ES una zona segura, no puedes disparar a este bot.", 1);
+                return;
+            }
                 // If about to die
                 bool Died = false;
 
@@ -958,10 +1018,12 @@ namespace Polar.HabboRoleplay.Combat.Types
 
             if (Room != null)
             {
-                if (Room.SafeZoneEnabled)
-                {
-                    Client.SendWhisper("¡No puedes disparar en esta habitación!", 1);
-                    return false;
+                if(Weapon.Name != "electrica"){
+                    if (Room.SafeZoneEnabled)
+                    {
+                        Client.SendWhisper("¡No puedes disparar en esta habitación!", 1);
+                        return false;
+                    }
                 }
 
                 if (!RoleplayManager.PurgeStarted)

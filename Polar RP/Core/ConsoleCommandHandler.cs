@@ -449,16 +449,7 @@ namespace Polar.Core
                             Logging.WriteLine("Websocket count:" + PolarEnvironment.GetGame().GetWebEventManager()._webSockets.Count + "", ConsoleColor.Yellow);
                             string Append = "";
 
-                            foreach (Fleck.IWebSocketConnection Connection in PolarEnvironment.GetGame().GetWebEventManager()._webSockets.Keys.ToList())
-                            {
-                                
-                                Append += "WebSocketID: " + PolarEnvironment.GetGame().GetWebEventManager().GetSocketsUserID(Connection) + "\n";
-                                Append += "Socket Available: " + Connection.IsAvailable.ToString() + "\n";
-                                Append += "Socket Path: " + Connection.ConnectionInfo.Path.Trim() + "\n";
-                                Append += "Socket Ready: " + PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Connection).ToString() + "\n";
-                                Append += "\n\n";
-
-                            }
+                            
 
 
                             Logging.WriteLine(Append);

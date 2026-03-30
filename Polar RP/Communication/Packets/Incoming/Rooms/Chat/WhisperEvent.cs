@@ -45,10 +45,11 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Chat
             string ToUser = Params[0];
             string Message = CommandManager.MergeParams(Params, 1);
 
-            int Colour = Packet.PopInt();
+            int Bubble = Packet.PopInt();
+            string Colour = Packet.PopString();
 
-            if (Colour != 0 && !Session.GetHabbo().GetPermissions().HasRight("use_any_bubble"))
-                Colour = 0;
+            if (Bubble != 0 && !Session.GetHabbo().GetPermissions().HasRight("use_any_bubble"))
+                Bubble = 0;
 
             RoomUser User = Room.GetRoomUserManager().GetRoomUserByHabbo(Session.GetHabbo().Username);
             if (User == null)
@@ -65,10 +66,10 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Chat
             }
 
             ChatStyle Style = null;
-            if (!PolarEnvironment.GetGame().GetChatManager().GetChatStyles().TryGetStyle(Colour, out Style) || (Style.RequiredRight.Length > 0 && !Session.GetHabbo().GetPermissions().HasRight(Style.RequiredRight)))
-                Colour = 0;
+            if (!PolarEnvironment.GetGame().GetChatManager().GetChatStyles().TryGetStyle(Bubble, out Style) || (Style.RequiredRight.Length > 0 && !Session.GetHabbo().GetPermissions().HasRight(Style.RequiredRight)))
+                Bubble = 0;
 
-            User.LastBubble = Session.GetHabbo().CustomBubbleId == 0 ? Colour : Session.GetHabbo().CustomBubbleId;
+            User.LastBubble = Session.GetHabbo().CustomBubbleId == 0 ? Bubble : Session.GetHabbo().CustomBubbleId;
 
             if (!Session.GetHabbo().GetPermissions().HasRight("mod_tool"))
             {
@@ -111,7 +112,7 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Chat
                     return;
                 }
 
-                Session.SendMessage(new ChatComposer(User.VirtualId, "Mensaje inapropiado", 0, Colour));
+                Session.SendMessage(new ChatComposer(User.VirtualId, "Mensaje inapropiado", 0, Bubble));
                 return;
             }
 
@@ -123,7 +124,7 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Chat
             else
                 User.UnIdle();
 
-            User.SendNameColourPacket();
+            //User.SendNameBubblePacket();
             if (Session.GetRoleplay() != null)
             {
                 if (User.GetClient().GetRoleplay().IsWorking && HabboHotel.Groups.GroupManager.HasJobCommand(Session, "guide"))
@@ -133,7 +134,7 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Chat
                         string LG1 = User.GetClient().GetHabbo().FromLanguage.ToLower();
                         string LG2 = User.GetClient().GetHabbo().ToLanguage.ToLower();
 
-                        User.GetClient().SendMessage(new WhisperComposer(User.VirtualId, PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", 0, 37));
+                        User.GetClient().SendMessage(new WhisperComposer(User.VirtualId, PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", 0, 37, Colour));
                     }
                     else
                         User.GetClient().SendMessage(new WhisperComposer(User.VirtualId, Message, 0, 37));
@@ -145,10 +146,10 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Chat
                         string LG1 = User.GetClient().GetHabbo().FromLanguage.ToLower();
                         string LG2 = User.GetClient().GetHabbo().ToLanguage.ToLower();
 
-                        User.GetClient().SendMessage(new WhisperComposer(User.VirtualId, PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", 0, User.LastBubble));
+                        User.GetClient().SendMessage(new WhisperComposer(User.VirtualId, PolarEnvironment.translate(Message, LG1, LG2) + " [" + LG1.ToUpper() + " -> " + LG2.ToUpper() + "]", 0, User.LastBubble, Colour));
                     }
                     else
-                        User.GetClient().SendMessage(new WhisperComposer(User.VirtualId, Message, 0, User.LastBubble));
+                        User.GetClient().SendMessage(new WhisperComposer(User.VirtualId, Message, 0, User.LastBubble, Colour));
                 }
             }
             else

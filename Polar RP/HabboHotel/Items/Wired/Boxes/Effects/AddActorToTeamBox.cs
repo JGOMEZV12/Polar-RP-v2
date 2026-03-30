@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections;
@@ -26,7 +26,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
         {
             this.Instance = Instance;
             this.Item = Item;
-
             this.SetItems = new ConcurrentDictionary<int, Item>();
         }
 
@@ -51,7 +50,10 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
             if (User == null)
                 return false;
 
-            TEAM ToJoin = (int.Parse(this.StringData) == 1 ? TEAM.RED : int.Parse(this.StringData) == 2 ? TEAM.GREEN : int.Parse(this.StringData) == 3 ? TEAM.BLUE : int.Parse(this.StringData) == 4 ? TEAM.YELLOW : TEAM.NONE);
+            TEAM ToJoin = (int.Parse(this.StringData) == 1 ? TEAM.RED :
+                           int.Parse(this.StringData) == 2 ? TEAM.GREEN :
+                           int.Parse(this.StringData) == 3 ? TEAM.BLUE :
+                           int.Parse(this.StringData) == 4 ? TEAM.YELLOW : TEAM.NONE);
 
             TeamManager Team = Instance.GetTeamManagerForFreeze();
             if (Team != null)

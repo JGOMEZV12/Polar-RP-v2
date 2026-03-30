@@ -1,8 +1,5 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
-
-using Fleck;
+using ConnectionManager;
+using Polar.Net;
 using Polar.HabboHotel.Items;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Rooms;
@@ -30,7 +27,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -403,14 +400,14 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                                 Client.GetRoleplay().CooldownManager.CreateCooldown("car", 1000, 3);
                                 return;
                             }
-                            Socket.Send("compose_carnew|stop|");
+                            Socket.SendWS( "compose_carnew|stop|");
                         }
                         else
                         {
 
                             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_driving", "stopdriving");// WS FUEL
-                            Socket.Send("compose_carnew|close");
-                            Socket.Send("compose_carnew|open");
+                            Socket.SendWS( "compose_carnew|close");
+                            Socket.SendWS( "compose_carnew|open");
                         }
                     }
                     break;
@@ -564,5 +561,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

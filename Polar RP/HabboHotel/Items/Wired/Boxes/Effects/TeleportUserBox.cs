@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections;
@@ -33,7 +33,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
             this.Instance = instance;
             this.Item = item;
             this.SetItems = new ConcurrentDictionary<int, Item>();
-
             this._queue = new Queue();
             this.TickCount = Delay;
         }
@@ -85,7 +84,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                 return false;
 
             Habbo Player = (Habbo)Params[0];
-
             if (Player == null)
                 return false;
 
@@ -127,8 +125,9 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
             {
                 SetItems.TryRemove(Item.Id, out Item);
 
+                // FIX: Indentación corregida
                 if (Items.Contains(Item))
-                Items.Remove(Item);
+                    Items.Remove(Item);
 
                 if (SetItems.Count == 0 || Items.Count == 0)
                     return;

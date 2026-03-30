@@ -1,15 +1,11 @@
-﻿using System;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Fleck;
-using Polar.HabboHotel.Items;
-using Polar.HabboHotel.GameClients;
-using Polar.HabboHotel.Rooms;
-using System.IO;
-using Polar.HabboRoleplay.Misc;
+using ConnectionManager;
+using Polar.Communication.Packets.Outgoing.Rooms.Engine;
 using Polar.Communication.Packets.Outgoing.Users;
+using Polar.HabboHotel.GameClients;
+using Polar.HabboHotel.Items;
+using Polar.HabboHotel.Rooms;
+using Polar.HabboRoleplay.Misc;
+using Polar.Net;
 
 namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 {
@@ -24,7 +20,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -51,7 +47,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (Cost > Client.GetHabbo().Diamonds)
                         {
-                            Socket.Send("compose_vip|msg_error|¡No tienes suficientes rubies!");
+                            Socket.SendWS( "compose_vip|msg_error|¡No tienes suficientes rubies!");
                             return;
                         }
 
@@ -69,6 +65,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         Client.GetHabbo().GetBadgeComponent().GiveBadge("HC1", true, Client);
                         //Client.SendMessage(new UserNameChangeComposer(Client.GetRoomUser().GetRoom().Id, Client.GetRoomUser().VirtualId, "[VIP] " + Client.GetHabbo().Username));
                         Client.GetHabbo().GetPermissions().Init(Client.GetHabbo());
+                        Client.SendMessage(new UserChangeComposer(Client.GetRoomUser(), false));
                         Client.SendMessage(new ScrSendUserInfoComposer(Client.GetHabbo()));
                         Client.GetHabbo().GetClubManager().ReloadSubscription(Client);
 
@@ -81,8 +78,8 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         }
 
-                        Socket.Send("compose_vip|msg_success|¡Haz comprado el VIP de 1 Mes!");
-                        Socket.Send("compose_vip|close");
+                        Socket.SendWS( "compose_vip|msg_success|¡Haz comprado el VIP de 1 Mes!");
+                        Socket.SendWS( "compose_vip|close");
                         Client.GetRoleplay().CooldownManager.CreateCooldown("openvip", 1000, 1);
                         break;
                     }
@@ -99,7 +96,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (Cost > Client.GetHabbo().Diamonds)
                         {
-                            Socket.Send("compose_vip|msg_error|¡No tienes suficientes rubies!");
+                            Socket.SendWS( "compose_vip|msg_error|¡No tienes suficientes rubies!");
                             return;
                         }
 
@@ -117,6 +114,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         Client.GetHabbo().GetBadgeComponent().GiveBadge("HC1", true, Client);
                         //Client.SendMessage(new UserNameChangeComposer(Client.GetRoomUser().GetRoom().Id, Client.GetRoomUser().VirtualId, "[VIP] " + Client.GetHabbo().Username));
                         Client.GetHabbo().GetPermissions().Init(Client.GetHabbo());
+                        Client.SendMessage(new UserChangeComposer(Client.GetRoomUser(), false));
                         Client.SendMessage(new ScrSendUserInfoComposer(Client.GetHabbo()));
                         Client.GetHabbo().GetClubManager().ReloadSubscription(Client);
 
@@ -129,8 +127,8 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         }
 
-                        Socket.Send("compose_vip|msg_success|¡Haz comprado el VIP de 3 Meses!");
-                        Socket.Send("compose_vip|close");
+                        Socket.SendWS( "compose_vip|msg_success|¡Haz comprado el VIP de 3 Meses!");
+                        Socket.SendWS( "compose_vip|close");
                         Client.GetRoleplay().CooldownManager.CreateCooldown("openvip", 1000, 1);
                         break;
                     }
@@ -139,5 +137,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

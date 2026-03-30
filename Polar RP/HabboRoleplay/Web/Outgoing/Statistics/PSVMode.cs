@@ -1,11 +1,12 @@
-﻿using System;
-using Fleck;
+using ConnectionManager;
+using System;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Roleplay.Web;
 using Polar.Communication.Packets.Outgoing.Rooms.Notifications;
 using Polar.HabboRoleplay.Misc;
 using Polar.HabboHotel.Users.Effects;
 using Polar.HabboHotel.Groups;
+using Polar.Net;
 
 namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
 {
@@ -20,7 +21,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -141,7 +142,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
                         {
                             Client.GetRoleplay().PassiveMode = false;
                             Client.SendMessage(new RoomBubbleNotificationComposer("psv-icon", "Modo Pasivo: Desactivado"));
-                            Socket.Send("compose_psv_mode|desactive");
+                            Socket.SendWS( "compose_psv_mode|desactive");
                             Client.GetRoomUser().ApplyEffect(EffectsList.None);
                         }
                     }
@@ -154,5 +155,13 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
                     #endregion
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

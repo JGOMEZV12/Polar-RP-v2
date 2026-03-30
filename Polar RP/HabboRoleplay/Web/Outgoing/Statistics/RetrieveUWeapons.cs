@@ -1,10 +1,10 @@
-﻿using System;
+using ConnectionManager;
+using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Polar.HabboRoleplay.Weapons;
-using Fleck;
-using Polar.HabboHotel.Groups;
+using Polar.Net;
 using Polar.HabboHotel.GameClients;
 using System.IO;
 using Polar.HabboHotel.Roleplay.Web;
@@ -24,7 +24,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
                 return;
@@ -40,7 +40,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
             if (String.IsNullOrEmpty(Message))
                 return;
 
-            Socket.Send("compose_weapons_new|" + Message);
+            Socket.SendWS( "compose_weapons_new|" + Message);
 
             string Message2 = "";
             foreach (Weapon Weapon in Client.GetRoleplay().OwnedWeapons.Values.Where(x => x.BaulCar == 0))
@@ -72,8 +72,16 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
             if (String.IsNullOrEmpty(Message2))
                 return;
 
-            Socket.Send("compose_weapons|" + Message2);
+            Socket.SendWS( "compose_weapons|" + Message2);
 
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

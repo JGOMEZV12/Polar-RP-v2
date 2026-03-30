@@ -24,8 +24,7 @@ namespace Polar.Communication.Packets.Incoming.Users
                         return;*/
 
             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Session, "event_userprofile", "" + userID);
-            /*int userID = Packet.PopInt();
-            Boolean IsMe = Packet.PopBoolean();
+            /*Boolean IsMe = Packet.PopBoolean();
 
             if (userID >= 5000000)
             {
@@ -66,18 +65,12 @@ namespace Polar.Communication.Packets.Incoming.Users
                     dbClient.SetQuery("SELECT COUNT(0) FROM `rp_bots_friendships` WHERE `bot_id` = '" + Bot.Id + "'");
                     BotFriendCount = dbClient.getInteger();
                 }
-                Session.SendMessage(new ProfileInformationComposer(null, Session, BotGroups, BotFriendCount, Bot));
+                //Session.SendMessage(new ProfileInformationComposer(Session, BotGroups, BotFriendCount, Bot));
                 return;
             }
 
             UserCache targetData = PolarEnvironment.GetGame().GetCacheManager().GenerateUser(userID);
             
-            List<Group> Groups = PolarEnvironment.GetGame().GetGroupManager().GetGroupsForUser(targetData.Id);
-
-            if (Groups == null)
-            {
-                Groups = null;
-            }
 
             int friendCount = 0;
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
@@ -87,7 +80,7 @@ namespace Polar.Communication.Packets.Incoming.Users
                 friendCount = dbClient.getInteger();
             }
             PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(Session, "compose_mostrarperfil|" + targetData.Id);
-            //Session.SendMessage(new ProfileInformationComposer(targetData, Session, Groups, friendCount));*/
+            //Session.SendMessage(new ProfileInformationComposer(targetData, Session));*/
 
         }
     }

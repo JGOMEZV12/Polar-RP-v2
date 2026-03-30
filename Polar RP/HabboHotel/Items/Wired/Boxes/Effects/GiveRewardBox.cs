@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -57,17 +57,19 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
             if (Player == null || Player.GetClient() == null)
                 return false;
 
+            if (Player.CurrentRoom == null)
+                return false;
+
             RoomUser User = Player.CurrentRoom.GetRoomUserManager().GetRoomUserByHabbo(Player.Username);
             if (User == null)
                 return false;
 
-            if (String.IsNullOrEmpty(StringData))
+            if (string.IsNullOrEmpty(StringData))
                 return false;
 
             int amountLeft = int.Parse(this.StringData.Split('-')[2]);
             int often = int.Parse(this.StringData.Split('-')[1]);
             bool unique = this.BoolData;
-
             bool premied = false;
 
             if (amountLeft == 1)
@@ -79,15 +81,14 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
             foreach (var dataStr in (this.StringData.Split('-')[0]).Split(';'))
             {
                 var dataArray = dataStr.Split(',');
-
                 var isbadge = dataArray[0] == "0";
                 var code = dataArray[1];
                 var percentage = int.Parse(dataArray[2]);
-
                 var random = PolarEnvironment.GetRandomNumber(0, 100);
 
                 if (!unique && percentage < random)
                     continue;
+
                 premied = true;
 
                 if (isbadge)
@@ -97,7 +98,9 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                     else
                     {
                         Player.GetBadgeComponent().GiveBadge(code, true, Player.GetClient());
-                        Player.GetClient().SendMessage(new RoomBubbleNotificationComposer("badge/" + Params[2], "Acabas de recibir una placa!", "/inventory/open/badge"));
+                        // FIX: Params[2] validado antes de acceder
+                        string badgeParam = Params.Length > 2 ? Params[2]?.ToString() ?? "" : "";
+                        Player.GetClient().SendMessage(new RoomBubbleNotificationComposer("badge/" + badgeParam, "Acabas de recibir una placa!", "/inventory/open/badge"));
                     }
                 }
                 else
@@ -111,7 +114,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                     }
 
                     Item Item = ItemFactory.CreateSingleItemNullable(ItemData, Player.GetClient().GetHabbo(), "", "", 0, 0, 0);
-
 
                     if (Item != null)
                     {
@@ -132,7 +134,10 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
             else if (amountLeft > 1)
             {
                 amountLeft--;
-                this.StringData.Split('-')[2] = amountLeft.ToString();
+                // FIX: StringData se reconstruye correctamente — asignar a Split()[i] no hace nada
+                var parts = this.StringData.Split('-');
+                parts[2] = amountLeft.ToString();
+                this.StringData = string.Join("-", parts);
             }
 
             return true;

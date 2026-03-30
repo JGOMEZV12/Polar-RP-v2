@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections;
@@ -26,7 +26,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
         {
             this.Instance = Instance;
             this.Item = Item;
-
             this.SetItems = new ConcurrentDictionary<int, Item>();
         }
 
@@ -54,7 +53,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                 if (Team != null)
                 {
                     Team.OnUserLeave(User);
-
                     User.Team = TEAM.NONE;
 
                     if (User.GetClient().GetHabbo().Effects().CurrentEffect != 0)

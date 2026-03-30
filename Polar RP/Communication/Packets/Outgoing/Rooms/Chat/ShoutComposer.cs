@@ -5,14 +5,17 @@
         public int VirtualId { get; }
         public string Message { get; }
         public int Emotion { get; }
-        public int Colour { get; }
+        public int Bubble { get; }
 
-        public ShoutComposer(int VirtualId, string Message, int Emotion, int Colour)
+        public string Colour { get; }
+
+        public ShoutComposer(int VirtualId, string Message, int Emotion, int Bubble, string Colour = "black")
             : base(ServerPacketHeader.ShoutMessageComposer)
         {
             this.VirtualId = VirtualId;
             this.Message = Message;
             this.Emotion = Emotion;
+            this.Bubble = Bubble;
             this.Colour = Colour;
             Compose(this);
         }
@@ -22,8 +25,9 @@
             packet.WriteInteger(VirtualId);
             packet.WriteString(Message);
             packet.WriteInteger(Emotion);
-            packet.WriteInteger(Colour);
+            packet.WriteInteger(Bubble);
             packet.WriteInteger(0);
+            packet.WriteString(Colour);
             packet.WriteInteger(-1);
         }
     }

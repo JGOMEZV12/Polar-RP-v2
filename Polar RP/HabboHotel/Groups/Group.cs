@@ -988,6 +988,118 @@ namespace Polar.HabboHotel.Groups
                 return this.Members;
             }
         }
+        /// <summary>
+        /// Recarga todos los campos escalares del grupo/pandilla desde la base de datos
+        /// y regenera Members, Requests y Logs en memoria.
+        /// No toca Ranks de Jobs (se gestionan con GenerateJobRanks en GroupManager).
+        /// </summary>
+        public bool RefreshFromDatabase()
+        {
+            string table = (this.Id >= 1000) ? "rp_gangs" : "rp_jobs";
+
+            try
+            {
+                using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+                {
+                    dbClient.SetQuery("SELECT * FROM `" + table + "` WHERE `id` = @id LIMIT 1");
+                    dbClient.AddParameter("id", this.Id);
+                    DataRow Row = dbClient.getRow();
+
+                    if (Row == null) return false;
+
+                    // ── Campos comunes ─────────────────────────────────────────
+                    this.Name        = Row["name"].ToString();
+                    this.Description = Row["desc"].ToString();
+                    this.Badge       = Row["badge"].ToString();
+                    this.CreatorId   = Convert.ToInt32(Row["owner_id"]);
+                    this.RoomId      = Convert.ToInt32(Row["room_id"]);
+                    this.Colour1     = Convert.ToString(Row["colour1"]);
+                    this.Colour2     = Convert.ToString(Row["colour2"]);
+                    this.AdminOnlyDeco = Convert.ToInt32(Row["admindeco"]);
+                    this.HasChat     = PolarEnvironment.EnumToBool(Row["has_chat"].ToString());
+                    this.Balance     = Convert.ToInt32(Row["bank_balance"]);
+                    this.Stock       = Convert.ToInt32(Row["stock"]);
+                    this.IsGang      = PolarEnvironment.EnumToBool(Row["isGang"].ToString());
+
+                    int state = Convert.ToInt32(Row["state"]);
+                    switch (state)
+                    {
+                        case 0: this.GroupType = GroupType.OPEN;    break;
+                        case 1: this.GroupType = GroupType.LOCKED;  break;
+                        case 2: this.GroupType = GroupType.PRIVATE; break;
+                    }
+
+                    // ── Foro ───────────────────────────────────────────────────
+                    this.ForumEnabled           = PolarEnvironment.EnumToBool(Row["forum_enabled"].ToString());
+                    this.ForumMessagesCount     = Convert.ToInt32(Row["forum_messages_count"]);
+                    this.ForumScore             = Convert.ToDouble(Row["forum_score"]);
+                    this.ForumLastPosterId      = Convert.ToInt32(Row["forum_lastposter_id"]);
+                    this.ForumLastPosterName    = PolarEnvironment.GetHabboById(this.ForumLastPosterId) == null
+                                                    ? "HoloRP"
+                                                    : PolarEnvironment.GetHabboById(this.ForumLastPosterId).Username;
+                    this.ForumLastPosterTimestamp = Convert.ToInt32(Row["forum_lastposter_timestamp"]);
+                    this.WhoCanMod    = Convert.ToInt32(Row["who_can_mod"]);
+                    this.WhoCanPost   = Convert.ToInt32(Row["who_can_post"]);
+                    this.WhoCanRead   = Convert.ToInt32(Row["who_can_read"]);
+                    this.WhoCanThread = Convert.ToInt32(Row["who_can_thread"]);
+
+                    // ── Campos exclusivos de pandillas ─────────────────────────
+                    if (this.Id >= 1000)
+                    {
+                        this.GangKills        = Convert.ToInt32(Row["gang_kills"]);
+                        this.GangCopKills     = Convert.ToInt32(Row["gang_cop_kills"]);
+                        this.GangDeaths       = Convert.ToInt32(Row["gang_deaths"]);
+                        this.GangScore        = Convert.ToInt32(Row["gang_score"]);
+                        this.GangTurfsTaken   = Convert.ToInt32(Row["gang_turfs_taken"]);
+                        this.GangTurfsDefended= Convert.ToInt32(Row["gang_turfs_defend"]);
+                        this.MediPacks        = Convert.ToInt32(Row["medipacks"]);
+                        this.BankRuptcy       = PolarEnvironment.EnumToBool(Row["bankruptcy"].ToString());
+                    }
+                }
+
+                // ── Regenerar miembros, peticiones y logs ──────────────────────
+                var gm = PolarEnvironment.GetGame().GetGroupManager();
+
+                this.Members.Clear();
+                this.Requests.Clear();
+                this.Logs.Clear();
+
+                List<int> newRequests;
+                ConcurrentDictionary<int, GroupMember> newMembers;
+
+                if (this.Id >= 1000)
+                    newMembers = gm.GenerateGangMembers(this.Id, out newRequests);
+                else
+                    newMembers = gm.GenerateJobMembers(this.Id, out newRequests);
+
+                foreach (var kv in newMembers)
+                    this.Members.TryAdd(kv.Key, kv.Value);
+
+                foreach (int uid in newRequests)
+                    this.Requests.Add(uid);
+
+                ConcurrentDictionary<int, GroupLogs> newLogs = gm.GenerateLogs(this.Id);
+                foreach (var kv in newLogs)
+                    this.Logs.TryAdd(kv.Key, kv.Value);
+
+                // ── Regenerar ranks de trabajos (pandillas usan GenericGangRanks) ─
+                if (this.Id < 1000)
+                {
+                    this.Ranks.Clear();
+                    ConcurrentDictionary<int, GroupRank> newRanks = gm.GenerateJobRanks(this.Id);
+                    foreach (var kv in newRanks)
+                        this.Ranks.TryAdd(kv.Key, kv.Value);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Polar.Core.Logging.LogException("[Group.RefreshFromDatabase] Id=" + this.Id + " -> " + ex);
+                return false;
+            }
+        }
+
         public void Dispose()
         {
             if (this.Id < 1000)

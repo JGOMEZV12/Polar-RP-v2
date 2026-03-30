@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections;
@@ -87,7 +87,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
 
             this.Instance.GetGameMap().TeleportToItem(User, Item);
             this.Instance.GetRoomUserManager().UpdateUserStatusses();
-
 
             return true;
         }

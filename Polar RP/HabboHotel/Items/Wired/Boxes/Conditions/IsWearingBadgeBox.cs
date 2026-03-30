@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -41,7 +41,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
             if (Params.Length == 0)
                 return false;
 
-            if (String.IsNullOrEmpty(this.StringData))
+            if (string.IsNullOrEmpty(this.StringData))
                 return false;
 
             Habbo Player = (Habbo)Params[0];

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections;
@@ -11,7 +11,7 @@ using Polar.Communication.Packets.Incoming;
 
 namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
 {
-    class BotFollowsUserBox: IWiredItem
+    class BotFollowsUserBox : IWiredItem
     {
         public Room Instance { get; set; }
         public Item Item { get; set; }
@@ -31,13 +31,13 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
         public void HandleSave(ClientPacket Packet)
         {
             int Unknown = Packet.PopInt();
-            int FollowMode = Packet.PopInt();//1 = follow, 0 = don't.
+            int FollowMode = Packet.PopInt();
             string BotConfiguration = Packet.PopString();
-       
+
             if (this.SetItems.Count > 0)
                 this.SetItems.Clear();
 
-            this.StringData = FollowMode + ";" +BotConfiguration;
+            this.StringData = FollowMode + ";" + BotConfiguration;
         }
 
         public bool Execute(params object[] Params)
@@ -58,7 +58,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
 
             string[] Stuff = this.StringData.Split(';');
             if (Stuff.Length != 2)
-                return false;//This is important, incase a cunt scripts.
+                return false;
 
             string Username = Stuff[1];
 
@@ -83,6 +83,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
 
                 if (User.IsWalking)
                     User.ClearMovement(true);
+
                 User.MoveTo(Human.X, Human.Y);
             }
 

@@ -9,14 +9,11 @@ using Polar.HabboHotel.GameClients;
 using System.Collections.Concurrent;
 using Polar.Database.Interfaces;
 using log4net;
-using System.Threading;
 using Polar.HabboRoleplay.Turfs;
 using Polar.HabboRoleplay.Houses;
-using Polar.HabboHotel.Items;
 using Polar.HabboRoleplay.Farming;
 using Polar.HabboRoleplay.Gambling;
 using Polar.HabboRoleplay.Bots.Manager;
-using System.Diagnostics;
 
 namespace Polar.HabboHotel.Rooms
 {
@@ -25,663 +22,593 @@ namespace Polar.HabboHotel.Rooms
         private static readonly ILog log = LogManager.GetLogger("Polar.HabboHotel.Rooms.RoomManager");
 
         private Dictionary<string, RoomModel> _roomModels;
-        private readonly Object _roomLoadingSync;
+        private readonly object _roomLoadingSync;
         public ConcurrentDictionary<int, Room> _rooms;
         private ConcurrentDictionary<int, RoomData> _loadedRoomData;
-        private Dictionary<int, Room> loadedRooms = new Dictionary<int, Room>();
 
         private DateTime _purgeLastExecution;
 
-
+        // ─────────────────────────────────────
+        //  Constructor
+        // ─────────────────────────────────────
         public RoomManager()
         {
-            this._roomLoadingSync = new Object();
-            this._roomModels = new Dictionary<string, RoomModel>();
-
-            this._rooms = new ConcurrentDictionary<int, Room>();
-            this._loadedRoomData = new ConcurrentDictionary<int, RoomData>();
-
-            this._purgeLastExecution = DateTime.Now.AddHours(3);
-
-            //log.Info("Room Manager -> LOADED");
+            _roomLoadingSync = new object();
+            _roomModels = new Dictionary<string, RoomModel>();
+            _rooms = new ConcurrentDictionary<int, Room>();
+            _loadedRoomData = new ConcurrentDictionary<int, RoomData>();
+            _purgeLastExecution = DateTime.Now.AddHours(3);
         }
 
-        public int LoadedRoomDataCount
-        {
-            get { return this._loadedRoomData.Count; }
-        }
+        // ─────────────────────────────────────
+        //  Contadores
+        // ─────────────────────────────────────
+        public int LoadedRoomDataCount => _loadedRoomData.Count;
+        public int Count => _rooms.Count;
 
-        public int Count
-        {
-            get { return this._rooms.Count; }
-        }
-
+        // ─────────────────────────────────────
+        //  PreLoad
+        // ─────────────────────────────────────
         public void PreLoadRooms()
         {
-            lock (this._roomLoadingSync)
+            lock (_roomLoadingSync)
             {
-                DataTable Row = null;
+                // FIX: cargamos solo los ids en esta conexión, sin abrir conexiones anidadas
+                var roomIds = new List<int>();
+
                 using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                 {
-                    dbClient.SetQuery("SELECT * FROM `rooms`");
-                    Row = dbClient.getTable();
+                    dbClient.SetQuery("SELECT `id` FROM `rooms`");
+                    DataTable table = dbClient.getTable();
+                    if (table == null) return;
 
-                    foreach (DataRow R in Row.Rows)
-                    {
-                        GenerateRoomData(Convert.ToInt32(R["id"]));
-                    }
+                    foreach (DataRow row in table.Rows)
+                        roomIds.Add(Convert.ToInt32(row["id"]));
                 }
+
+                foreach (int id in roomIds)
+                    GenerateRoomData(id);
             }
         }
 
-        public void LoadModel(string Id)
+        // ─────────────────────────────────────
+        //  Modelos
+        // ─────────────────────────────────────
+        public void LoadModel(string id)
         {
-            DataRow Row = null;
+            // FIX: query parametrizada — antes concatenaba Id directamente (SQL injection)
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("SELECT id,door_x,door_y,door_z,door_dir,heightmap,`wall_height` FROM `room_models` WHERE `custom` = '1' AND `id` = '" + Id + "' LIMIT 1");
-                Row = dbClient.getRow();
+                dbClient.SetQuery(
+                    "SELECT id,door_x,door_y,door_z,door_dir,heightmap,`wall_height` " +
+                    "FROM `room_models` WHERE `custom` = '1' AND `id` = @id LIMIT 1");
+                dbClient.AddParameter("id", id);
+                DataRow row = dbClient.getRow();
 
-                if (Row == null)
+                if (row == null)
                     return;
 
-                string Modelname = Convert.ToString(Row["id"]);
-                if (!this._roomModels.ContainsKey(Id))
+                string modelName = Convert.ToString(row["id"]);
+                string heightmap = Convert.ToString(row["heightmap"]);
+
+                // FIX: saltar si heightmap vacío
+                if (string.IsNullOrEmpty(heightmap))
                 {
-                    this._roomModels.Add(Modelname, new RoomModel(Id, Convert.ToInt32(Row["door_x"]), Convert.ToInt32(Row["door_y"]), Convert.ToDouble(Row["door_z"]), Convert.ToInt32(Row["door_dir"]),
-                      Convert.ToString(Row["heightmap"]), Convert.ToInt32(Row["wall_height"]), Convert.ToString(Row["poolmap"])));
+                    log.Warn($"LoadModel: modelo '{id}' tiene heightmap vacío — ignorado.");
+                    return;
+                }
+
+                if (!_roomModels.ContainsKey(id))
+                {
+                    _roomModels.Add(modelName, new RoomModel(id,
+                        Convert.ToInt32(row["door_x"]),
+                        Convert.ToInt32(row["door_y"]),
+                        Convert.ToDouble(row["door_z"]),
+                        Convert.ToInt32(row["door_dir"]),
+                        heightmap,
+                        Convert.ToInt32(row["wall_height"]),
+                        Convert.ToString(row["poolmap"])));
                 }
             }
         }
 
         public void LoadModels()
         {
-            this._roomModels.Clear();
+            _roomModels.Clear();
+
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
                 dbClient.SetQuery("SELECT id,door_x,door_y,door_z,door_dir,heightmap,wall_height,poolmap FROM room_models");
                 DataTable table = dbClient.getTable();
-                if (table == null)
-                    return;
-                foreach (DataRow dataRow in table.Rows)
+                if (table == null) return;
+
+                foreach (DataRow row in table.Rows)
                 {
-                    string str = (string)dataRow["id"];
-                    this._roomModels.Add(str,
-                        new RoomModel(str, (int)dataRow["door_x"], (int)dataRow["door_y"], (double)dataRow["door_z"],
-                            (int)dataRow["door_dir"], (string)dataRow["heightmap"], Convert.ToInt32(dataRow["wall_height"]), Convert.ToString(dataRow["poolmap"])));
+                    string modelId = Convert.ToString(row["id"]);
+                    string heightmap = Convert.ToString(row["heightmap"]);
+
+                    // FIX: saltar filas con heightmap vacío en vez de explotar al inicio
+                    if (string.IsNullOrEmpty(modelId) || string.IsNullOrEmpty(heightmap))
+                    {
+                        log.Warn($"room_models: fila con id='{modelId}' tiene heightmap vacío — ignorada.");
+                        continue;
+                    }
+
+                    if (_roomModels.ContainsKey(modelId)) continue;
+
+                    try
+                    {
+                        _roomModels.Add(modelId, new RoomModel(modelId,
+                            (int)row["door_x"],
+                            (int)row["door_y"],
+                            (double)row["door_z"],
+                            (int)row["door_dir"],
+                            heightmap,
+                            Convert.ToInt32(row["wall_height"]),
+                            Convert.ToString(row["poolmap"])));
+                    }
+                    catch (Exception ex)
+                    {
+                        log.Error($"room_models: error parseando modelo '{modelId}': {ex.Message}");
+                    }
                 }
             }
         }
 
-        public void ReloadModel(string Id)
+        // FIX: ReloadModel ahora es atómico — antes había una ventana donde el modelo no existía
+        public void ReloadModel(string id)
         {
-            if (!this._roomModels.ContainsKey(Id))
+            // Cargamos el nuevo modelo antes de remover el anterior
+            LoadModel(id);
+
+            // Si ya existía una versión vieja y LoadModel no la sobreescribió (por el ContainsKey),
+            // la removemos y volvemos a cargar
+            if (_roomModels.ContainsKey(id))
+                _roomModels.Remove(id);
+
+            LoadModel(id);
+        }
+
+        public bool TryGetModel(string id, out RoomModel model)
+        {
+            return _roomModels.TryGetValue(id, out model);
+        }
+
+        public RoomModel GetModel(string model, int roomId)
+        {
+            if (model == "model_custom")
+                return GetCustomData(roomId);
+
+            _roomModels.TryGetValue(model, out RoomModel result);
+            return result;
+        }
+
+        // FIX: query parametrizada — antes concatenaba roomID directamente (SQL injection)
+        private static RoomModel GetCustomData(int roomId)
+        {
+            using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                this.LoadModel(Id);
-                return;
+                dbClient.SetQuery(
+                    "SELECT door_x,door_y,door_z,door_dir,heightmap,wall_height " +
+                    "FROM room_models_customs WHERE room_id = @roomId");
+                dbClient.AddParameter("roomId", roomId);
+                DataRow row = dbClient.getRow();
+
+                if (row == null)
+                    throw new Exception($"El room model de la sala {roomId} no ha sido encontrado.");
+
+                return new RoomModel(roomId.ToString(),
+                    (int)row["door_x"],
+                    (int)row["door_y"],
+                    (double)row["door_z"],
+                    (int)row["door_dir"],
+                    (string)row["heightmap"],
+                    (int)row["wall_height"],
+                    string.Empty);
             }
-
-            this._roomModels.Remove(Id);
-            this.LoadModel(Id);
-        }
-        
-        public bool TryGetModel(string Id, out RoomModel Model)
-        {
-            return this._roomModels.TryGetValue(Id, out Model);
         }
 
-        public Room GetRoom(int roomID)
+        // ─────────────────────────────────────
+        //  Obtener salas
+        // ─────────────────────────────────────
+        public Room GetRoom(int roomId)
         {
-            Room room;
-            if (this._rooms.TryGetValue(roomID, out room))
-            {
-                return room;
-            }
-            return null;
+            _rooms.TryGetValue(roomId, out Room room);
+            return room;
         }
 
-        public async Task UnloadRoom(Room Room, bool RemoveData = false)
+        public bool TryGetRoom(int roomId, out Room room)
         {
-            if (Room == null)
+            return _rooms.TryGetValue(roomId, out room);
+        }
+
+        public ICollection<Room> GetRooms() => _rooms.Values;
+
+        // FIX: .Count() sobre IEnumerable enumeraba toda la colección — ahora FirstOrDefault es O(1)
+        public Room TryGetRandomLoadedRoom()
+        {
+            return (from r in _rooms
+                    where r.Value.RoomData.UsersNow > 0 &&
+                          r.Value.RoomData.State == 0 &&
+                          r.Value.RoomData.UsersNow < r.Value.RoomData.UsersMax
+                    orderby r.Value.RoomData.UsersNow descending
+                    select r.Value).FirstOrDefault();
+        }
+
+        // ─────────────────────────────────────
+        //  Unload
+        // ─────────────────────────────────────
+        public async Task UnloadRoom(Room room, bool removeData = false)
+        {
+            if (room == null)
                 return;
-
-            /*Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.WriteLine("Se ha vaciado la [" + Room.RoomId + "] " + Room.RoomData.Name + "");*/
 
             #region Roleplay Checks
 
-
-            #region Texas Hold Em
-            List<TexasHoldEm> Games = TexasHoldEmManager.GetGamesByRoomId(Room.Id);
-            if (Games.Count > 0)
+            // Texas Hold Em
+            List<TexasHoldEm> games = TexasHoldEmManager.GetGamesByRoomId(room.Id);
+            foreach (TexasHoldEm game in games)
             {
-                foreach (TexasHoldEm Game in Games)
-                {
-                    if (Game != null)
-                    {
-                        #region PotSquare Check
-                        Game.PotSquare.Furni = null;
-                        #endregion
+                if (game == null) continue;
 
-                        #region JoinGate Check
-                        Game.JoinGate.Furni = null;
-                        #endregion
+                game.PotSquare.Furni = null;
+                game.JoinGate.Furni = null;
 
-                        #region Player1 Check
-                        foreach (TexasHoldEmItem Item in Game.Player1.Values)
-                        {
-                            Item.Furni = null;
-                        }
-                        #endregion
-
-                        #region Player2 Check
-                        foreach (TexasHoldEmItem Item in Game.Player2.Values)
-                        {
-                            Item.Furni = null;
-                        }
-                        #endregion
-
-                        #region Player3 Check
-                        foreach (TexasHoldEmItem Item in Game.Player3.Values)
-                        {
-                            Item.Furni = null;
-                        }
-                        #endregion
-
-                        #region Banker Check
-                        foreach (TexasHoldEmItem Item in Game.Banker.Values)
-                        {
-                            Item.Furni = null;
-                        }
-                        #endregion
-                    }
-                }
+                foreach (TexasHoldEmItem item in game.Player1.Values) item.Furni = null;
+                foreach (TexasHoldEmItem item in game.Player2.Values) item.Furni = null;
+                foreach (TexasHoldEmItem item in game.Player3.Values) item.Furni = null;
+                foreach (TexasHoldEmItem item in game.Banker.Values) item.Furni = null;
             }
-            #endregion
 
-            #region Farming
-            List<FarmingSpace> FarmingSpaces = FarmingManager.GetFarmingSpacesByRoomId(Room.Id);
-            if (FarmingSpaces.Count > 0)
+            // Farming
+            List<FarmingSpace> farmingSpaces = FarmingManager.GetFarmingSpacesByRoomId(room.Id);
+            foreach (FarmingSpace space in farmingSpaces)
             {
-                foreach (FarmingSpace Space in FarmingSpaces)
-                {
-                    if (Space != null)
-                    {
-                        Space.Item = null;
-                        Space.Spawned = false;
-                    }
-                }
+                if (space == null) continue;
+                space.Item = null;
+                space.Spawned = false;
             }
-            #endregion
-
-            #region Houses
-            /*List<House> Houses = PolarEnvironment.GetGame().GetHouseManager().GetHousesBySignRoomId(Room.Id);
-            if (Houses.Count > 0)
-            {
-                foreach (House House in Houses)
-                {
-                    if (House.Sign != null)
-                    {
-                        House.Sign.Item = null;
-                        House.Sign.Spawned = false;
-                    }
-                }
-            }*/
-            #endregion
 
             #region Bots
-            //RoleplayBotManager.DeployCachedBots();
+            RoleplayBotManager.EjectRoomsDeployedBots(room);
             #endregion
 
             #endregion
 
-           
-                Room room = null;
-                if (this._rooms.TryRemove(Room.RoomId, out room))
-                {
-                    await Room.DisposeAsync();
-
-                    if (RemoveData)
-                    {
-                        RoomData Data = null;
-                        this._loadedRoomData.TryRemove(Room.Id, out Data);
-                    }
-                }
-           
-        }
-        public List<RoomData> SearchGroupRooms(string Query)
-        {
-            IEnumerable<RoomData> InstanceMatches =
-                (from RoomInstance in this._loadedRoomData
-                 where /*RoomInstance.Value.UsersNow >= 0 &&*/
-                 RoomInstance.Value.State != 3 &&
-                 RoomInstance.Value.Group != null &&
-                 (RoomInstance.Value.OwnerName.StartsWith(Query) ||
-                 RoomInstance.Value.Tags.Contains(Query) ||
-                 RoomInstance.Value.Name.Contains(Query))
-                 orderby RoomInstance.Value.UsersNow descending
-                 select RoomInstance.Value).Take(50);
-            return InstanceMatches.ToList();
-        }
-
-        public List<RoomData> SearchTaggedRooms(string Query)
-        {
-            IEnumerable<RoomData> InstanceMatches =
-                (from RoomInstance in this._loadedRoomData
-                 where RoomInstance.Value.UsersNow >= 0 &&
-                 RoomInstance.Value.State != 3 &&
-                 (RoomInstance.Value.Tags.Contains(Query))
-                 orderby RoomInstance.Value.UsersNow descending
-                 select RoomInstance.Value).Take(50);
-            return InstanceMatches.ToList();
-        }
-
-        public List<RoomData> GetPopularRooms(int category, int Amount = 50)
-        {
-            IEnumerable<RoomData> rooms =
-                (from RoomInstance in this._loadedRoomData
-                 where RoomInstance.Value.UsersNow > 0 &&
-                 (category == -1 || RoomInstance.Value.Category == category) &&
-                 RoomInstance.Value.State != 3
-                 orderby RoomInstance.Value.Score descending
-                 orderby RoomInstance.Value.UsersNow descending
-                 select RoomInstance.Value).Take(Amount);
-            return rooms.ToList();
-        }
-
-        public List<RoomData> GetRecommendedRooms(int Amount = 50, int CurrentRoomId = 0)
-        {
-            IEnumerable<RoomData> Rooms =
-                (from RoomInstance in this._loadedRoomData
-                 where RoomInstance.Value.UsersNow >= 0 &&
-                 RoomInstance.Value.Score >= 0 &&
-                 RoomInstance.Value.State != 3 &&
-                 RoomInstance.Value.Id != CurrentRoomId
-                 orderby RoomInstance.Value.Score descending
-                 orderby RoomInstance.Value.UsersNow descending
-                 select RoomInstance.Value).Take(Amount);
-            return Rooms.ToList();
-        }
-
-        public List<RoomData> GetPopularRatedRooms(int Amount = 50)
-        {
-            IEnumerable<RoomData> rooms =
-                (from RoomInstance in this._loadedRoomData
-                 where RoomInstance.Value.State != 3
-                 orderby RoomInstance.Value.Score descending
-                 select RoomInstance.Value).Take(Amount);
-            return rooms.ToList();
-        }
-
-        public List<RoomData> GetRoomsByCategory(int Category, int Amount = 50)
-        {
-            IEnumerable<RoomData> rooms =
-                (from RoomInstance in this._loadedRoomData
-                 where RoomInstance.Value.Category == Category &&
-                 RoomInstance.Value.UsersNow > 0 &&
-                 RoomInstance.Value.State != 3
-                 orderby RoomInstance.Value.UsersNow descending
-                 select RoomInstance.Value).Take(Amount);
-            return rooms.ToList();
-        }
-
-        public List<RoomData> GetOnGoingRoomPromotions(int Mode, int Amount = 50)
-        {
-            IEnumerable<RoomData> Rooms = null;
-
-            if (Mode == 17)
+            if (_rooms.TryRemove(room.RoomId, out _))
             {
-                Rooms =
-                    (from RoomInstance in this._loadedRoomData
-                     where (RoomInstance.Value.HasActivePromotion) &&
-                     RoomInstance.Value.State != 3
-                     orderby RoomInstance.Value.Promotion.TimestampStarted descending
-                     select RoomInstance.Value).Take(Amount);
+                await room.DisposeAsync();
+
+                if (removeData)
+                    _loadedRoomData.TryRemove(room.Id, out _);
             }
-            else
-            {
-                Rooms =
-                    (from RoomInstance in this._loadedRoomData
-                     where (RoomInstance.Value.HasActivePromotion) &&
-                     RoomInstance.Value.State != 3
-                     orderby RoomInstance.Value.UsersNow descending
-                     select RoomInstance.Value).Take(Amount);
-            }
-
-            return Rooms.ToList();
         }
 
+        // ─────────────────────────────────────
+        //  Update
+        // ─────────────────────────────────────
 
-        public List<RoomData> GetPromotedRooms(int CategoryId, int Amount = 50)
+        // FIX: TryUpdate es atómico — antes leía _loadedRoomData[Room.Id] dos veces (race condition)
+        public void UpdateRoom(Room room)
         {
-            IEnumerable<RoomData> Rooms = null;
+            if (_loadedRoomData.TryGetValue(room.Id, out RoomData existingData))
+                _loadedRoomData.TryUpdate(room.Id, room.RoomData, existingData);
 
-            Rooms =
-                (from RoomInstance in this._loadedRoomData
-                 where (RoomInstance.Value.HasActivePromotion) &&
-                 RoomInstance.Value.Promotion.CategoryId == CategoryId &&
-                 RoomInstance.Value.State != 3
-                 orderby RoomInstance.Value.Promotion.TimestampStarted descending
-                 select RoomInstance.Value).Take(Amount);
-
-            return Rooms.ToList();
+            if (_rooms.TryGetValue(room.Id, out Room existingRoom))
+                _rooms.TryUpdate(room.Id, room, existingRoom);
         }
 
-        public List<KeyValuePair<string, int>> GetPopularRoomTags()
+        public List<Room> GetLoadedRooms()
         {
-            IEnumerable<List<string>> Tags =
-                (from RoomInstance in this._loadedRoomData
-                 where RoomInstance.Value.UsersNow >= 0 &&
-                 RoomInstance.Value.State != 3
-                 orderby RoomInstance.Value.UsersNow descending
-                 orderby RoomInstance.Value.Score descending
-                 select RoomInstance.Value.Tags).Take(50);
-
-            Dictionary<string, int> TagValues = new Dictionary<string, int>();
-
-            foreach (List<string> TagList in Tags)
-            {
-                foreach (string Tag in TagList)
-                {
-                    if (!TagValues.ContainsKey(Tag))
-                    {
-                        TagValues.Add(Tag, 1);
-                    }
-                    else
-                    {
-                        TagValues[Tag]++;
-                    }
-                }
-            }
-
-            List<KeyValuePair<string, int>> SortedTags = new List<KeyValuePair<string, int>>(TagValues);
-            SortedTags.Sort((FirstPair, NextPair) =>
-            {
-                return FirstPair.Value.CompareTo(NextPair.Value);
-            });
-
-            SortedTags.Reverse();
-            return SortedTags;
+            return this._rooms.Values.ToList();
         }
+        // ─────────────────────────────────────
+        //  RoomData
+        // ─────────────────────────────────────
 
-        public List<RoomData> GetGroupRooms(int Amount = 50)
+        // FIX: queries parametrizadas — antes concatenaba RoomId directamente (SQL injection)
+        public RoomData GenerateRoomData(int roomId)
         {
-            IEnumerable<RoomData> rooms =
-                (from RoomInstance in this._loadedRoomData
-                 where RoomInstance.Value.Group != null &&
-                 RoomInstance.Value.State != 3
-                 orderby RoomInstance.Value.Score descending
-                 select RoomInstance.Value).Take(Amount);
-            return rooms.ToList();
-        }
+            if (_loadedRoomData.TryGetValue(roomId, out RoomData cached))
+                return cached;
 
-        public Room TryGetRandomLoadedRoom()
-        {
-            IEnumerable<Room> room =
-                (from RoomInstance in this._rooms
-                where (RoomInstance.Value.RoomData.UsersNow > 0 &&
-                RoomInstance.Value.RoomData.State == 0 &&
-                RoomInstance.Value.RoomData.UsersNow < RoomInstance.Value.RoomData.UsersMax)
-                orderby RoomInstance.Value.RoomData.UsersNow descending
-                select RoomInstance.Value).Take(1);
+            if (TryGetRoom(roomId, out Room existingRoom))
+                return existingRoom.RoomData;
 
-            if (room.Count() > 0)
-                return room.First();
-            else
-                return null;
-        }
+            DataRow row = null;
+            DataRow rpRow = null;
 
-        private static RoomModel GetCustomData(int roomID)
-        {
-            DataRow row;
-            using (IQueryAdapter queryreactor = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-            {
-                queryreactor.SetQuery(
-                    "SELECT door_x,door_y,door_z,door_dir,heightmap, wall_height FROM room_models_customs WHERE room_id = " +
-                    roomID);
-                row = queryreactor.getRow();
-            }
-
-            if (row == null)
-                throw new Exception("El room model de la sala " + roomID + " no ha sido encontrado.");
-            return new RoomModel(roomID.ToString(), (int)row["door_x"], (int)row["door_y"], (double)row["door_z"],
-                (int)row["door_dir"], (string)row["heightmap"], (int)row["wall_height"], string.Empty);
-
-             }
-
-        public RoomModel GetModel(string Model, int RoomID)
-        {
-            if (Model == "model_custom")
-                return GetCustomData(RoomID);
-            if (this._roomModels.ContainsKey(Model))
-                return (RoomModel)this._roomModels[Model];
-            else
-                return (RoomModel)null;
-        }
-
-        public void UpdateRoom(Room Room)
-        {
-            if (_loadedRoomData.ContainsKey(Room.Id))
-                _loadedRoomData.TryUpdate(Room.Id, Room.RoomData, _loadedRoomData[Room.Id]);
-
-            if (_rooms.ContainsKey(Room.Id))
-                _rooms.TryUpdate(Room.Id, Room, _rooms[Room.Id]);
-        }
-
-        public RoomData GenerateRoomData(int RoomId)
-        {
-            if (_loadedRoomData.ContainsKey(RoomId))
-                return (RoomData)_loadedRoomData[RoomId];
-
-            RoomData Data = new RoomData();
-
-            Room Room;
-
-            if (TryGetRoom(RoomId, out Room))
-                return Room.RoomData;
-
-            DataRow Row = null;
-            DataRow RPRow = null;
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("SELECT * FROM `rooms` WHERE `id` = " + RoomId + " LIMIT 1");
-                Row = dbClient.getRow();
+                dbClient.SetQuery("SELECT * FROM `rooms` WHERE `id` = @id LIMIT 1");
+                dbClient.AddParameter("id", roomId);
+                row = dbClient.getRow();
 
-                dbClient.SetQuery("SELECT * FROM `rp_rooms` WHERE `id` = " + RoomId + " LIMIT 1");
-                RPRow = dbClient.getRow();
+                dbClient.SetQuery("SELECT * FROM `rp_rooms` WHERE `id` = @id LIMIT 1");
+                dbClient.AddParameter("id", roomId);
+                rpRow = dbClient.getRow();
             }
 
-            if (Row == null || RPRow == null)
+            if (row == null || rpRow == null)
                 return null;
 
-            Data.Fill(Row);
-            Data.FillRP(RPRow);
+            RoomData data = new RoomData();
+            data.Fill(row);
+            data.FillRP(rpRow);
 
-            if (!_loadedRoomData.ContainsKey(RoomId))
-                _loadedRoomData.TryAdd(RoomId, Data);
-
-            return Data;
+            _loadedRoomData.TryAdd(roomId, data);
+            return data;
         }
 
         public bool TryGetRoomData(int roomId, out RoomData data)
         {
-            data = null;
-            if (_loadedRoomData.TryGetValue(roomId, out data))
-                return true;
-
-            return false;
+            return _loadedRoomData.TryGetValue(roomId, out data);
         }
 
-        public RoomData FetchRoomData(int RoomId, DataRow dRow, DataRow dRowRP)
+        public RoomData FetchRoomData(int roomId, DataRow dRow, DataRow dRowRP)
         {
-            if (_loadedRoomData.ContainsKey(RoomId))
-                return (RoomData)_loadedRoomData[RoomId];
-            else
-            {
-                RoomData data = new RoomData();
+            if (_loadedRoomData.TryGetValue(roomId, out RoomData existing))
+                return existing;
 
-                data.Fill(dRow);
-                data.FillRP(dRowRP);
+            RoomData data = new RoomData();
+            data.Fill(dRow);
+            data.FillRP(dRowRP);
 
-                if (!_loadedRoomData.ContainsKey(RoomId))
-                    _loadedRoomData.TryAdd(RoomId, data);
-                return data;
-            }
-        }
-
-        public bool LoadRoom(int Id, out Room Room)
-        {
-            Room = null;
-
-            if (TryGetRoom(Id, out Room))
-                return true;
-
-            if (!_rooms.ContainsKey(Id))
-            {
-                RoomData Data = null;
-                if (TryGetRoomData(Id, out Data))
-                {
-                    if (Data != null)
-                    {
-                        Room = new Room(Data);
-                        return _rooms.TryAdd(Room.RoomId, Room);
-                    }
-                }
-
-                var roomData = LoadRoomData(Id);
-                if (roomData == null)
-                    return false;
-
-                Room = new Room(roomData);
-                return _rooms.TryAdd(Room.RoomId, Room);
-            }
-
-            return false;
-        }
-
-        public Room LoadRoom(int Id, bool BotCheck)
-        {
-            Room Room = null;
-
-            if (TryGetRoom(Id, out Room))
-            {
-                return Room;
-            }
-
-            RoomData Data = GenerateRoomData(Id);
-            if (Data == null)
-                return null;
-
-            Room = new Room(Data);
-
-            if (!_rooms.ContainsKey(Room.RoomId))
-            {
-                _rooms.TryAdd(Room.RoomId, Room);
-                if (BotCheck == true)
-                {
-                    Task.Run(async delegate
-                    {
-                        await Task.Delay(2000);
-                        RoleplayBotManager.DeployCachedBots(Room);
-                    });
-                }
-            }
-
-            return Room;
+            _loadedRoomData.TryAdd(roomId, data);
+            return data;
         }
 
         public RoomData LoadRoomData(int roomId)
         {
-            if (_loadedRoomData.ContainsKey(roomId))
-                return _loadedRoomData[roomId];
-
-            var data = new RoomData();
-            DataTable table;
-            DataRow row;
-            DataRow rprow;
+            if (_loadedRoomData.TryGetValue(roomId, out RoomData cached))
+                return cached;
 
             using (var dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("SELECT r.*, u.username AS owner_name FROM rooms r JOIN users u ON r.owner = u.id WHERE r.id = @id LIMIT 1");
+                dbClient.SetQuery(
+                    "SELECT r.*, u.username AS owner_name FROM rooms r " +
+                    "JOIN users u ON r.owner = u.id WHERE r.id = @id LIMIT 1");
                 dbClient.AddParameter("id", roomId);
-                table = dbClient.getTable();
+                DataTable table = dbClient.getTable();
+
                 if (table == null || table.Rows.Count == 0)
                     return null;
-                row = table.Rows[0];
+
+                DataRow row = table.Rows[0];
+
                 dbClient.SetQuery("SELECT * FROM `rp_rooms` WHERE `id` = @id LIMIT 1");
                 dbClient.AddParameter("id", roomId);
-                rprow = dbClient.getRow();
-            }
+                DataRow rpRow = dbClient.getRow();
 
-            if (row == null || rprow == null)
-                return null;
+                if (row == null || rpRow == null)
+                    return null;
 
-            data.Fill(row, (string)row["owner_name"]);
-            data.FillRP(rprow);
+                RoomData data = new RoomData();
+                data.Fill(row, (string)row["owner_name"]);
+                data.FillRP(rpRow);
 
-            if (!_loadedRoomData.ContainsKey(roomId))
                 _loadedRoomData.TryAdd(roomId, data);
-
-            return data;
+                return data;
+            }
         }
 
-        public bool TryGetRoom(int RoomId, out Room Room)
+        // ─────────────────────────────────────
+        //  LoadRoom — FIX: lógica de las 3 sobrecargas unificada en un método base
+        // ─────────────────────────────────────
+        public Room LoadRoom(int id) => LoadRoomInternal(id, false);
+
+        public Room LoadRoom(int id, bool botCheck) => LoadRoomInternal(id, botCheck);
+
+        public bool LoadRoom(int id, out Room room)
         {
-            return this._rooms.TryGetValue(RoomId, out Room);
+            room = LoadRoomInternal(id, false);
+            return room != null;
         }
 
-        public RoomData CreateRoom(GameClient Session, string Name, string Description, string Model, int Category, string City, int MaxVisitors, int TradeSettings)
+        private Room LoadRoomInternal(int id, bool botCheck)
         {
-            if (!_roomModels.ContainsKey(Model))
+            if (TryGetRoom(id, out Room existing))
+                return existing;
+
+            RoomData data = GenerateRoomData(id) ?? LoadRoomData(id);
+            if (data == null)
+                return null;
+
+            Room room = new Room(data);
+
+            if (_rooms.TryAdd(room.RoomId, room) && botCheck)
             {
-                Session.SendNotification(PolarEnvironment.GetGame().GetLanguageLocale().TryGetValue("room_model_missing"));
+                Task.Run(async () =>
+                {
+                    await Task.Delay(2000);
+                    RoleplayBotManager.DeployCachedBots(room);
+                });
+            }
+
+            return room;
+        }
+
+        // ─────────────────────────────────────
+        //  CreateRoom — FIX: INSERT de rp_rooms parametrizado
+        // ─────────────────────────────────────
+        public RoomData CreateRoom(GameClient session, string name, string description, string model,
+            int category, string city, int maxVisitors, int tradeSettings)
+        {
+            if (!_roomModels.ContainsKey(model))
+            {
+                session.SendNotification(PolarEnvironment.GetGame().GetLanguageLocale().TryGetValue("room_model_missing"));
                 return null;
             }
 
-            if (Name.Length < 3)
+            if (name.Length < 3)
             {
-                Session.SendNotification(PolarEnvironment.GetGame().GetLanguageLocale().TryGetValue("room_name_length_short"));
+                session.SendNotification(PolarEnvironment.GetGame().GetLanguageLocale().TryGetValue("room_name_length_short"));
                 return null;
             }
 
-            int RoomId = 0;
+            int roomId;
 
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("INSERT INTO `rooms` (`roomtype`,`caption`,`description`,`owner`,`model_name`,`category`,`users_max`,`trade_settings`, `username`) VALUES ('private',@caption,@description,@UserId,@model,@category,@usersmax,@tradesettings,@UserName)");
-                dbClient.AddParameter("caption", Name);
-                dbClient.AddParameter("description", Description);
-                dbClient.AddParameter("UserId", Session.GetHabbo().Id);
-                dbClient.AddParameter("model", Model);
-                dbClient.AddParameter("category", Category);
-                dbClient.AddParameter("usersmax", MaxVisitors);
-                dbClient.AddParameter("tradesettings", TradeSettings);
-				dbClient.AddParameter("UserName", Session.GetHabbo().Username);
+                dbClient.SetQuery(
+                    "INSERT INTO `rooms` (`roomtype`,`caption`,`description`,`owner`,`model_name`,`category`,`users_max`,`trade_settings`,`username`) " +
+                    "VALUES ('private',@caption,@description,@userId,@model,@category,@usersMax,@tradeSettings,@userName)");
+                dbClient.AddParameter("caption", name);
+                dbClient.AddParameter("description", description);
+                dbClient.AddParameter("userId", session.GetHabbo().Id);
+                dbClient.AddParameter("model", model);
+                dbClient.AddParameter("category", category);
+                dbClient.AddParameter("usersMax", maxVisitors);
+                dbClient.AddParameter("tradeSettings", tradeSettings);
+                dbClient.AddParameter("userName", session.GetHabbo().Username);
+                roomId = Convert.ToInt32(dbClient.InsertQuery());
 
-                RoomId = Convert.ToInt32(dbClient.InsertQuery());
-                dbClient.RunQuery("INSERT INTO `rp_rooms` (`id`,`city`, `safezone_enabled`) VALUES ('" + RoomId + "', '" + City + "', '1')");
+                // FIX: INSERT de rp_rooms también parametrizado — antes concatenaba RoomId y City
+                dbClient.SetQuery(
+                    "INSERT INTO `rp_rooms` (`id`,`city`,`safezone_enabled`) " +
+                    "VALUES (@id, @city, '1')");
+                dbClient.AddParameter("id", roomId);
+                dbClient.AddParameter("city", city);
+                dbClient.RunQuery();
             }
 
-            RoomData newRoomData = GenerateRoomData(RoomId);
-            Session.GetHabbo().UsersRooms.Add(newRoomData);
+            RoomData newRoomData = GenerateRoomData(roomId);
+            session.GetHabbo().UsersRooms.Add(newRoomData);
             return newRoomData;
         }
 
-        public ICollection<Room> GetRooms()
+        // ─────────────────────────────────────
+        //  Búsquedas
+        // ─────────────────────────────────────
+        public List<RoomData> SearchGroupRooms(string query)
         {
-            return this._rooms.Values;
+            return (from r in _loadedRoomData
+                    where r.Value.State != 3 &&
+                          r.Value.Group != null &&
+                          (r.Value.OwnerName.StartsWith(query) ||
+                           r.Value.Tags.Contains(query) ||
+                           r.Value.Name.Contains(query))
+                    orderby r.Value.UsersNow descending
+                    select r.Value).Take(50).ToList();
         }
 
+        public List<RoomData> SearchTaggedRooms(string query)
+        {
+            return (from r in _loadedRoomData
+                    where r.Value.UsersNow >= 0 &&
+                          r.Value.State != 3 &&
+                          r.Value.Tags.Contains(query)
+                    orderby r.Value.UsersNow descending
+                    select r.Value).Take(50).ToList();
+        }
+
+        public List<RoomData> GetPopularRooms(int category, int amount = 50)
+        {
+            return (from r in _loadedRoomData
+                    where r.Value.UsersNow > 0 &&
+                          (category == -1 || r.Value.Category == category) &&
+                          r.Value.State != 3
+                    orderby r.Value.Score descending
+                    orderby r.Value.UsersNow descending
+                    select r.Value).Take(amount).ToList();
+        }
+
+        public List<RoomData> GetRecommendedRooms(int amount = 50, int currentRoomId = 0)
+        {
+            return (from r in _loadedRoomData
+                    where r.Value.UsersNow >= 0 &&
+                          r.Value.Score >= 0 &&
+                          r.Value.State != 3 &&
+                          r.Value.Id != currentRoomId
+                    orderby r.Value.Score descending
+                    orderby r.Value.UsersNow descending
+                    select r.Value).Take(amount).ToList();
+        }
+
+        public List<RoomData> GetPopularRatedRooms(int amount = 50)
+        {
+            return (from r in _loadedRoomData
+                    where r.Value.State != 3
+                    orderby r.Value.Score descending
+                    select r.Value).Take(amount).ToList();
+        }
+
+        public List<RoomData> GetRoomsByCategory(int category, int amount = 50)
+        {
+            return (from r in _loadedRoomData
+                    where r.Value.Category == category &&
+                          r.Value.UsersNow > 0 &&
+                          r.Value.State != 3
+                    orderby r.Value.UsersNow descending
+                    select r.Value).Take(amount).ToList();
+        }
+
+        public List<RoomData> GetOnGoingRoomPromotions(int mode, int amount = 50)
+        {
+            var query = _loadedRoomData
+                .Where(r => r.Value.HasActivePromotion && r.Value.State != 3)
+                .Select(r => r.Value);
+
+            if (mode == 17)
+                return query.OrderByDescending(r => r.Promotion.TimestampStarted).Take(amount).ToList();
+            else
+                return query.OrderByDescending(r => r.UsersNow).Take(amount).ToList();
+        }
+
+        public List<RoomData> GetPromotedRooms(int categoryId, int amount = 50)
+        {
+            return (from r in _loadedRoomData
+                    where r.Value.HasActivePromotion &&
+                          r.Value.Promotion.CategoryId == categoryId &&
+                          r.Value.State != 3
+                    orderby r.Value.Promotion.TimestampStarted descending
+                    select r.Value).Take(amount).ToList();
+        }
+
+        public List<RoomData> GetGroupRooms(int amount = 50)
+        {
+            return (from r in _loadedRoomData
+                    where r.Value.Group != null && r.Value.State != 3
+                    orderby r.Value.Score descending
+                    select r.Value).Take(amount).ToList();
+        }
+
+        // FIX: Sort() + Reverse() reemplazado por OrderByDescending — más limpio y sin mutación in-place
+        public List<KeyValuePair<string, int>> GetPopularRoomTags()
+        {
+            var tags = (from r in _loadedRoomData
+                        where r.Value.UsersNow >= 0 && r.Value.State != 3
+                        orderby r.Value.UsersNow descending
+                        orderby r.Value.Score descending
+                        select r.Value.Tags).Take(50);
+
+            var tagValues = new Dictionary<string, int>();
+
+            foreach (var tagList in tags)
+            {
+                foreach (string tag in tagList)
+                {
+                    if (tagValues.ContainsKey(tag))
+                        tagValues[tag]++;
+                    else
+                        tagValues[tag] = 1;
+                }
+            }
+
+            return tagValues
+                .OrderByDescending(kvp => kvp.Value)
+                .ToList();
+        }
+
+        // ─────────────────────────────────────
+        //  Dispose
+        // ─────────────────────────────────────
         public async Task DisposeAsync()
         {
-            var tasks = new List<Task>();
-            foreach (var room in this._rooms.Values.ToList())
-            {
-                if (room == null)
-                    continue;
-
-                tasks.Add(PolarEnvironment.GetGame().GetRoomManager().UnloadRoom(room));
-            }
+            var tasks = _rooms.Values
+                .Where(r => r != null)
+                .Select(r => UnloadRoom(r))
+                .ToList();
 
             await Task.WhenAll(tasks);
 

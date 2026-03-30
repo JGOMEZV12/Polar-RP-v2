@@ -1,9 +1,9 @@
-﻿using System;
+using ConnectionManager;
+using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using Fleck;
 
 using Polar.HabboHotel.GameClients;
 using System.IO;
@@ -39,7 +39,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Default
 		/// <param name="Data"></param>
 		/// <param name="Socket"></param>
 		/// 
-		public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+		public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
 		{
 			if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
 				return;
@@ -96,7 +96,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Default
 					
 					{
                         Frase = Data2;
-                        Room.SendMessage(new ChatComposer(Client.GetRoomUser().VirtualId, Frase, 0, 2), false);
+                        Room.SendMessage(new ChatComposer(Client.GetRoomUser().VirtualId, Frase, 0, 2, string.Empty), false);
                     }
 					break;
                     #endregion

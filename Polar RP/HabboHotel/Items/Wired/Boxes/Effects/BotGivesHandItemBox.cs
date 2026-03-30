@@ -1,4 +1,4 @@
-﻿using Polar.Communication.Packets.Incoming;
+using Polar.Communication.Packets.Incoming;
 using Polar.HabboHotel.Rooms;
 using Polar.HabboHotel.Users;
 using System;
@@ -48,17 +48,14 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                 return false;
 
             Habbo Player = (Habbo)Params[0];
-
             if (Player == null)
                 return false;
 
             RoomUser Actor = this.Instance.GetRoomUserManager().GetRoomUserByHabbo(Player.Id);
-
             if (Actor == null)
                 return false;
 
             RoomUser User = this.Instance.GetRoomUserManager().GetBotByName(this.StringData.Split(';')[0]);
-
             if (User == null)
                 return false;
 
@@ -70,13 +67,11 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                 string[] Data = this.StringData.Split(';');
 
                 int DrinkId;
-
                 if (!int.TryParse(Data[1], out DrinkId))
                     return false;
 
                 User.CarryItem(DrinkId);
                 User.BotData.TargetUser = Actor.HabboId;
-
                 User.MoveTo(Actor.SquareBehind.X, Actor.SquareBehind.Y);
             }
 

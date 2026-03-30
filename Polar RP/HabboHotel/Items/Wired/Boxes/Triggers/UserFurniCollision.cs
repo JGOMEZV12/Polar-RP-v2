@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
+using System.Linq;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Rooms;
 using Polar.HabboHotel.Users;
@@ -36,38 +37,40 @@ internal class UserFurniCollision : IWiredItem
 
     public bool Execute(params object[] @params)
     {
-        Instance.GetWired().OnEvent(Item);
+        // FIX: Validar player e item ANTES de llamar OnEvent
         var player = (Habbo)@params[0];
         if (player == null)
             return false;
+
         var item = (Item)@params[1];
         if (item == null)
             return false;
+
         var effects = Instance.GetWired().GetEffects(this);
         var conditions = Instance.GetWired().GetConditions(this);
+
         foreach (var condition in conditions.ToList())
         {
             if (!condition.Execute(player))
                 return false;
+
             if (Instance != null)
                 Instance.GetWired().OnEvent(condition.Item);
         }
 
-        //Check the ICollection to find the random addon effect.
-        var hasRandomEffectAddon = effects.Count(x => x.Type == WiredBoxType.AddonRandomEffect) > 0;
+        // FIX: Any() en lugar de .Count() > 0
+        var hasRandomEffectAddon = effects.Any(x => x.Type == WiredBoxType.AddonRandomEffect);
         if (hasRandomEffectAddon)
         {
-            //Okay, so we have a random addon effect, now lets get the IWiredItem and attempt to execute it.
+            // FIX: null-check en randomBox antes de ejecutar
             var randomBox = effects.FirstOrDefault(x => x.Type == WiredBoxType.AddonRandomEffect);
-            if (!randomBox.Execute())
+            if (randomBox == null || !randomBox.Execute())
                 return false;
 
-            //Success! Let's get our selected box and continue.
             var selectedBox = Instance.GetWired().GetRandomEffect(effects.ToList());
-            if (!selectedBox.Execute())
+            if (selectedBox == null || !selectedBox.Execute())
                 return false;
 
-            //Woo! Almost there captain, now lets broadcast the update to the room instance.
             if (Instance != null)
             {
                 Instance.GetWired().OnEvent(randomBox.Item);
@@ -80,10 +83,15 @@ internal class UserFurniCollision : IWiredItem
             {
                 if (!effect.Execute(player))
                     return false;
+
                 if (Instance != null)
                     Instance.GetWired().OnEvent(effect.Item);
             }
         }
+
+        // FIX: OnEvent movido al final, después de todas las validaciones
+        Instance.GetWired().OnEvent(Item);
+
         return true;
     }
 }

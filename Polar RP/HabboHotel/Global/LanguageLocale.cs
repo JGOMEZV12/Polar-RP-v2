@@ -1,9 +1,5 @@
-﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Text.RegularExpressions;
-
-
 using log4net;
 using Polar.Database.Interfaces;
 
@@ -11,42 +7,28 @@ namespace Polar.HabboHotel.Global
 {
     public class LanguageLocale
     {
-        private Dictionary<string, string> _values = new Dictionary<string, string>();
-
         private static readonly ILog log = LogManager.GetLogger("Polar.HabboHotel.Global.LanguageLocale");
 
-        public LanguageLocale()
-        {
-            this._values = new Dictionary<string, string>();
+        private readonly Dictionary<string, string> _values = new Dictionary<string, string>();
 
-            this.Init();
-        }
+        public LanguageLocale() => Init();
 
         public void Init()
         {
-            if (this._values.Count > 0)
-                this._values.Clear();
+            _values.Clear();
 
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("SELECT * FROM `server_locale`");
-                DataTable Table = dbClient.getTable();
+                dbClient.SetQuery("SELECT `key`, `value` FROM `server_locale`");
+                DataTable table = dbClient.getTable();
+                if (table == null) return;
 
-                if (Table != null)
-                {
-                    foreach (DataRow Row in Table.Rows)
-                    {
-                        this._values.Add(Row["key"].ToString(), Row["value"].ToString());
-                    }
-                }
+                foreach (DataRow row in table.Rows)
+                    _values[row["key"].ToString()] = row["value"].ToString();
             }
-
-            //log.Info("Language Locale Manager -> LOADED");
         }
 
-        public string TryGetValue(string value)
-        {
-            return this._values.ContainsKey(value) ? this._values[value] : "Missing language locale for [" + value + "]";
-        }
+        public string TryGetValue(string key)
+            => _values.TryGetValue(key, out string val) ? val : $"[Missing locale: {key}]";
     }
 }

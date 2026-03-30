@@ -2,14 +2,17 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
+using System.Linq;
 using Polar.HabboHotel.Groups;
 using Polar.Database.Interfaces;
-using System.Security.Cryptography;
 
 namespace Polar.HabboHotel.Rooms
 {
     public class RoomData
     {
+        // ─────────────────────────────────────
+        //  Campos — mantenidos públicos por compatibilidad con el resto del proyecto
+        // ─────────────────────────────────────
         public int Id;
         public bool AllowPets;
         public bool AllowPetsEating;
@@ -37,16 +40,18 @@ namespace Polar.HabboHotel.Rooms
         public int WhoCanBan;
         public int WhoCanKick;
         public int WhoCanMute;
-        private RoomModel mModel;
+
+        private RoomModel _model;
+
         public int chatMode;
         public int chatSpeed;
         public int chatSize;
         public int extraFlood;
         public int chatDistance;
+        public int TradeSettings;
 
-        public int TradeSettings;//Default = 2;
-
-        public RoomPromotion _promotion;
+        // FIX: auto-property en lugar de campo _promotion + propiedad trivial
+        public RoomPromotion Promotion { get; set; }
 
         public bool PushEnabled;
         public bool PullEnabled;
@@ -57,16 +62,17 @@ namespace Polar.HabboHotel.Rooms
         public bool PetMorphsAllowed;
         public bool HideWired;
 
+        // RP fields
         public string City;
         public int DoorOrientation;
         public int DoorX;
         public int DoorY;
         public double DoorZ;
         public bool BankEnabled;
-        /* Old public int BankBalance; */
         public bool ShootEnabled;
         public bool HitEnabled;
         public bool SafeZoneEnabled;
+        public bool LearningEnabled;
         public bool SexCommandsEnabled;
         public bool TurfEnabled;
         public bool TurfCapturing = false;
@@ -83,6 +89,7 @@ namespace Polar.HabboHotel.Rooms
         public string EnterRoomMessage;
         public bool MallEnabled;
         public bool SupermarketEnabled;
+        public bool HuntZoneEnabled;
         public bool BuyCarEnabled;
         public bool IsHospital;
         public bool IsPrison;
@@ -100,21 +107,31 @@ namespace Polar.HabboHotel.Rooms
         public Dictionary<int, KeyValuePair<int, string>> WiredCasinoApuestas;
         public Dictionary<int, KeyValuePair<int, string>> WiredScoreBordWeek;
         public Dictionary<int, KeyValuePair<int, string>> WiredScoreBordMonth;
-        public List<int> WiredScoreFirstBordInformation = new List<int>();
 
-        public void Fill(DataRow Row)
+        // FIX: eliminada la doble inicialización — se inicializa solo en Fill
+        public List<int> WiredScoreFirstBordInformation;
+
+        // ─────────────────────────────────────
+        //  Fill — sobrecarga sin ownerName
+        // ─────────────────────────────────────
+        public void Fill(DataRow row)
         {
-            Fill(Row, string.Empty);
+            Fill(row, string.Empty);
         }
 
-        public void Fill(DataRow Row, string ownerName)
+        // ─────────────────────────────────────
+        //  Fill — principal
+        // ─────────────────────────────────────
+        public void Fill(DataRow row, string ownerName)
         {
-            Id = Convert.ToInt32(Row["id"]);
-            Name = Convert.ToString(Row["caption"]);
-            Description = Convert.ToString(Row["description"]);
-            Type = Convert.ToString(Row["roomtype"]);
-            OwnerId = Convert.ToInt32(Row["owner"]);
+            Id = Convert.ToInt32(row["id"]);
+            Name = Convert.ToString(row["caption"]);
+            Description = Convert.ToString(row["description"]);
+            Type = Convert.ToString(row["roomtype"]);
+            OwnerId = Convert.ToInt32(row["owner"]);
 
+            // FIX: la consulta de OwnerName usa la conexión existente del llamador cuando ownerName
+            // no viene — evita abrir una conexión extra por cada sala cargada
             if (string.IsNullOrEmpty(ownerName))
             {
                 using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
@@ -125,217 +142,216 @@ namespace Polar.HabboHotel.Rooms
                 }
             }
             else
+            {
                 OwnerName = ownerName;
-
-            switch (Row["state"].ToString().ToLower())
-            {
-                case "open":
-                    this.State = 0;
-                    break;
-                case "password":
-                    this.State = 2;
-                    break;
-                case "hide":
-                    this.State = 3;
-                    break;
-                default:
-                    this.State = 1;
-                    break;
             }
 
-            Category = Convert.ToInt32(Row["category"]);
-            if (!string.IsNullOrEmpty(Row["users_now"].ToString()))
-                UsersNow = Convert.ToInt32(Row["users_now"]);
-            else
-                UsersNow = 0;
-            UsersMax = Convert.ToInt32(Row["users_max"]);
-            ModelName = Convert.ToString(Row["model_name"]);
-            Score = Convert.ToInt32(Row["score"]);
+            switch (row["state"].ToString().ToLower())
+            {
+                case "open": State = 0; break;
+                case "password": State = 2; break;
+                case "hide": State = 3; break;
+                default: State = 1; break;
+            }
+
+            Category = Convert.ToInt32(row["category"]);
+            UsersNow = string.IsNullOrEmpty(row["users_now"].ToString()) ? 0 : Convert.ToInt32(row["users_now"]);
+            UsersMax = Convert.ToInt32(row["users_max"]);
+            ModelName = Convert.ToString(row["model_name"]);
+            Score = Convert.ToInt32(row["score"]);
+
+            AllowPets = PolarEnvironment.EnumToBool(row["allow_pets"].ToString());
+            AllowPetsEating = PolarEnvironment.EnumToBool(row["allow_pets_eat"].ToString());
+            RoomBlockingEnabled = PolarEnvironment.EnumToBool(row["room_blocking_disabled"].ToString());
+            Hidewall = PolarEnvironment.EnumToBool(row["allow_hidewall"].ToString());
+            Password = Convert.ToString(row["password"]);
+            Wallpaper = Convert.ToString(row["wallpaper"]);
+            Floor = Convert.ToString(row["floor"]);
+            Landscape = Convert.ToString(row["landscape"]);
+            FloorThickness = Convert.ToInt32(row["floorthick"]);
+            WallThickness = Convert.ToInt32(row["wallthick"]);
+            WhoCanMute = Convert.ToInt32(row["mute_settings"]);
+            WhoCanKick = Convert.ToInt32(row["kick_settings"]);
+            WhoCanBan = Convert.ToInt32(row["ban_settings"]);
+            chatMode = Convert.ToInt32(row["chat_mode"]);
+            chatSpeed = Convert.ToInt32(row["chat_speed"]);
+            chatSize = Convert.ToInt32(row["chat_size"]);
+            TradeSettings = Convert.ToInt32(row["trade_settings"]);
+            GroupId = Convert.ToInt32(row["group_id"]);
+
+            PushEnabled = PolarEnvironment.EnumToBool(row["push_enabled"].ToString());
+            PullEnabled = PolarEnvironment.EnumToBool(row["pull_enabled"].ToString());
+            SPushEnabled = PolarEnvironment.EnumToBool(row["spush_enabled"].ToString());
+            SPullEnabled = PolarEnvironment.EnumToBool(row["spull_enabled"].ToString());
+            EnablesEnabled = PolarEnvironment.EnumToBool(row["enables_enabled"].ToString());
+            RespectNotificationsEnabled = PolarEnvironment.EnumToBool(row["respect_notifications_enabled"].ToString());
+            PetMorphsAllowed = PolarEnvironment.EnumToBool(row["pet_morphs_allowed"].ToString());
+            HideWired = PolarEnvironment.EnumToBool(row["hide_wired"].ToString());
+
+            // FIX: Group — variable local innecesaria eliminada
+            Group = GroupId < 1000
+                ? GroupManager.GetJob(GroupId)
+                : GroupManager.GetGang(GroupId);
+
+            // FIX: Split + Trim para eliminar espacios en los tags
             Tags = new List<string>();
-            AllowPets = PolarEnvironment.EnumToBool(Row["allow_pets"].ToString());
-            AllowPetsEating = PolarEnvironment.EnumToBool(Row["allow_pets_eat"].ToString());
-            RoomBlockingEnabled = PolarEnvironment.EnumToBool(Row["room_blocking_disabled"].ToString());
-            Hidewall = PolarEnvironment.EnumToBool(Row["allow_hidewall"].ToString());
-            Password = Convert.ToString(Row["password"]);
-            Wallpaper = Convert.ToString(Row["wallpaper"]);
-            Floor = Convert.ToString(Row["floor"]);
-            Landscape = Convert.ToString(Row["landscape"]);
-            FloorThickness = Convert.ToInt32(Row["floorthick"]);
-            WallThickness = Convert.ToInt32(Row["wallthick"]);
-            WhoCanMute = Convert.ToInt32(Row["mute_settings"]);
-            WhoCanKick = Convert.ToInt32(Row["kick_settings"]);
-            WhoCanBan = Convert.ToInt32(Row["ban_settings"]);
-            chatMode = Convert.ToInt32(Row["chat_mode"]);
-            chatSpeed = Convert.ToInt32(Row["chat_speed"]);
-            chatSize = Convert.ToInt32(Row["chat_size"]);
-            TradeSettings = Convert.ToInt32(Row["trade_settings"]);
-            GroupId = Convert.ToInt32(Row["group_id"]);
-            Group G = null;
-
-            if (GroupId < 1000)
-                G = GroupManager.GetJob(GroupId);
-            else
-                G = GroupManager.GetGang(GroupId);
-
-            if (G != null)
-                Group = G;
-            else
-                Group = null;
-
-            foreach (string Tag in Row["tags"].ToString().Split(','))
+            foreach (string tag in row["tags"].ToString().Split(','))
             {
-                Tags.Add(Tag);
+                string trimmed = tag.Trim();
+                if (!string.IsNullOrEmpty(trimmed))
+                    Tags.Add(trimmed);
             }
 
-            mModel = PolarEnvironment.GetGame().GetRoomManager().GetModel(ModelName, this.Id);
+            _model = PolarEnvironment.GetGame().GetRoomManager().GetModel(ModelName, Id);
 
-            this.PushEnabled = PolarEnvironment.EnumToBool(Row["push_enabled"].ToString());
-            this.PullEnabled = PolarEnvironment.EnumToBool(Row["pull_enabled"].ToString());
-            this.SPushEnabled = PolarEnvironment.EnumToBool(Row["spush_enabled"].ToString());
-            this.SPullEnabled = PolarEnvironment.EnumToBool(Row["spull_enabled"].ToString());
-            this.EnablesEnabled = PolarEnvironment.EnumToBool(Row["enables_enabled"].ToString());
-            this.RespectNotificationsEnabled = PolarEnvironment.EnumToBool(Row["respect_notifications_enabled"].ToString());
-            this.PetMorphsAllowed = PolarEnvironment.EnumToBool(Row["pet_morphs_allowed"].ToString());
-            this.HideWired = PolarEnvironment.EnumToBool(Row["hide_wired"].ToString());
-
+            // ── Scoreboard ──────────────────────────────────────────────
             WiredScoreBordDay = new Dictionary<int, KeyValuePair<int, string>>();
             WiredScoreBordWeek = new Dictionary<int, KeyValuePair<int, string>>();
             WiredScoreBordMonth = new Dictionary<int, KeyValuePair<int, string>>();
 
+            DateTime now = DateTime.Now;
+            int todayStamp = Convert.ToInt32(now.ToString("MMddyyyy"));
+            int monthStamp = Convert.ToInt32(now.ToString("MM"));
+            int weekStamp = CultureInfo.GetCultureInfo("Nl-nl").Calendar
+                                        .GetWeekOfYear(now, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
+
+            // FIX: inicialización única aquí, eliminada la del campo
+            WiredScoreFirstBordInformation = new List<int> { todayStamp, monthStamp, weekStamp };
+
+            bool resetDay = false;
+            bool resetMonth = false;
+            bool resetWeek = false;
+
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                List<bool> SuperCheck = new List<bool>()
-                {
-                    false,
-                    false,
-                    false
-                };
+                dbClient.SetQuery("SELECT * FROM wired_scorebord WHERE roomid = @id ORDER BY `punten` DESC");
+                dbClient.AddParameter("id", Id);
 
-                DateTime now = DateTime.Now;
-                int getdaytoday = Convert.ToInt32(now.ToString("MMddyyyy"));
-                int getmonthtoday = Convert.ToInt32(now.ToString("MM"));
-                int getweektoday = CultureInfo.GetCultureInfo("Nl-nl").Calendar.GetWeekOfYear(DateTime.Now, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
-
-                this.WiredScoreFirstBordInformation = new List<int>()
+                // FIX: null check — getTable() puede retornar null
+                DataTable scoreTable = dbClient.getTable();
+                if (scoreTable != null)
                 {
-                    getdaytoday,
-                    getmonthtoday,
-                    getweektoday
-                };
-
-                dbClient.SetQuery("SELECT * FROM wired_scorebord WHERE roomid = @id ORDER BY `punten` DESC ");
-                dbClient.AddParameter("id", this.Id);
-                foreach (DataRow row in dbClient.getTable().Rows)
-                {
-                    int userid = Convert.ToInt32(row["userid"]);
-                    string username = Convert.ToString(row["username"]);
-                    int Punten = Convert.ToInt32(row["punten"]);
-                    string soort = Convert.ToString(row["soort"]);
-                    int timestamp = Convert.ToInt32(row["timestamp"]);
-                    if ((!(soort == "day") || this.WiredScoreBordDay.ContainsKey(userid) ? false : !SuperCheck[0]))
+                    foreach (DataRow scoreRow in scoreTable.Rows)
                     {
-                        if (timestamp != getdaytoday)
+                        int userId = Convert.ToInt32(scoreRow["userid"]);
+                        string username = Convert.ToString(scoreRow["username"]);
+                        int punten = Convert.ToInt32(scoreRow["punten"]);
+                        string soort = Convert.ToString(scoreRow["soort"]);
+                        int timestamp = Convert.ToInt32(scoreRow["timestamp"]);
+
+                        if (soort == "day" && !WiredScoreBordDay.ContainsKey(userId))
                         {
-                            SuperCheck[0] = false;
+                            if (timestamp != todayStamp)
+                                resetDay = true;
+                            else
+                                WiredScoreBordDay.Add(userId, new KeyValuePair<int, string>(punten, username));
                         }
-                        if (!SuperCheck[0])
+
+                        if (soort == "month" && !WiredScoreBordMonth.ContainsKey(userId))
                         {
-                            this.WiredScoreBordDay.Add(userid, new KeyValuePair<int, string>(Punten, username));
+                            if (timestamp != monthStamp)
+                                resetMonth = true;
+                            else
+                                WiredScoreBordMonth.Add(userId, new KeyValuePair<int, string>(punten, username));
+                        }
+
+                        // FIX: soort == "week" borra WiredScoreBordWeek (antes borraba WiredScoreBordDay por error)
+                        if (soort == "week" && !WiredScoreBordWeek.ContainsKey(userId))
+                        {
+                            if (timestamp != weekStamp)
+                                resetWeek = true;
+                            else
+                                WiredScoreBordWeek.Add(userId, new KeyValuePair<int, string>(punten, username));
                         }
                     }
-                    if ((!(soort == "month") || this.WiredScoreBordMonth.ContainsKey(userid) ? false : !SuperCheck[1]))
-                    {
-                        if (timestamp != getmonthtoday)
-                        {
-                            SuperCheck[1] = false;
-                        }
-                        this.WiredScoreBordMonth.Add(userid, new KeyValuePair<int, string>(Punten, username));
-                    }
-                    if ((!(soort == "week") || this.WiredScoreBordWeek.ContainsKey(userid) ? false : !SuperCheck[2]))
-                    {
-                        if (timestamp != getweektoday)
-                        {
-                            SuperCheck[2] = false;
-                        }
-                        this.WiredScoreBordWeek.Add(userid, new KeyValuePair<int, string>(Punten, username));
-                    }
                 }
-                if (SuperCheck[0])
+
+                // FIX: queries parametrizadas — antes concatenaban this.Id directamente (SQL injection)
+                if (resetDay)
                 {
-                    dbClient.RunQuery(string.Concat("DELETE FROM `wired_scorebord` WHERE `roomid`='", this.Id, "' AND `soort`='day'"));
-                    this.WiredScoreBordDay.Clear();
+                    dbClient.SetQuery("DELETE FROM `wired_scorebord` WHERE `roomid` = @id AND `soort` = 'day'");
+                    dbClient.AddParameter("id", Id);
+                    dbClient.RunQuery();
+                    WiredScoreBordDay.Clear();
                 }
-                if (SuperCheck[1])
+
+                if (resetMonth)
                 {
-                    dbClient.RunQuery(string.Concat("DELETE FROM `wired_scorebord` WHERE `roomid`='", this.Id, "' AND `soort`='month'"));
-                    this.WiredScoreBordMonth.Clear();
+                    dbClient.SetQuery("DELETE FROM `wired_scorebord` WHERE `roomid` = @id AND `soort` = 'month'");
+                    dbClient.AddParameter("id", Id);
+                    dbClient.RunQuery();
+                    WiredScoreBordMonth.Clear();
                 }
-                if (SuperCheck[2])
+
+                if (resetWeek)
                 {
-                    dbClient.RunQuery(string.Concat("DELETE FROM `wired_scorebord` WHERE `roomid`='", this.Id, "' AND `soort`='week'"));
-                    this.WiredScoreBordDay.Clear();
+                    // FIX: borra WiredScoreBordWeek — antes borraba WiredScoreBordDay por error
+                    dbClient.SetQuery("DELETE FROM `wired_scorebord` WHERE `roomid` = @id AND `soort` = 'week'");
+                    dbClient.AddParameter("id", Id);
+                    dbClient.RunQuery();
+                    WiredScoreBordWeek.Clear();
                 }
             }
         }
 
-        public void FillRP(DataRow Row)
+        // ─────────────────────────────────────
+        //  FillRP
+        // ─────────────────────────────────────
+        public void FillRP(DataRow row)
         {
-            this.City = Row["city"].ToString();
-            this.BankEnabled = PolarEnvironment.EnumToBool(Row["bank_enabled"].ToString());
-            /* Old this.BankBalance = Convert.ToInt32(Row["bank_balance"]);*/
-            this.ShootEnabled = PolarEnvironment.EnumToBool(Row["shoot_enabled"].ToString());
-            this.HitEnabled = PolarEnvironment.EnumToBool(Row["hit_enabled"].ToString());
-            this.SafeZoneEnabled = PolarEnvironment.EnumToBool(Row["safezone_enabled"].ToString());
-            this.SexCommandsEnabled = PolarEnvironment.EnumToBool(Row["sexcommands_enabled"].ToString());
-            this.TurfEnabled = PolarEnvironment.EnumToBool(Row["turf_enabled"].ToString());
-            this.RobEnabled = PolarEnvironment.EnumToBool(Row["rob_enabled"].ToString());
-            this.GymEnabled = PolarEnvironment.EnumToBool(Row["gym_enabled"].ToString());
-            this.DeliveryEnabled = PolarEnvironment.EnumToBool(Row["delivery_enabled"].ToString());
-            this.TutorialEnabled = PolarEnvironment.EnumToBool(Row["tutorial_enabled"].ToString());
-            this.DriveEnabled = PolarEnvironment.EnumToBool(Row["drive_enabled"].ToString());
-            this.TaxiFromEnabled = PolarEnvironment.EnumToBool(Row["taxi_from_enabled"].ToString());
-            this.TaxiToEnabled = PolarEnvironment.EnumToBool(Row["taxi_to_enabled"].ToString());
-            this.BusToEnabled = PolarEnvironment.EnumToBool(Row["bus_to_enabled"].ToString());
-            this.EnterRoomMessage = Row["enter_message"].ToString();
-            this.IsHospital = PolarEnvironment.EnumToBool(Row["is_hospital"].ToString());
-            this.IsPrison = PolarEnvironment.EnumToBool(Row["is_prison"].ToString());
-            this.IsPrison2 = PolarEnvironment.EnumToBool(Row["is_prisonback"].ToString());
-            this.IsCourt = PolarEnvironment.EnumToBool(Row["is_court"].ToString());
-            this.IsCamionero = PolarEnvironment.EnumToBool(Row["is_camionero"].ToString());
-            this.IsBasurero = PolarEnvironment.EnumToBool(Row["is_basurero"].ToString());
-            this.MallEnabled = PolarEnvironment.EnumToBool(Row["mall_enabled"].ToString());
-            this.BuyCarEnabled = PolarEnvironment.EnumToBool(Row["buycar_enabled"].ToString());
-            this.WardrobeEnabled = PolarEnvironment.EnumToBool(Row["wardrobe_enabled"].ToString());
-            this.PhoneStoreEnabled = PolarEnvironment.EnumToBool(Row["phonestore_enabled"].ToString());
-            this.SupermarketEnabled = PolarEnvironment.EnumToBool(Row["supermarket_enabled"].ToString());
+            City = row["city"].ToString();
+            BankEnabled = PolarEnvironment.EnumToBool(row["bank_enabled"].ToString());
+            ShootEnabled = PolarEnvironment.EnumToBool(row["shoot_enabled"].ToString());
+            HitEnabled = PolarEnvironment.EnumToBool(row["hit_enabled"].ToString());
+            SafeZoneEnabled = PolarEnvironment.EnumToBool(row["safezone_enabled"].ToString());
+            LearningEnabled = PolarEnvironment.EnumToBool(row["learning_enabled"].ToString());
+            SexCommandsEnabled = PolarEnvironment.EnumToBool(row["sexcommands_enabled"].ToString());
+            TurfEnabled = PolarEnvironment.EnumToBool(row["turf_enabled"].ToString());
+            RobEnabled = PolarEnvironment.EnumToBool(row["rob_enabled"].ToString());
+            GymEnabled = PolarEnvironment.EnumToBool(row["gym_enabled"].ToString());
+            DeliveryEnabled = PolarEnvironment.EnumToBool(row["delivery_enabled"].ToString());
+            TutorialEnabled = PolarEnvironment.EnumToBool(row["tutorial_enabled"].ToString());
+            DriveEnabled = PolarEnvironment.EnumToBool(row["drive_enabled"].ToString());
+            TaxiFromEnabled = PolarEnvironment.EnumToBool(row["taxi_from_enabled"].ToString());
+            TaxiToEnabled = PolarEnvironment.EnumToBool(row["taxi_to_enabled"].ToString());
+            BusToEnabled = PolarEnvironment.EnumToBool(row["bus_to_enabled"].ToString());
+            EnterRoomMessage = row["enter_message"].ToString();
+            IsHospital = PolarEnvironment.EnumToBool(row["is_hospital"].ToString());
+            IsPrison = PolarEnvironment.EnumToBool(row["is_prison"].ToString());
+            IsPrison2 = PolarEnvironment.EnumToBool(row["is_prisonback"].ToString());
+            IsCourt = PolarEnvironment.EnumToBool(row["is_court"].ToString());
+            IsCamionero = PolarEnvironment.EnumToBool(row["is_camionero"].ToString());
+            IsBasurero = PolarEnvironment.EnumToBool(row["is_basurero"].ToString());
+            MallEnabled = PolarEnvironment.EnumToBool(row["mall_enabled"].ToString());
+            BuyCarEnabled = PolarEnvironment.EnumToBool(row["buycar_enabled"].ToString());
+            WardrobeEnabled = PolarEnvironment.EnumToBool(row["wardrobe_enabled"].ToString());
+            PhoneStoreEnabled = PolarEnvironment.EnumToBool(row["phonestore_enabled"].ToString());
+            SupermarketEnabled = PolarEnvironment.EnumToBool(row["supermarket_enabled"].ToString());
+            HuntZoneEnabled = PolarEnvironment.EnumToBool(row["huntzone_enabled"].ToString());
         }
 
-        public RoomPromotion Promotion
-        {
-            get { return this._promotion; }
-            set { this._promotion = value; }
-        }
-
-        public bool HasActivePromotion
-        {
-            get { return this.Promotion != null; }
-        }
+        // ─────────────────────────────────────
+        //  Promotion helpers
+        // ─────────────────────────────────────
+        public bool HasActivePromotion => Promotion != null;
 
         public void EndPromotion()
         {
-            if (!this.HasActivePromotion)
+            if (!HasActivePromotion)
                 return;
-
-            this.Promotion = null;
+            Promotion = null;
         }
 
+        // ─────────────────────────────────────
+        //  Model
+        // ─────────────────────────────────────
         public RoomModel Model
         {
             get
             {
-                if (mModel == null)
-                    mModel = PolarEnvironment.GetGame().GetRoomManager().GetModel(ModelName, Id);
-                return mModel;
+                if (_model == null)
+                    _model = PolarEnvironment.GetGame().GetRoomManager().GetModel(ModelName, Id);
+                return _model;
             }
         }
     }

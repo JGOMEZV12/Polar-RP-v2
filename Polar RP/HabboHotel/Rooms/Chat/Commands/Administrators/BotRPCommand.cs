@@ -38,29 +38,69 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Administrators
                 return;
             }
 
-            if (Params.Length == 0 || Params[1].ToLower() == "info")
+            if (Params[1].ToLower() == "info")
             {
                 StringBuilder Message = new StringBuilder().Append("----- Cambiar coordenadas del bot -----\n\n");
-                Message.Append("Para cambiar las coordenadas debes seguir estos pasos:\n\n");
-                Message.Append("Si el bot tiene un espacio en su nombre. Ej: <b>'Dr. Sevilla'</b> deberas colocar asi: <b>'Dr.%Sevilla'</b> para que se pueda identificar el nombre del bot con el espacio.\n\n");
-                Message.Append("Para ejecutar el comando completo deberas teclear y ejecutar. Ej <b>:coordbot Dr.%Sevilla X,Y,Z,R</b>!\n\n");
-                Message.Append("<b>¿Que significan las X,Y,Z,R?</b> Bueno son las coordenadas del bot, para saber en que coordenadas colocaras el bot, lleva a tu keko al lugar deseado y ejecutas <b>:coords</b>, pondras los numeros que aparecen en cada letra menos el de SqState!\n\n");
-                Message.Append("<b><font color=\"#FE2E2E\">OJO</font>:</b> Las coordenadas tienen que estar con sus <b>','</b>. Ej: <b>':coordbot (BotName) 19,13,4,0'</b> que equivalen a <b>X,Y,Z,R</b>!");
+                Message.Append("Si el bot tiene un espacio en su nombre. Ej: <b>'Dr. Sevilla'</b> deberas colocar asi: <b>'Dr.%Sevilla'</b>\n\n");
+                Message.Append("Ejecuta: <b>:coordbot Dr.%Sevilla X,Y,Z,R</b>\n\n");
+                Message.Append("<b>OJO:</b> Ej: <b>':coordbot (BotName) 19,13,4,0'</b> que equivalen a <b>X,Y,Z,R</b>!");
                 Session.SendNotification(Message.ToString());
+                return;
+            }
+
+            if (Params.Length < 3)
+            {
+                Session.SendWhisper("Faltan las coordenadas! Usa: :coordbot NombreBot X,Y,Z,R");
+                return;
             }
 
             string BotName = Params[1].Replace("%", " ");
-            string X = CommandManager.MergeParams(Params, 2);
-            string Y = CommandManager.MergeParams(Params, 3);
-            string Z = CommandManager.MergeParams(Params, 4);
-            string R = CommandManager.MergeParams(Params, 5); //X 19 Y 13 Z 4 R 0
             object[] Coords = Params[2].Split(',');
+
+            if (Coords.Length < 4)
+            {
+                Session.SendWhisper("Las coordenadas deben tener formato X,Y,Z,R — Ej: 19,13,4,0");
+                return;
+            }
+
+            int coordX, coordY, coordZ, coordR;
+            if (!int.TryParse(Coords[0].ToString(), out coordX) ||
+                !int.TryParse(Coords[1].ToString(), out coordY) ||
+                !int.TryParse(Coords[2].ToString(), out coordZ) ||
+                !int.TryParse(Coords[3].ToString(), out coordR))
+            {
+                Session.SendWhisper("Las coordenadas deben ser números enteros.");
+                return;
+            }
+
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.RunQuery("UPDATE `rp_bots` SET `spawn_x` =  '" + Convert.ToInt32(Coords[0]) + "', `spawn_y` =  '" + Convert.ToInt32(Coords[1]) + "', `spawn_z` =  '" + Convert.ToInt32(Coords[2]) + "', `spawn_rot` =  '" + Convert.ToInt32(Coords[3]) + "' WHERE `name` =  '" + BotName + "' AND  `spawn_id` =  '" + Convert.ToInt32(User.GetRoom().Id) + "'");
-                Session.SendWhisper("Le has cambiado las coordenadas al bot: " + BotName + "!");
+                dbClient.RunQuery("UPDATE `rp_bots` SET `spawn_x` = '" + coordX + "', `spawn_y` = '" + coordY + "', `spawn_z` = '" + coordZ + "', `spawn_rot` = '" + coordR + "' WHERE `name` = '" + BotName + "' AND `spawn_id` = '" + Room.Id + "'");
             }
-            RoleplayBotManager.Initialize(true);
+
+            RoomUser TargetBot = Room.GetRoomUserManager().GetRoleplayBotByName(BotName);
+
+            if (TargetBot != null)
+            {
+                int BotId = TargetBot.GetBotRoleplay().Id;
+
+                if (RoleplayBotManager.CachedRoleplayBots.ContainsKey(BotId))
+                {
+                    RoleplayBotManager.CachedRoleplayBots[BotId].X = coordX;
+                    RoleplayBotManager.CachedRoleplayBots[BotId].Y = coordY;
+                    RoleplayBotManager.CachedRoleplayBots[BotId].Z = coordZ;
+                    RoleplayBotManager.CachedRoleplayBots[BotId].SpawnRot = coordR;
+                }
+
+                RoleplayBotManager.EjectDeployedBot(TargetBot, Room);
+                RoleplayBotManager.DeployBotByID(BotId, "default");
+
+                Session.SendWhisper("Bot '" + BotName + "' reposicionado correctamente en " + coordX + "," + coordY + "," + coordZ + " rot:" + coordR);
+            }
+            else
+            {
+                Session.SendWhisper("No se encontró ningún bot llamado '" + BotName + "' en esta sala.");
+            }
         }
     }
 }

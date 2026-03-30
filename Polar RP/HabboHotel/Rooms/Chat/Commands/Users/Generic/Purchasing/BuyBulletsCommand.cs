@@ -50,6 +50,11 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Purchasing
                 Session.SendWhisper("¡Necesitas comprar al menos 10 balas a la vez!", 1);
                 return;
             }
+            if (Session.GetRoleplay().EquippedWeapon == null)
+            {
+                Session.SendWhisper("¡Debes tener el arma equipada para comprar balas!", 1);
+                return;
+            }
 
             Group Job = GroupManager.Jobs.Values.FirstOrDefault(x => x.Ranks.Count > 0 && x.Ranks.Values.FirstOrDefault().HasCommand("weapon"));
 
@@ -72,7 +77,8 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Purchasing
             Session.GetHabbo().Credits -= Cost;
             Session.GetHabbo().UpdateCreditsBalance();
             Session.GetRoleplay().Bullets += Amount;
-
+            Session.GetRoleplay().UpdateInteractingUserDialogues();
+            Session.GetRoleplay().RefreshStatDialogue();
             Session.Shout("*Compra " + String.Format("{0:N0}", Amount) + " balas por $" + String.Format("{0:N0}", Cost) + "*", 4);
             return;
             #endregion

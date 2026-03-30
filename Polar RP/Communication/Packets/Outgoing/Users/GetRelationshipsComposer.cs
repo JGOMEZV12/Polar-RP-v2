@@ -87,107 +87,67 @@ namespace Polar.Communication.Packets.Outgoing.Users
             packet.WriteInteger(1);
             packet.WriteInteger(1);
 
-            if (Habbo.GetRoleplay() != null)
+            if (Habbo.GetRoleplay() != null && Habbo.GetRoleplay().MarriedTo > 0)
             {
-                if (Habbo.GetRoleplay().MarriedTo > 0)
-                {
-                    UserCache Married = PolarEnvironment.GetGame().GetCacheManager().GenerateUser(Habbo.GetRoleplay().MarriedTo);
+                UserCache Married = PolarEnvironment.GetGame().GetCacheManager().GenerateUser(Habbo.GetRoleplay().MarriedTo);
 
-                    if (Married == null)
-                    {
-                        Habbo.GetRoleplay().MarriedTo = 0;
-                        packet.WriteInteger(Habbo.Id);
-                        packet.WriteString("Matrimonio con: Nadie");
-                        packet.WriteString(Habbo.Look);
-                    }
-                    else
-                    {
-                        packet.WriteInteger(Married.Id);
-                        packet.WriteString("Matrimonio con: " + Married.Username);
-                        packet.WriteString(Married.Look);
-                    }
+                if (Married == null)
+                {
+                    Habbo.GetRoleplay().MarriedTo = 0;
+                    packet.WriteInteger(Habbo.Id);
+                    packet.WriteString("Matrimonio con: Nadie");
+                    packet.WriteString(Habbo.Look);
                 }
                 else
+                {
+                    packet.WriteInteger(Married.Id);
+                    packet.WriteString("Matrimonio con: " + Married.Username);
+                    packet.WriteString(Married.Look);
+                }
+            }
+            else if (Habbo.MarriedId > 0)
+            {
+                UserCache Married = PolarEnvironment.GetGame().GetCacheManager().GenerateUser(Habbo.MarriedId);
+
+                if (Married == null)
                 {
                     packet.WriteInteger(Habbo.Id);
                     packet.WriteString("Matrimonio con: Nadie");
                     packet.WriteString(Habbo.Look);
                 }
+                else
+                {
+                    packet.WriteInteger(Married.Id);
+                    packet.WriteString("Matrimonio con: " + Married.Username);
+                    packet.WriteString(Married.Look);
+                }
             }
             else
             {
-                using (UserCache Cache = PolarEnvironment.GetGame().GetCacheManager().GenerateUser(Habbo.Id))
-                {
-                    if (Cache.MarriedId > 0)
-                    {
-                        using (UserCache Married = PolarEnvironment.GetGame().GetCacheManager().GenerateUser(Cache.MarriedId))
-                        {
-                            if (Married == null)
-                            {
-                                Cache.MarriedId = 0;
-                                packet.WriteInteger(Habbo.Id);
-                                packet.WriteString("Matrimonio con: Nadie");
-                                packet.WriteString(Habbo.Look);
-                            }
-                            else
-                            {
-                                packet.WriteInteger(Married.Id);
-                                packet.WriteString("Matrimonio con: " + Married.Username);
-                                packet.WriteString(Married.Look);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        packet.WriteInteger(Habbo.Id);
-                        packet.WriteString("Matrimonio con: Nadie");
-                        packet.WriteString(Habbo.Look);
-                    }
-                }
+                packet.WriteInteger(Habbo.Id);
+                packet.WriteString("Matrimonio con: Nadie");
+                packet.WriteString(Habbo.Look);
             }
             #endregion
 
-            #region Level
+            #region Hunger
             packet.WriteInteger(2);
             packet.WriteInteger(1);
+            packet.WriteInteger(Habbo.Id);
 
-            if (Habbo.GetRoleplay() != null)
-            {
-                packet.WriteInteger(Habbo.Id);
-                packet.WriteString("Hambre: " + Habbo.GetRoleplay().Hunger + "/100");
-                packet.WriteString(Habbo.Look);
-            }
-            else
-            {
-                using (UserCache Cache = PolarEnvironment.GetGame().GetCacheManager().GenerateUser(Habbo.Id))
-                {
-                    packet.WriteInteger(Habbo.Id);
-                    packet.WriteString("Hambre: " + Habbo.GetRoleplay().Hunger + "/100");
-                    packet.WriteString(Habbo.Look);
-                }
-            }
+            int hunger = Habbo.GetRoleplay()?.Hunger ?? 0;
+            packet.WriteString("Hambre: " + hunger + "/100");
+            packet.WriteString(Habbo.Look);
             #endregion
 
-            #region Higiene
+            #region Hygiene
             packet.WriteInteger(3);
             packet.WriteInteger(1);
+            packet.WriteInteger(Habbo.Id);
 
-            if (Habbo.Id == 0 || (Habbo.GetRoleplay() != null))
-            {
-                if (Habbo.GetRoleplay() != null)
-                {
-                    packet.WriteInteger(Habbo.Id);
-                    packet.WriteString("Higiene: " + Habbo.GetRoleplay().Hygiene + "/100");
-                    packet.WriteString(Habbo.Look);
-                }
-            }
-            else
-           if (Habbo.GetRoleplay() != null)
-            {
-                packet.WriteInteger(Habbo.Id);
-                packet.WriteString("Higiene: " + Habbo.GetRoleplay().Hygiene + "/100");
-                packet.WriteString(Habbo.Look);
-            }
+            int hygiene = Habbo.GetRoleplay()?.Hygiene ?? 0;
+            packet.WriteString("Higiene: " + hygiene + "/100");
+            packet.WriteString(Habbo.Look);
             #endregion
         }
     }

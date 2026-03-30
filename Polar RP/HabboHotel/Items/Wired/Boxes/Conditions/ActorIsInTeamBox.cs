@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -25,7 +25,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
         {
             this.Instance = Instance;
             this.Item = Item;
-
             this.SetItems = new ConcurrentDictionary<int, Item>();
         }
 
@@ -39,7 +38,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
 
         public bool Execute(params object[] Params)
         {
-            if (Params.Length == 0 || Instance == null || String.IsNullOrEmpty(this.StringData))
+            if (Params.Length == 0 || Instance == null || string.IsNullOrEmpty(this.StringData))
                 return false;
 
             Habbo Player = (Habbo)Params[0];
@@ -58,6 +57,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
                 return true;
             else if (int.Parse(this.StringData) == 4 && User.Team == TEAM.YELLOW)
                 return true;
+
             return false;
         }
     }

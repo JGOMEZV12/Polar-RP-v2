@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections;
@@ -33,9 +33,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
             this.SetItems = new ConcurrentDictionary<int, Item>();
             this.TickCount = Delay;
             this._toKick = new Queue();
-
-            if (this.SetItems.Count > 0)
-                this.SetItems.Clear();
         }
 
         public void HandleSave(ClientPacket Packet)
@@ -104,7 +101,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                     #region Casa
                     if (House != null)
                     {
-                        // Enviar a la Sala Exterior y Posición de la Puerta
                         Player.GetClient().GetRoleplay().ExitingHouse = true;
                         Player.GetClient().GetRoleplay().HouseX = House.DoorX;
                         Player.GetClient().GetRoleplay().HouseY = House.DoorY;
@@ -119,10 +115,9 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                         RoleplayManager.SendUserOld(Player.GetClient(), ApartInside.LobbyId, "Te han echado del apartamento.");
                     }
                     #endregion
-
-                    //Instance.GetRoomUserManager().RemoveUserFromRoom(Player.GetClient(), true, false);
                 }
             }
+
             this.TickCount = 3;
             return true;
         }

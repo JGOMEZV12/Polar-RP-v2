@@ -180,9 +180,6 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Police
                     RoleplayManager.SendUserOld2(TargetClient, JailRID);
                 }
 
-
-                PolarEnvironment.SendMs("**__¡LiveFeed!__** `|` **" + TargetClient.GetHabbo().Username + "** Está siendo escoltado por **" + Session.GetHabbo().Username + "**");
-
                 #region Live Feed
                 foreach (GameClient client in PolarEnvironment.GetGame().GetClientManager().GetClients.ToList())
                 {

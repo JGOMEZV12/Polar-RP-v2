@@ -1,6 +1,4 @@
-﻿using System;
-using System.Linq;
-using System.Text;
+using System;
 using System.Data;
 using System.Collections.Generic;
 using Polar.Database.Interfaces;
@@ -10,48 +8,68 @@ using Polar.HabboRoleplay.Bots.Manager;
 
 namespace Polar.HabboHotel.Users.Inventory.Pets
 {
-    static class PetLoader
+    internal static class PetLoader
     {
-        public static List<Pet> GetPetsForUser(int UserId)
+        public static List<Pet> GetPetsForUser(int userId)
         {
-            List<Pet> P = new List<Pet>();
+            var pets = new List<Pet>();
 
-            DataTable dPets = null;
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("SELECT `id`,`user_id`,`room_id`,`name`,`x`,`y`,`z` FROM `bots` WHERE `user_id` = '" + UserId + "' AND `room_id` = '0' AND `ai_type` = 'pet'");
-                dPets = dbClient.getTable();
+                dbClient.SetQuery(
+                    "SELECT `id`,`user_id`,`room_id`,`name`,`x`,`y`,`z` " +
+                    "FROM `bots` " +
+                    "WHERE `user_id` = @uid AND `room_id` = '0' AND `ai_type` = 'pet'");
+                dbClient.AddParameter("uid", userId);
 
-                if (dPets != null)
+                DataTable petRows = dbClient.getTable();
+                if (petRows == null) return pets;
+
+                foreach (DataRow row in petRows.Rows)
                 {
-                    foreach (DataRow dRow in dPets.Rows)
-                    {
-                        dbClient.SetQuery("SELECT `type`,`race`,`color`,`experience`,`energy`,`nutrition`,`respect`,`createstamp`,`have_saddle`,`anyone_ride`,`hairdye`,`pethair`,`gnome_clothing` FROM `bots_petdata` WHERE `id` = '" + Convert.ToInt32(dRow["id"]) + "' LIMIT 1");
-                        DataRow mRow = dbClient.getRow();
+                    int petId = Convert.ToInt32(row["id"]);
 
-                        if (mRow != null)
-                        {
-                            P.Add(new Pet(Convert.ToInt32(dRow["id"]), Convert.ToInt32(dRow["user_id"]), Convert.ToInt32(dRow["room_id"]), Convert.ToString(dRow["name"]), Convert.ToInt32(mRow["type"]), Convert.ToString(mRow["race"]), Convert.ToString(mRow["color"]),
-                               Convert.ToInt32(mRow["experience"]), Convert.ToInt32(mRow["energy"]), Convert.ToInt32(mRow["nutrition"]), Convert.ToInt32(mRow["respect"]), Convert.ToDouble(mRow["createstamp"]), Convert.ToInt32(dRow["x"]), Convert.ToInt32(dRow["y"]),
-                                Convert.ToDouble(dRow["z"]), Convert.ToInt32(mRow["have_saddle"]), Convert.ToInt32(mRow["anyone_ride"]), Convert.ToInt32(mRow["hairdye"]), Convert.ToInt32(mRow["pethair"]), Convert.ToString(mRow["gnome_clothing"])));
-                        }
-                    }
+                    dbClient.SetQuery(
+                        "SELECT `type`,`race`,`color`,`experience`,`energy`,`nutrition`,`respect`," +
+                        "`createstamp`,`have_saddle`,`anyone_ride`,`hairdye`,`pethair`,`gnome_clothing` " +
+                        "FROM `bots_petdata` WHERE `id` = @petId LIMIT 1");
+                    dbClient.AddParameter("petId", petId);
+
+                    DataRow mRow = dbClient.getRow();
+                    if (mRow == null) continue;
+
+                    pets.Add(new Pet(
+                        petId,
+                        Convert.ToInt32(row["user_id"]),
+                        Convert.ToInt32(row["room_id"]),
+                        Convert.ToString(row["name"]),
+                        Convert.ToInt32(mRow["type"]),
+                        Convert.ToString(mRow["race"]),
+                        Convert.ToString(mRow["color"]),
+                        Convert.ToInt32(mRow["experience"]),
+                        Convert.ToInt32(mRow["energy"]),
+                        Convert.ToInt32(mRow["nutrition"]),
+                        Convert.ToInt32(mRow["respect"]),
+                        Convert.ToDouble(mRow["createstamp"]),
+                        Convert.ToInt32(row["x"]),
+                        Convert.ToInt32(row["y"]),
+                        Convert.ToDouble(row["z"]),
+                        Convert.ToInt32(mRow["have_saddle"]),
+                        Convert.ToInt32(mRow["anyone_ride"]),
+                        Convert.ToInt32(mRow["hairdye"]),
+                        Convert.ToInt32(mRow["pethair"]),
+                        Convert.ToString(mRow["gnome_clothing"])));
                 }
             }
 
-            foreach(RoleplayBot Pet in RoleplayBotManager.CachedRoleplayBots.Values)
+            // Append roleplay pets owned by this user
+            foreach (RoleplayBot rpBot in RoleplayBotManager.CachedRoleplayBots.Values)
             {
-                if (Pet == null)
-                    continue;
-                if (!Pet.IsPet)
-                    continue;
-                if (Pet.OwnerId != UserId)
-                    continue;
-
-                P.Add(Pet.PetInstance);
+                if (rpBot?.IsPet == true && rpBot.OwnerId == userId)
+                    pets.Add(rpBot.PetInstance);
             }
 
-            return P;
+            return pets;
         }
     }
 }

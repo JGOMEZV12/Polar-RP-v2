@@ -1,13 +1,15 @@
-﻿using Polar.HabboRoleplay.Turfs;
-using Polar.HabboHotel.Groups;
+﻿using Polar.Communication.Packets.Outgoing.Rooms.Chat;
 using Polar.HabboHotel.GameClients;
-using Polar.HabboRoleplay.Misc;
-using Polar.HabboRoleplay.Weapons;
+using Polar.HabboHotel.Groups;
 using Polar.HabboHotel.Items;
-using Polar.HabboRoleplay.Vehicles;
-using System.Data;
-using Polar.HabboRoleplay.VehicleOwned;
 using Polar.HabboRoleplay.Farming;
+using Polar.HabboRoleplay.Misc;
+using Polar.HabboRoleplay.Phones;
+using Polar.HabboRoleplay.Turfs;
+using Polar.HabboRoleplay.VehicleOwned;
+using Polar.HabboRoleplay.Vehicles;
+using Polar.HabboRoleplay.Weapons;
+using System.Data;
 
 namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
 {
@@ -46,27 +48,34 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
             #region Conditions
 
             #region Params Conditions
-            if (command == "mamada" && Params.Length == 3)
+            // Primero verificar que Params no sea null
+            if (Params == null || Params.Length < 1)
+            {
+                Session.SendWhisper("Comando inválido.", 1);
+                return;
+            }
+
+            if (command == "mamada" && Params.Length >= 3)
             {
                 Dir = 1;
                 Params2 = "mamada";
             }
-            else if (Params.Length == 3)
+            else if (Params.Length >= 3 && (command == "reparar" || command == "vender"))
             {
                 Dir = 1;
                 Params2 = "reparacion";
             }
-            else if (Params.Length == 4)
+            else if (Params.Length >= 4)
             {
                 Dir = 1;
                 Params2 = Params[2];
             }
-            else if (Params.Length == 5)
+            else if (Params.Length >= 5)
             {
                 Dir = 2;
                 Params2 = Params[2];
             }
-            else if (Params.Length == 1)
+            else if (Params.Length >= 2) // Cambiado de 1 a 2 porque necesitamos al menos 2 parámetros
             {
                 Dir = 3;
                 Params2 = Params[1];
@@ -81,7 +90,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
             }
             else
             {
-                if(command == "reparar")
+                if (command == "reparar")
                     Session.SendWhisper("Comando inválido, escribe :reparar [cliente] [precio]", 1);
                 else if (command == "mamada")
                     Session.SendWhisper("Comando inválido, escribe :mamada [cliente] [precio]", 1);
@@ -130,6 +139,13 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
             RoomUser TargetUser = null;
             if (Dir != 3)
             {
+                // Verificar que Params[1] existe
+                if (Params.Length < 2)
+                {
+                    Session.SendWhisper("Debes especificar un usuario.", 1);
+                    return;
+                }
+
                 Target = PolarEnvironment.GetGame().GetClientManager().GetClientByUsername(Params[1]);
                 if (Target == null)
                 {
@@ -265,6 +281,13 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
                                 }
                                 else
                                 {
+                                    // Verificar que Params[3] existe
+                                    if (Params.Length < 4)
+                                    {
+                                        Session.SendWhisper("Debes especificar un precio.", 1);
+                                        return;
+                                    }
+
                                     if (int.TryParse(Params[3], out Price))
                                     {
                                         foreach (var Offer in Target.GetRoleplay().OfferManager.ActiveOffers.Values)
@@ -291,7 +314,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
                                     {
                                         Session.SendWhisper("El precio es inválido", 1);
                                         return;
-                                    }  
+                                    }
                                 }
                                 /*if (int.TryParse(Params[3], out Price))
                             { */
@@ -315,6 +338,13 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
                             if (command != "reparar")
                             {
                                 Session.SendWhisper("Para ofrecer reparaciones de vehículos o armas (depende tu trabajo), usa: ':reparar [cliente] [precio]'", 1);
+                                return;
+                            }
+
+                            // Verificar que Params[2] existe
+                            if (Params.Length < 3)
+                            {
+                                Session.SendWhisper("Debes especificar un precio.", 1);
                                 return;
                             }
 
@@ -512,7 +542,8 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
                                     #endregion
                                     #endregion
                                 }
-                                else {
+                                else
+                                {
                                     #region Armero
                                     #region Conditions Arm
                                     /*if (!Target.GetRoleplay().PediArm)
@@ -568,6 +599,13 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
                     #region Mamada
                     case "mamada":
                         {
+                            // Verificar que Params[2] existe
+                            if (Params.Length < 3)
+                            {
+                                Session.SendWhisper("Debes especificar un precio.", 1);
+                                return;
+                            }
+
                             if (int.TryParse(Params[2], out Price))
                             {
                                 #region Conditions Price
@@ -584,12 +622,12 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
                                     return;
                                 }
 
-                               /* if (Session.GetRoleplay().JobId != 15)
-                                {
-                                    Session.SendWhisper("¡No Perteneces al trabajo del prostibulo!", 6);
-                                    return;
-                                }
-                                */
+                                /* if (Session.GetRoleplay().JobId != 15)
+                                 {
+                                     Session.SendWhisper("¡No Perteneces al trabajo del prostibulo!", 6);
+                                     return;
+                                 }
+                                 */
                                 if (!GroupManager.HasJobCommand(Session, "mamada") && !Session.GetHabbo().GetPermissions().HasRight("offer_anything"))
                                 {
                                     Session.SendWhisper("Usted no trabaja de prostitut@", 1);
@@ -646,6 +684,79 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
                         break;
                     #endregion
 
+                    
+                   #region Phone
+                    case "telefono":
+                    {
+
+                            if (!GroupManager.HasJobCommand(Session, "telefono") && !Session.GetHabbo().GetPermissions().HasRight("offer_anything"))
+                            {
+                                Session.SendWhisper("Usted no trabaja en el teléfono corporation!", 1);
+                                break;
+                            }
+
+                            if (Target.GetRoleplay().Phone > 0)
+                            {
+                                string WhisperMessage = "Usted ya tiene teléfono";
+                                Session.SendWhisper("Este ciudadano ya tiene un teléfono", 1);
+                                break;
+                            }
+
+                            if (!Session.GetRoleplay().IsWorking && !Session.GetHabbo().GetPermissions().HasRight("offer_anything"))
+                            {
+                                Session.SendWhisper("Usted debe estar trabajando para ofrecer a alguien a teléfono", 1);
+                                break;
+                            }
+
+                            else
+                            {
+                                Phone phone = PhoneManager.getPhone("iphone");
+                                Params[2] = Convert.ToString(phone.Price);
+                                if (int.TryParse(Params[2], out Price))
+                                {
+                                    #region Conditions Price
+                                    if (Price < 0 || Price == 0 || Price <= 0)
+                                    {
+                                        Session.SendWhisper("El precio no puede ser negativo.", 1);
+                                        return;
+                                    }
+                                    #endregion
+                                bool HasOffer = false;
+                                if (Target.GetHabbo().Credits >= Convert.ToInt32(Price.ToString().Replace("-", "")))
+                                {
+                                    foreach (var Offer in Target.GetRoleplay().OfferManager.ActiveOffers.Values)
+                                    {
+                                        if (Offer.Type.ToLower() == Type.ToLower())
+                                        {
+                                            HasOffer = true;
+                                        }
+                                    }
+                                    if (!HasOffer)
+                                    {
+                                        Session.Shout("*Ofrece un iPhone a " + Target.GetHabbo().Username + " por $"+ Price +"!*", 4);
+                                        Target.GetRoleplay().OfferManager.CreateOffer("telefono", Session.GetHabbo().Id, Convert.ToInt32(Price.ToString().Replace("-", "")));
+                                        Target.SendWhisper("¡Recién te han ofrecido un iPhone por $"+ Price +"! Diga ':aceptar telefono' para comprarlo!", 1);
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        Session.SendWhisper("A este usuario ya se le ha ofrecido un teléfono", 1);
+                                        break;
+                                    }
+                                }
+                                else
+                                {
+                                    Session.SendWhisper("Este ciudadano no puede teléfono", 1);
+                                    break;
+                                }
+                                }
+                                else
+                                    Session.SendWhisper("El precio es inválido", 1);
+                            }
+                            break;
+                        }
+                    #endregion
+
                     #region Default
                     default:
                         {
@@ -659,9 +770,16 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
             else if (Dir == 2)
             {
                 #region Consumibles :vender [x] [objetos] [cantidad] [precio]
+                // Verificar que tenemos todos los parámetros necesarios
+                if (Params.Length < 5)
+                {
+                    Session.SendWhisper("Comando inválido, escribe :vender [usuario] [objeto] [cantidad] [precio]", 1);
+                    return;
+                }
+
                 string Type = Params2;
-                int Cant = Convert.ToInt32(Params[3]);
-                int Cost = Convert.ToInt32(Params[4]);
+                int Cant = 0;
+                int Cost = 0;
 
                 #region Conditions
                 if (!int.TryParse(Params[3], out Cant))
@@ -1181,11 +1299,11 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
                                 }
                                 if (!HasOffer)
                                 {
-                                    Session.Shout("*Ofrece "+ Cant +" gramos de cocaina a " + Target.GetHabbo().Username + " por $" + String.Format("{0:N0}", Convert.ToInt32(Cost.ToString().Replace("-", ""))) + "*", 4);
+                                    Session.Shout("*Ofrece " + Cant + " gramos de cocaina a " + Target.GetHabbo().Username + " por $" + String.Format("{0:N0}", Convert.ToInt32(Cost.ToString().Replace("-", ""))) + "*", 4);
                                     Target.GetRoleplay().OfferManager.CreateOffer("cocaina", Session.GetHabbo().Id, Convert.ToInt32(Cost.ToString().Replace("-", "")), Cant);
-                                    Target.SendWhisper("Acaba de ofrecerte "+ Cant +"g de cocaina por $" + String.Format("{0:N0}", Convert.ToInt32(Cost.ToString().Replace("-", ""))) + " Diga ':aceptar cocaina' para comprarlo!", 1);
+                                    Target.SendWhisper("Acaba de ofrecerte " + Cant + "g de cocaina por $" + String.Format("{0:N0}", Convert.ToInt32(Cost.ToString().Replace("-", ""))) + " Diga ':aceptar cocaina' para comprarlo!", 1);
 
-                                    if(Room.GroupId == 0 && Room.OwnerId == 1) 
+                                    if (Room.GroupId == 0 && Room.OwnerId == 1)
                                         hasWanted = false;
                                     else if (Room.GroupId < 1000 && Room.OwnerId == 1)
                                         hasWanted = true;
@@ -1298,7 +1416,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
                                     }
                                     if (!HasOffer)
                                     {
-                                        Session.Shout("*Ofrece "+Cant+" unidades de caramelos a " + Target.GetHabbo().Username + " por $" + String.Format("{0:N0}", Convert.ToInt32(Cost.ToString().Replace("-", ""))) + "*", 4);
+                                        Session.Shout("*Ofrece " + Cant + " unidades de caramelos a " + Target.GetHabbo().Username + " por $" + String.Format("{0:N0}", Convert.ToInt32(Cost.ToString().Replace("-", ""))) + "*", 4);
                                         Target.GetRoleplay().OfferManager.CreateOffer("caramelos", Session.GetHabbo().Id, Convert.ToInt32(Cost.ToString().Replace("-", "")), Cant);
                                         Target.SendWhisper("Acaba de ofrecerte 5 caramelos por $" + String.Format("{0:N0}", Convert.ToInt32(Cost.ToString().Replace("-", ""))) + " Diga ':aceptar caramelos' para comprarlo!", 1);
                                         break;
@@ -1412,9 +1530,9 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
                                     }
                                     if (!HasOffer)
                                     {
-                                        Session.Shout("*Ofrece "+Cant+" porros de marihuana a " + Target.GetHabbo().Username + " por $" + String.Format("{0:N0}", Convert.ToInt32(Cost.ToString().Replace("-", ""))) + "*", 4);
+                                        Session.Shout("*Ofrece " + Cant + " porros de marihuana a " + Target.GetHabbo().Username + " por $" + String.Format("{0:N0}", Convert.ToInt32(Cost.ToString().Replace("-", ""))) + "*", 4);
                                         Target.GetRoleplay().OfferManager.CreateOffer("marihuana", Session.GetHabbo().Id, Convert.ToInt32(Cost.ToString().Replace("-", "")), Cant);
-                                        Target.SendWhisper("Acaba de ofrecerte "+Cant+" porros de marihuana por $" + String.Format("{0:N0}", Convert.ToInt32(Cost.ToString().Replace("-", ""))) + " Diga ':aceptar marihuana' para comprarlo!", 1);
+                                        Target.SendWhisper("Acaba de ofrecerte " + Cant + " porros de marihuana por $" + String.Format("{0:N0}", Convert.ToInt32(Cost.ToString().Replace("-", ""))) + " Diga ':aceptar marihuana' para comprarlo!", 1);
 
                                         if (Room.GroupId == 0 && Room.OwnerId == 1)
                                             hasWanted = false;
@@ -1530,9 +1648,9 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
                                     }
                                     if (!HasOffer)
                                     {
-                                        Session.Shout("*Ofrece "+Cant+"cc de Heroina a " + Target.GetHabbo().Username + " por $" + String.Format("{0:N0}", Convert.ToInt32(Cost.ToString().Replace("-", ""))) + "*", 4);
+                                        Session.Shout("*Ofrece " + Cant + "cc de Heroina a " + Target.GetHabbo().Username + " por $" + String.Format("{0:N0}", Convert.ToInt32(Cost.ToString().Replace("-", ""))) + "*", 4);
                                         Target.GetRoleplay().OfferManager.CreateOffer("heroina", Session.GetHabbo().Id, Convert.ToInt32(Cost.ToString().Replace("-", "")), Cant);
-                                        Target.SendWhisper("Acaba de ofrecerte "+Cant+"cc de Heroina por $" + String.Format("{0:N0}", Convert.ToInt32(Cost.ToString().Replace("-", ""))) + " Diga ':aceptar heroina' para comprarlo!", 1);
+                                        Target.SendWhisper("Acaba de ofrecerte " + Cant + "cc de Heroina por $" + String.Format("{0:N0}", Convert.ToInt32(Cost.ToString().Replace("-", ""))) + " Diga ':aceptar heroina' para comprarlo!", 1);
                                         break;
                                     }
                                     else
@@ -1815,8 +1933,14 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
             }
             else if (Dir == 3)
             {
+                // Verificar que tenemos al menos 2 parámetros
+                if (Params.Length < 2)
+                {
+                    Session.SendWhisper("Comando inválido, escribe ':vender objeto' o ':vender vehículo'", 1);
+                    return;
+                }
+
                 string Type = Params2;
-                string User = Params[2];
                 switch (Type.ToLower())
                 {
                     #region :vender objeto
@@ -1896,10 +2020,10 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
                     #region Default
                     default:
                         {
-                            Session.SendWhisper("'"+Type+"' no es un elemento válido a vender.", 1);
+                            Session.SendWhisper("'" + Type + "' no es un elemento válido a vender.", 1);
                         }
                         break;
-                    #endregion
+                        #endregion
                 }
             }
         }

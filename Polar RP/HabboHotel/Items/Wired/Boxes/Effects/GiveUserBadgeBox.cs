@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -14,17 +14,11 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
     class GiveUserBadgeBox : IWiredItem
     {
         public Room Instance { get; set; }
-
         public Item Item { get; set; }
-
         public WiredBoxType Type { get { return WiredBoxType.EffectGiveUserBadge; } }
-
         public ConcurrentDictionary<int, Item> SetItems { get; set; }
-
         public string StringData { get; set; }
-
         public bool BoolData { get; set; }
-
         public string ItemsData { get; set; }
 
         public GiveUserBadgeBox(Room Instance, Item Item)
@@ -55,11 +49,15 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
             if (Player == null || Player.GetClient() == null)
                 return false;
 
+            // FIX: Validar CurrentRoom antes de usarlo
+            if (Player.CurrentRoom == null)
+                return false;
+
             RoomUser User = Player.CurrentRoom.GetRoomUserManager().GetRoomUserByHabbo(Player.Id);
             if (User == null)
                 return false;
 
-            if (String.IsNullOrEmpty(StringData))
+            if (string.IsNullOrEmpty(StringData))
                 return false;
 
             if (Player.GetBadgeComponent().HasBadge(StringData))

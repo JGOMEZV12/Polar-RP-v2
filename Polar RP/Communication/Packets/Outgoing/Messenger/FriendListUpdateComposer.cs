@@ -26,13 +26,21 @@ namespace Polar.Communication.Packets.Outgoing.Messenger
 
         }
 
-        public FriendListUpdateComposer(Group Group, int State)
-   : base(ServerPacketHeader.FriendListUpdateMessageComposer)
+        public FriendListUpdateComposer(Group group, int state)
+    : base(ServerPacketHeader.FriendListUpdateMessageComposer)
         {
-            this.Group = Group;
-            this.State = State;
-            Compose(this);
+            this.Group = group;
+            this.State = state;
 
+            if (Group == null)
+            {
+                // Manejar el caso null aquí
+                // Por ejemplo, podrías lanzar una excepción más específica
+                // o inicializar con valores por defecto
+                throw new ArgumentNullException(nameof(Group), "Group cannot be null");
+            }
+
+            Compose(this);
         }
 
 
@@ -49,7 +57,12 @@ namespace Polar.Communication.Packets.Outgoing.Messenger
             packet.WriteInteger(1);//Category Count
             packet.WriteInteger(1);//category ID
             packet.WriteString("Grupos");
-            packet.WriteInteger(1);//Updates Count
+            // Si Group es null, no escribir ningún grupo
+            if (Group == null)
+            {
+                packet.WriteInteger(0); // Updates Count = 0
+                return;
+            }
             packet.WriteInteger(0);//Update
             if (Buddy.UserId > 0)
             {

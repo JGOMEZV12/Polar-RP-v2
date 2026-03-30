@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -21,7 +21,8 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
 
         public UserCountInRoomBox(Room instance, Item item)
         {
-            this.Instance = Instance;
+            // FIX: Usaba 'Instance' (propiedad null) en vez de 'instance' (parámetro)
+            this.Instance = instance;
             this.Item = item;
             this.SetItems = new ConcurrentDictionary<int, Item>();
         }
@@ -40,11 +41,17 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
             if (Params.Length == 0)
                 return false;
 
-            if (String.IsNullOrEmpty(this.StringData))
+            if (string.IsNullOrEmpty(this.StringData))
                 return false;
 
-            int CountOne = this.StringData != null ? int.Parse(this.StringData.Split(';')[0]) : 1;
-            int CountTwo = this.StringData != null ? int.Parse(this.StringData.Split(';')[1]) : 50;
+            // FIX: int.Parse reemplazado por TryParse para evitar FormatException
+            int CountOne = 1, CountTwo = 50;
+            var parts = this.StringData.Split(';');
+            if (parts.Length >= 2)
+            {
+                int.TryParse(parts[0], out CountOne);
+                int.TryParse(parts[1], out CountTwo);
+            }
 
             if (this.Instance.UserCount >= CountOne && this.Instance.UserCount <= CountTwo)
                 return true;

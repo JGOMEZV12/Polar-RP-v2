@@ -161,31 +161,27 @@ namespace Polar.HabboRoleplay.Timers.Types
                         base.CachedBot.DRoomUser.Chat("Por favor vote diciendo ':votar inocente' o ':votar culpable'", false, 2);
                         return;
                     }
+                    // FIX Bug 6: Thread.Sleep reemplazado por ticks adicionales (evita starvation del thread pool)
                     else if (RoleplayManager.CourtJuryTime == 140)
                     {
                         int CourtResult = Math.Max(RoleplayManager.InnocentVotes, RoleplayManager.GuiltyVotes);
-
-                        if (CourtResult == 0)
-                        {
-                            base.CachedBot.DRoomUser.Chat("Gracias por se voto. El jurado ha encontrado al acusado, " + Client.GetHabbo().Username + ", culpable de todos los cargos.", false, 2);
-                            Thread.Sleep(4000);
-                            base.CachedBot.DRoomUser.Chat("El acusado permanecerá en la cárcel y servirá el resto de su condena allí.", false, 2);
-                            Client.SendNotification("El jurado lo ha declarado culpable de todos los crímenes. ¡Permanecerá en la cárcel y servirá el resto de su condena!");
-                            return;
-                        }
-                        else if (CourtResult == RoleplayManager.GuiltyVotes)
-                        {
+                        // Primer mensaje — el segundo vendrá en el tick 144 (4 ticks = ~4s)
+                        if (CourtResult == 0 || CourtResult == RoleplayManager.GuiltyVotes)
                             base.CachedBot.DRoomUser.Chat("Gracias por su voto. El jurado ha encontrado al acusado, " + Client.GetHabbo().Username + ", culpable de todos los cargos.", false, 2);
-                            Thread.Sleep(4000);
+                        else
+                            base.CachedBot.DRoomUser.Chat("Gracias por su voto. El jurado ha encontrado al acusado, " + Client.GetHabbo().Username + ", Inocente de todos los crímenes.", false, 2);
+                        return;
+                    }
+                    else if (RoleplayManager.CourtJuryTime == 144)
+                    {
+                        int CourtResult = Math.Max(RoleplayManager.InnocentVotes, RoleplayManager.GuiltyVotes);
+                        if (CourtResult == 0 || CourtResult == RoleplayManager.GuiltyVotes)
+                        {
                             base.CachedBot.DRoomUser.Chat("El acusado permanecerá en la cárcel y servirá el resto de su condena allí.", false, 2);
                             Client.SendNotification("El jurado lo ha declarado culpable de todos los crímenes. ¡Permanecerá en la cárcel y servirá el resto de su condena!");
-                            return;
-
                         }
                         else
                         {
-                            base.CachedBot.DRoomUser.Chat("Gracias por su voto. El jurado ha encontrado al acusado, " + Client.GetHabbo().Username + ", Inocente de todos los crímenes.", false, 2);
-                            Thread.Sleep(4000);
                             base.CachedBot.DRoomUser.Chat("Por la presente libero al acusado y los perdono de todos los delitos.", false, 2);
                             Client.SendNotification("El jurado te ha encontrado inocente de todos los crímenes. ¡Usted ha sido liberado de la prisión!");
                             Client.GetRoleplay().IsJailed = false;

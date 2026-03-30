@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -37,9 +37,12 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Triggers
 
         public bool Execute(params object[] Params)
         {
-            Instance.GetWired().OnEvent(Item);
-
+            // FIX: Validar Player antes de usarlo
             Habbo Player = (Habbo)Params[0];
+            if (Player == null)
+                return false;
+
+            Instance.GetWired().OnEvent(Item);
 
             if (!string.IsNullOrWhiteSpace(StringData) && Player.Username != StringData)
                 return false;
@@ -55,21 +58,19 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Triggers
                 Instance.GetWired().OnEvent(Condition.Item);
             }
 
-            //Check the ICollection to find the random addon effect.
-            bool HasRandomEffectAddon = Effects.Where(x => x.Type == WiredBoxType.AddonRandomEffect).ToList().Count() > 0;
+            // FIX: Any() en lugar de .Where().ToList().Count() > 0
+            bool HasRandomEffectAddon = Effects.Any(x => x.Type == WiredBoxType.AddonRandomEffect);
             if (HasRandomEffectAddon)
             {
-                //Okay, so we have a random addon effect, now lets get the IWiredItem and attempt to execute it.
+                // FIX: null-check en RandomBox antes de ejecutar
                 IWiredItem RandomBox = Effects.FirstOrDefault(x => x.Type == WiredBoxType.AddonRandomEffect);
-                if (!RandomBox.Execute())
+                if (RandomBox == null || !RandomBox.Execute())
                     return false;
 
-                //Success! Let's get our selected box and continue.
                 IWiredItem SelectedBox = Instance.GetWired().GetRandomEffect(Effects.ToList());
-                if (!SelectedBox.Execute())
+                if (SelectedBox == null || !SelectedBox.Execute())
                     return false;
 
-                //Woo! Almost there captain, now lets broadcast the update to the room instance.
                 if (Instance != null)
                 {
                     Instance.GetWired().OnEvent(RandomBox.Item);

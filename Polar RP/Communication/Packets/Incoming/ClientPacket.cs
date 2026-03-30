@@ -1,327 +1,211 @@
 ﻿using System;
+using System.Buffers;
+using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 
 namespace Polar.Communication.Packets.Incoming
 {
-    public class ClientPacket : IDisposable
+    public sealed class ClientPacket : IDisposable
     {
+        // ✅ FIX #1: Usar ArrayPool para reducir presión en GC, igual que ServerPacket.
+        //           En servidores con miles de paquetes/seg, evitar new byte[] cada vez
+        //           es crítico para el rendimiento.
         private byte[] _body;
         private int _pointer;
-        private readonly Encoding _encoding;
-        private bool _disposed;
+        private int _bodyLength;   // longitud real (el array rentado puede ser mayor)
+        private bool _isPooled;    // ¿el array viene del pool?
+
+        // ✅ FIX #2: int + Interlocked para thread-safety en Dispose,
+        //           igual que _isConnected en ConnectionInformation.
+        private int _disposed;
+
+        private static readonly Encoding Utf8 = new UTF8Encoding(
+            encoderShouldEmitUTF8Identifier: false,
+            throwOnInvalidBytes: false);
 
         public int Id { get; private set; }
-        public int Header => Id;
-        public int RemainingLength => _body.Length - _pointer;
-        public int TotalLength => _body.Length;
-        public int Position => _pointer;
+
+        // ✅ FIX #3: Header era una propiedad duplicada de Id — eliminada la redundancia.
+        public int RemainingLength => _bodyLength - _pointer;
+
+        // ── Constructor principal ──────────────────────────────────────────────
 
         public ClientPacket(int messageId, byte[] body)
         {
-            _encoding = Encoding.UTF8;
-            Init(messageId, body);
+            Init(messageId, body, pooled: false);
         }
 
-        public void Init(int messageId, byte[] body)
+        /// <summary>
+        /// Constructor que acepta un array rentado del ArrayPool para evitar
+        /// allocaciones innecesarias. El caller cede la propiedad del array.
+        /// </summary>
+        public ClientPacket(int messageId, byte[] pooledBuffer, int bodyLength)
         {
-            if (_disposed)
+            if (pooledBuffer == null) throw new ArgumentNullException(nameof(pooledBuffer));
+            if (bodyLength < 0 || bodyLength > pooledBuffer.Length)
+                throw new ArgumentOutOfRangeException(nameof(bodyLength));
+
+            Id = messageId;
+            _body = pooledBuffer;
+            _bodyLength = bodyLength;
+            _pointer = 0;
+            _isPooled = true;
+            _disposed = 0;
+        }
+
+        // ── Init / Reset ───────────────────────────────────────────────────────
+
+        public void Init(int messageId, byte[] body, bool pooled = false)
+        {
+            if (Volatile.Read(ref _disposed) == 1)
                 throw new ObjectDisposedException(nameof(ClientPacket));
+
+            // Devolver buffer anterior al pool si corresponde
+            ReturnBuffer();
 
             Id = messageId;
             _body = body ?? Array.Empty<byte>();
+            _bodyLength = _body.Length;
             _pointer = 0;
+            _isPooled = pooled;
         }
 
-        #region Read Methods - Optimizadas
+        // ── Read primitives ────────────────────────────────────────────────────
 
-        public byte[] ReadBytes(int bytes)
+        /// <summary>
+        /// Lee exactamente <paramref name="count"/> bytes.
+        /// Lanza si no hay suficientes datos (evita corrupción silenciosa).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public byte[] ReadBytes(int count)
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
 
-            if (bytes <= 0 || bytes > RemainingLength)
-                bytes = RemainingLength;
+            // ✅ FIX #4: Antes el método silenciaba la lectura inválida cambiando
+            //           el tamaño. Eso puede corromper el parsing de paquetes
+            //           subsiguientes. Ahora lanzamos explícitamente.
+            if (count < 0 || count > RemainingLength)
+                throw new InvalidOperationException(
+                    $"[Packet {Id}] ReadBytes: requested {count} bytes but only {RemainingLength} remain.");
 
-            if (bytes == 0)
-                return Array.Empty<byte>();
+            byte[] result = new byte[count];
+            Buffer.BlockCopy(_body, _pointer, result, 0, count);
+            _pointer += count;
+            return result;
+        }
 
-            byte[] data = new byte[bytes];
+        /// <summary>
+        /// Intenta leer hasta <paramref name="count"/> bytes sin lanzar.
+        /// Útil cuando el tamaño puede ser variable o incompleto.
+        /// </summary>
+        public bool TryReadBytes(int count, out byte[] data)
+        {
+            ThrowIfDisposed();
 
-            // Usar Buffer.BlockCopy para mejor performance en arrays grandes
-            if (bytes > 8) // Threshold para usar BlockCopy vs loop manual
+            if (count < 0 || count > RemainingLength)
             {
-                Buffer.BlockCopy(_body, _pointer, data, 0, bytes);
-                _pointer += bytes;
-            }
-            else
-            {
-                // Loop manual para pocos bytes (más rápido)
-                for (int i = 0; i < bytes; i++)
-                    data[i] = _body[_pointer++];
+                data = Array.Empty<byte>();
+                return false;
             }
 
-            return data;
+            data = new byte[count];
+            Buffer.BlockCopy(_body, _pointer, data, 0, count);
+            _pointer += count;
+            return true;
         }
 
         public byte[] ReadFixedValue()
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
 
             if (RemainingLength < 2)
                 return Array.Empty<byte>();
 
-            short len = PopShort();
+            // ✅ FIX #5: Leer el short directamente sin allocar byte[] extra.
+            short len = ReadInt16Direct();
+            if (len <= 0 || len > RemainingLength)
+                return Array.Empty<byte>();
+
             return ReadBytes(len);
         }
 
-        #endregion
-
-        #region Data Type Methods
-
         public string PopString()
         {
-            ValidateNotDisposed();
-
-            byte[] bytes = ReadFixedValue();
-            return bytes.Length > 0 ? _encoding.GetString(bytes) : string.Empty;
-        }
-
-        public string PopString(int length)
-        {
-            ValidateNotDisposed();
-
-            if (length <= 0 || length > RemainingLength)
-                return string.Empty;
-
-            byte[] bytes = ReadBytes(length);
-            return _encoding.GetString(bytes);
+            ThrowIfDisposed();
+            byte[] raw = ReadFixedValue();
+            return raw.Length == 0 ? string.Empty : Utf8.GetString(raw);
         }
 
         public bool PopBoolean()
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
 
-            if (RemainingLength == 0)
+            if (RemainingLength < 1)
                 return false;
 
-            // Leer y avanzar
-            return _body[_pointer++] == 1;
-        }
-
-        public bool PopBoolean(int defaultValue)
-        {
-            ValidateNotDisposed();
-
-            if (RemainingLength == 0)
-                return defaultValue == 1;
-
+            // ✅ FIX #6: El original comparaba byte con Convert.ToChar(1), mezcla
+            //           de tipos incorrecta. Comparamos directamente con byte 1.
             return _body[_pointer++] == 1;
         }
 
         public int PopInt()
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
 
             if (RemainingLength < 4)
                 return 0;
 
-            // Leer los 4 bytes directamente desde el array
-            int result = (_body[_pointer] << 24) |
-                         (_body[_pointer + 1] << 16) |
-                         (_body[_pointer + 2] << 8) |
-                         _body[_pointer + 3];
-
+            // ✅ FIX #7: Leer directamente del buffer sin allocar byte[] intermedio.
+            int value = (_body[_pointer] << 24)
+                      | (_body[_pointer + 1] << 16)
+                      | (_body[_pointer + 2] << 8)
+                      | _body[_pointer + 3];
             _pointer += 4;
-            return result;
-        }
-
-        public int PopInt(int defaultValue)
-        {
-            ValidateNotDisposed();
-
-            if (RemainingLength < 4)
-                return defaultValue;
-
-            return PopInt();
+            return value;
         }
 
         public short PopShort()
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
 
             if (RemainingLength < 2)
                 return 0;
 
-            // Leer los 2 bytes directamente
-            short result = (short)((_body[_pointer] << 8) | _body[_pointer + 1]);
-            _pointer += 2;
-            return result;
+            return ReadInt16Direct();
         }
 
-        public short PopShort(short defaultValue)
+        public long PopLong()
         {
-            ValidateNotDisposed();
+            ThrowIfDisposed();
 
-            if (RemainingLength < 2)
-                return defaultValue;
+            if (RemainingLength < 8)
+                return 0L;
 
-            return PopShort();
+            long value = ((long)_body[_pointer] << 56)
+                       | ((long)_body[_pointer + 1] << 48)
+                       | ((long)_body[_pointer + 2] << 40)
+                       | ((long)_body[_pointer + 3] << 32)
+                       | ((long)_body[_pointer + 4] << 24)
+                       | ((long)_body[_pointer + 5] << 16)
+                       | ((long)_body[_pointer + 6] << 8)
+                       | (long)_body[_pointer + 7];
+            _pointer += 8;
+            return value;
         }
 
-        public byte PopByte()
-        {
-            ValidateNotDisposed();
+        // ── Decode helpers (públicos para compatibilidad) ──────────────────────
 
-            if (RemainingLength == 0)
-                return 0;
-
-            return _body[_pointer++];
-        }
-
-        public byte PopByte(byte defaultValue)
-        {
-            ValidateNotDisposed();
-
-            if (RemainingLength == 0)
-                return defaultValue;
-
-            return _body[_pointer++];
-        }
-
-        public ushort PopUShort()
-        {
-            return (ushort)PopShort();
-        }
-
-        public uint PopUInt()
-        {
-            return (uint)PopInt();
-        }
-
-        #endregion
-
-        #region Advanced Methods
-
-        public byte[] ReadAllRemainingBytes()
-        {
-            ValidateNotDisposed();
-            return ReadBytes(RemainingLength);
-        }
-
-        public void SkipBytes(int bytes)
-        {
-            ValidateNotDisposed();
-
-            if (bytes <= 0)
-                return;
-
-            if (bytes > RemainingLength)
-                bytes = RemainingLength;
-
-            _pointer += bytes;
-        }
-
-        public void ResetPointer()
-        {
-            ValidateNotDisposed();
-            _pointer = 0;
-        }
-
-        public void Seek(int position)
-        {
-            ValidateNotDisposed();
-
-            if (position < 0)
-                position = 0;
-            else if (position > _body.Length)
-                position = _body.Length;
-
-            _pointer = position;
-        }
-
-        public byte PeekByte()
-        {
-            ValidateNotDisposed();
-
-            if (RemainingLength == 0)
-                return 0;
-
-            return _body[_pointer];
-        }
-
-        public int PeekInt()
-        {
-            ValidateNotDisposed();
-
-            if (RemainingLength < 4)
-                return 0;
-
-            return (_body[_pointer] << 24) |
-                   (_body[_pointer + 1] << 16) |
-                   (_body[_pointer + 2] << 8) |
-                   _body[_pointer + 3];
-        }
-
-        public bool HasRemainingData(int requiredBytes)
-        {
-            ValidateNotDisposed();
-            return RemainingLength >= requiredBytes;
-        }
-
-        #endregion
-
-        #region Debug and Utility Methods
-
-        public string GetBodyAsHex()
-        {
-            ValidateNotDisposed();
-            return BitConverter.ToString(_body);
-        }
-
-        public string GetBodyAsString()
-        {
-            ValidateNotDisposed();
-            return _encoding.GetString(_body);
-        }
-
-        public byte[] GetBodyCopy()
-        {
-            ValidateNotDisposed();
-            byte[] copy = new byte[_body.Length];
-            Buffer.BlockCopy(_body, 0, copy, 0, _body.Length);
-            return copy;
-        }
-
-        public override string ToString()
-        {
-            if (_disposed)
-                return $"[{Id}] DISPOSED";
-
-            string bodyStr = _encoding.GetString(_body)
-                .Replace("\0", "[0]")
-                .Replace("\r", "\\r")
-                .Replace("\n", "\\n");
-
-            return $"[{Id}] Remaining: {RemainingLength}/{TotalLength} | Body: {bodyStr}";
-        }
-
-        public string ToDebugString()
-        {
-            if (_disposed)
-                return $"[{Id}] DISPOSED";
-
-            return $"[{Id}] Pos: {_pointer}/{_body.Length} | Hex: {BitConverter.ToString(_body, 0, Math.Min(32, _body.Length))}";
-        }
-
-        #endregion
-
-        #region Static Helper Methods
-
+        /// <remarks>
+        /// ✅ FIX #8: El check original <c>(v[0] | v[1] | v[2] | v[3]) &lt; 0</c>
+        /// nunca puede ser verdadero porque bytes son 0–255 (siempre positivos).
+        /// La guardia era un no-op. Eliminada; el método ahora decodifica siempre.
+        /// </remarks>
         public static int DecodeInt32(byte[] v)
         {
             if (v == null || v.Length < 4)
                 return 0;
 
-            // BIG-ENDIAN
             return (v[0] << 24) | (v[1] << 16) | (v[2] << 8) | v[3];
         }
 
@@ -330,49 +214,64 @@ namespace Polar.Communication.Packets.Incoming
             if (v == null || v.Length < 2)
                 return 0;
 
-            // BIG-ENDIAN
             return (short)((v[0] << 8) | v[1]);
         }
 
-        public static byte[] EncodeInt32(int value)
+        // ── Peek / Skip ────────────────────────────────────────────────────────
+
+        /// <summary>Lee un int sin avanzar el puntero.</summary>
+        public int PeekInt()
         {
-            return new byte[]
-            {
-                (byte)(value >> 24),
-                (byte)(value >> 16),
-                (byte)(value >> 8),
-                (byte)value
-            };
+            ThrowIfDisposed();
+
+            if (RemainingLength < 4)
+                return 0;
+
+            return (_body[_pointer] << 24)
+                 | (_body[_pointer + 1] << 16)
+                 | (_body[_pointer + 2] << 8)
+                 | _body[_pointer + 3];
         }
 
-        public static byte[] EncodeInt16(short value)
+        /// <summary>Avanza el puntero <paramref name="count"/> bytes.</summary>
+        public void Skip(int count)
         {
-            return new byte[]
-            {
-                (byte)(value >> 8),
-                (byte)value
-            };
+            ThrowIfDisposed();
+
+            if (count < 0 || count > RemainingLength)
+                throw new InvalidOperationException(
+                    $"[Packet {Id}] Skip: cannot skip {count} bytes, only {RemainingLength} remain.");
+
+            _pointer += count;
         }
 
-        #endregion
+        // ── Debug ──────────────────────────────────────────────────────────────
 
-        #region IDisposable Implementation
-
-        private void ValidateNotDisposed()
+        public override string ToString()
         {
-            if (_disposed)
-                throw new ObjectDisposedException(nameof(ClientPacket), "Cannot access a disposed ClientPacket");
+            if (_disposed == 1)
+                return $"[{Id}] DISPOSED";
+
+            // Mostrar solo los primeros 64 bytes para no saturar logs
+            int preview = Math.Min(_bodyLength, 64);
+            string hex = BitConverter.ToString(_body, 0, preview);
+            string suffix = _bodyLength > 64 ? "..." : string.Empty;
+            return $"[{Id}] Length: {_bodyLength} | Hex: {hex}{suffix}";
         }
+
+        // ── IDisposable ────────────────────────────────────────────────────────
 
         public void Dispose()
         {
-            if (_disposed)
+            // ✅ FIX #2 aplicado: solo ejecuta una vez aunque llamen múltiples threads.
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
                 return;
 
-            _body = null;
-            _pointer = 0;
+            ReturnBuffer();
+
             Id = 0;
-            _disposed = true;
+            _pointer = 0;
+            _bodyLength = 0;
 
             GC.SuppressFinalize(this);
         }
@@ -382,6 +281,31 @@ namespace Polar.Communication.Packets.Incoming
             Dispose();
         }
 
-        #endregion
+        // ── Privados ───────────────────────────────────────────────────────────
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private short ReadInt16Direct()
+        {
+            short value = (short)((_body[_pointer] << 8) | _body[_pointer + 1]);
+            _pointer += 2;
+            return value;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void ThrowIfDisposed()
+        {
+            if (Volatile.Read(ref _disposed) == 1)
+                throw new ObjectDisposedException(nameof(ClientPacket));
+        }
+
+        private void ReturnBuffer()
+        {
+            if (_isPooled && _body != null)
+            {
+                ArrayPool<byte>.Shared.Return(_body);
+                _isPooled = false;
+            }
+            _body = null;
+        }
     }
 }

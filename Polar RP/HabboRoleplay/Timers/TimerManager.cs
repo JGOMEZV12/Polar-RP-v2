@@ -193,19 +193,22 @@ namespace Polar.HabboRoleplay.Timers
         /// </summary>
         public BotRoleplayTimer CreateTimer(string Type, RoleplayBot CachedBot, int Time, bool Forever, params object[] Params)
         {
-            if (ActiveTimers.ContainsKey(Type))
-                return null;
-
+            // Si ya existe un timer de este tipo, terminarlo y removerlo antes de crear el nuevo
+            if (ActiveTimers.TryRemove(Type, out BotRoleplayTimer existing))
+            {
+                try { existing.EndTimer(); } catch { }
+            }
+ 
             BotRoleplayTimer Timer = GetTimerFromType(Type, CachedBot, Time, Forever, Params);
-
+ 
             if (Timer == null)
                 return null;
-
+ 
             ActiveTimers.TryAdd(Type, Timer);
-
+ 
             return Timer;
         }
-
+ 
         /// <summary>
         /// Returns a new timer based on the type
         /// </summary>

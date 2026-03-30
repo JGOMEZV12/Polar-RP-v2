@@ -1,12 +1,11 @@
-﻿using System;
+using ConnectionManager;
+using System;
 using System.Data;
 using System.Linq;
 using System.Text;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Polar.Net;
 using Newtonsoft.Json;
-using Fleck;
-using Polar.Core;
+using Polar.Net;
 using Polar.HabboHotel.GameClients;
 using System.IO;
 using Polar.HabboHotel.Cache;
@@ -28,7 +27,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.Others
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             Dictionary<object, object> ReturnedData = JsonConvert.DeserializeObject<Dictionary<object, object>>(Data);
@@ -47,7 +46,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.Others
                         StringBuilder Message = new StringBuilder();
                         //string json = "";
                         if (BountyManager.BountyUsers.Count <= 0)
-                            Socket.Send("compose_bounty:[]");
+                            Socket.SendWS( "compose_bounty:[]");
 
                         Message.Append("[");
                         lock (BountyManager.BountyUsers.Values)
@@ -83,7 +82,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.Others
                         //Client.SendMessage(new MOTDNotificationComposer(Message.ToString()));
                         //System.IO.File.WriteAllText(@"C:\patients.json", Message.ToString());
                        // Logging.WriteLine("" + Message + "");*/
-                        Socket.Send("compose_bounty|" + Message);
+                        Socket.SendWS( "compose_bounty|" + Message);
                     }
                     break;
                #endregion
@@ -97,5 +96,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.Others
         public string look { get; set; }
         public string addedBy { get; set; }
         public int reward { get; set; }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

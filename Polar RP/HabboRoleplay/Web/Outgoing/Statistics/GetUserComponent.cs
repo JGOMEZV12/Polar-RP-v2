@@ -1,9 +1,12 @@
-﻿using Polar.HabboHotel.Cache;
+using ConnectionManager;
+using Polar.HabboHotel.Cache;
 using Polar.HabboHotel.GameClients;
-using System.Data;
-using Polar.HabboRoleplay.RoleplayUsers;
 using Polar.HabboHotel.Groups;
+using Polar.HabboRoleplay.RoleplayUsers;
+using Polar.HabboRoleplay.Timers.Types;
 using Polar.HabboRoleplay.Weapons;
+using System.Collections.Concurrent;
+using System.Data;
 
 namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
 {
@@ -61,6 +64,39 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
             int Chalecos = User.GetRoleplay().Armor;
             int CurArmor = User.GetRoleplay().ChalecoPor;
 
+            // Obtener las armas del usuario directamente desde el Roleplay
+            ConcurrentDictionary<string, Weapon> weapons = User.GetRoleplay().OwnedWeapons;
+            int weaponsCount = weapons != null ? weapons.Count : 0;
+
+            // DEBUG: Ver qué armas hay realmente
+            //Console.WriteLine($"DEBUG - Total armas: {weaponsCount}");
+            if (weapons != null)
+            {
+                foreach (var weapon in weapons)
+                {
+                    //Console.WriteLine($"DEBUG - Arma: Key={weapon.Key}, Name={weapon.Value?.Name}");
+                }
+            }
+
+            // Formatear las armas para el string
+            string weaponsData = "";
+            if (weaponsCount > 0 && weapons != null)
+            {
+                var weaponsList = new List<string>();
+                foreach (Weapon weapon in weapons.Values)
+                {
+                    if (weapon != null && !string.IsNullOrEmpty(weapon.Name))
+                    {
+                        // Solo incluir el nombre del arma
+                        weaponsList.Add($"{weapon.Name}:{weapon.TotalBullets}");
+                        //Console.WriteLine($"DEBUG - Añadiendo arma: {weapon.Name}");
+                    }
+                }
+                weaponsData = string.Join(";", weaponsList);
+            }
+
+            //Console.WriteLine($"DEBUG - Resultado final: weaponsCount={weaponsCount}, weaponsData={weaponsData}");
+
             var Statistics =
                 UserID + "," +
                 Figure + "," +
@@ -82,8 +118,12 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
                 Dinamita + "," +
                 Pildoras + "," +
                 Chalecos + "," +
-                CurArmor
+                CurArmor + "," +
+                weaponsCount + "," +  // Cantidad de armas
+                weaponsData            // Nombres de armas formateados
                 ;
+
+            //Console.WriteLine($"DEBUG - String completo (últimos campos): ...{weaponsCount},{weaponsData}");
 
             return Statistics;
         }
@@ -183,7 +223,8 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
             int Arrested = Convert.ToInt32(Session.GetRoleplay().Arrested);
             int Intelligence = Convert.ToInt32(Session.GetRoleplay().Intelligence);
             int Strength = Convert.ToInt32(Session.GetRoleplay().Strength);
-            string Online = Session.GetHabbo().Online.ToString();
+            bool Online = (PolarEnvironment.EnumToBool(Convert.ToString(Session.GetHabbo().Online)) ||
+                              PolarEnvironment.GetGame().GetClientManager().GetClientByUserID(Session.GetHabbo().Id) != null);
             DateTime LastOn = new DateTime(1970, 1, 1, 0, 0, 0, 0).AddSeconds(Convert.ToInt32(Session.GetHabbo().LastOnline));
             int IsGang = 0;
             string GangName = "nulo";
@@ -206,6 +247,11 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
             if (Married != null)
                 MarriedTo = Married.Username;
 
+            int Health = Convert.ToInt32(Session.GetRoleplay().CurHealth);
+            int MaxHealth = Convert.ToInt32(Session.GetRoleplay().MaxHealth);
+            int Hygiene = Convert.ToInt32(Session.GetRoleplay().Hygiene);
+            int Hunger = Convert.ToInt32(Session.GetRoleplay().Hunger);
+
             string Statistics =
                 UserID + "," +
                 Username + "," +
@@ -226,8 +272,12 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
                 Arrested + "," +
                 Deaths + "," +
                 HitKills + "," +
-                PolarEnvironment.EnumToBool(Online) + "," +
-                MarriedTo;
+                Online + "," +
+                MarriedTo + "," +
+                Health + "," +
+                MaxHealth + "," +
+                Hygiene + "," +
+                Hunger;
             return Statistics;
         }
 
@@ -274,6 +324,11 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
             if (Married != null)
                 MarriedTo = Married.Username;
 
+            int Health = Convert.ToInt32(dRowRP["curhealth"]);
+            int MaxHealth = Convert.ToInt32(dRowRP["maxhealth"]);
+            int Hygiene = Convert.ToInt32(dRowRP["hygiene"]);
+            int Hunger = Convert.ToInt32(dRowRP["hunger"]);
+
             string Statistics =
                 UserID + "," +
                 Username + "," +
@@ -295,7 +350,11 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
                 Deaths + "," +
                 HitKills + "," +
                 PolarEnvironment.EnumToBool(Online) + "," +
-                MarriedTo;
+                MarriedTo + "," +
+                Health + "," +
+                MaxHealth + "," +
+                Hygiene + "," +
+                Hunger;
             return Statistics;
         }
 

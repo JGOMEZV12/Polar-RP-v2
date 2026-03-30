@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -51,11 +51,9 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
 
         public void HandleSave(ClientPacket packet)
         {
-            // Variables desconocidas que no se usan, se podría revisar si son necesarias
             int unknown = packet.PopInt();
             string unknown2 = packet.PopString();
 
-            // Limpiar los elementos previos
             SetItems.Clear();
 
             int furniCount = packet.PopInt();
@@ -63,9 +61,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
             {
                 Item selectedItem = Instance.GetRoomItemHandler().GetItem(packet.PopInt());
                 if (selectedItem != null)
-                {
                     SetItems.TryAdd(selectedItem.Id, selectedItem);
-                }
             }
 
             int delay = packet.PopInt();
@@ -77,7 +73,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
             if (SetItems.Count == 0)
                 return false;
 
-            // Verificar si el ciclo debe ejecutarse
             if (_next == 0 || _next < DateTime.UtcNow.Ticks)
                 _next = DateTime.UtcNow.Ticks + Delay;
 
@@ -98,36 +93,28 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
             var now = DateTime.UtcNow.Ticks;
             if (_next < now)
             {
-                // Recorrer los elementos a mover
                 foreach (Item item in SetItems.Values.ToList())
                 {
                     if (item == null)
                         continue;
 
-                    // Comprobar si el item aún está en el suelo
                     if (!Instance.GetRoomItemHandler().GetFloor.Contains(item))
                         continue;
 
-                    // Si el elemento ya no debe estar en la lista, eliminarlo
                     if (Instance.GetWired().OtherBoxHasItem(this, item.Id))
-                    {
                         SetItems.TryRemove(item.Id, out _);
-                    }
 
                     Point point = Instance.GetGameMap().GetChaseMovement(item);
                     Instance.GetWired().OnUserFurniCollision(Instance, item);
 
-                    // Verificar si el ítem puede moverse a la nueva ubicación
                     if (!Instance.GetGameMap().ItemCanMove(item, point))
                         continue;
 
-                    // Verificar si el ítem puede colocarse en el punto
                     if (Instance.GetGameMap().CanRollItemHere(point.X, point.Y) && !Instance.GetGameMap().SquareHasUsers(point.X, point.Y))
                     {
                         double newZ = item.GetZ;
                         bool canBePlaced = true;
 
-                        // Verificar otros items en las coordenadas
                         List<Item> items = Instance.GetGameMap().GetCoordinatedItems(point);
                         foreach (Item iItem in items.ToList())
                         {
@@ -136,7 +123,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
 
                             if (!iItem.GetBaseItem().Walkable)
                             {
-                                _next = 0; // Resetear el tiempo de espera si no se puede colocar
+                                _next = 0;
                                 canBePlaced = false;
                                 break;
                             }
@@ -148,7 +135,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                                 canBePlaced = false;
                         }
 
-                        // Colocar el ítem si es posible
                         if (canBePlaced && point != item.Coordinate)
                         {
                             Instance.SendMessage(new SlideObjectBundleComposer(item.GetX, item.GetY, item.GetZ, point.X,

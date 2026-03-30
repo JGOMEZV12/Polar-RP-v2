@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -52,7 +52,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                 Instance.lastRegeneration = DateTime.Now;
                 return true;
             }
-            
+
             return false;
         }
     }

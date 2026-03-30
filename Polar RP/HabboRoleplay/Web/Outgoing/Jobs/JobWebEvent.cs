@@ -1,10 +1,5 @@
-﻿using System;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Fleck;
-
+using ConnectionManager;
+using Polar.Net;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Rooms;
 using System.IO;
@@ -32,7 +27,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -76,7 +71,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         SendData += "$" + Pay.ToString() + " cada 10 minutos,";
                         SendData += Room.Group.Badge + ",";
                         SendData += Founder;
-                        Socket.Send("compose_job:open:" + SendData);
+                        Socket.SendWS( "compose_job:open:" + SendData);
                     }
                     break;
                 #endregion
@@ -106,25 +101,25 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         #region Conditions
                         if (!int.TryParse(ReceivedData[2], out time))
                         {
-                            Socket.Send("compose_job:error:Debes ingresar un número (entero) de tus horas libres.");
+                            Socket.SendWS( "compose_job:error:Debes ingresar un número (entero) de tus horas libres.");
                             return;
                         }
 
                         if (time < 0)
                         {
-                            Socket.Send("compose_job:error:Debes ingresar un número (entero y positivo) de tus horas libres.");
+                            Socket.SendWS( "compose_job:error:Debes ingresar un número (entero y positivo) de tus horas libres.");
                             return;
                         }
 
                         if (textwork.Length < 10)
                         {
-                            Socket.Send("compose_job:error:Debes ingresar un mínimo de 10 caracteres en el campo de texto.");
+                            Socket.SendWS( "compose_job:error:Debes ingresar un mínimo de 10 caracteres en el campo de texto.");
                             return;
                         }
 
                         if (zone == "" || zone == null)
                         {
-                            Socket.Send("compose_job:error:Debes seleccionar tu País de residencia.");
+                            Socket.SendWS( "compose_job:error:Debes seleccionar tu País de residencia.");
                             return;
                         }
 
@@ -136,7 +131,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         RoleplayManager.Shout(Client, "*Envía una solicitud de empleo con el mensaje '" + textwork + "' es de " + zone + " y tiene " + time + " horas libres al día*", 5);
                         Client.GetRoleplay().JobRequest = 1;
-                        Socket.Send("compose_job:close");
+                        Socket.SendWS( "compose_job:close");
                         Client.GetRoleplay().CooldownManager.CreateCooldown("jobrequest", 1000, 30);
 
                         #region Execute Packet
@@ -181,5 +176,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #endregion
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

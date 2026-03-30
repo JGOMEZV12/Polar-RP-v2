@@ -17,7 +17,7 @@ namespace Polar.HabboRoleplay.Timers.Types
             : base(Type, Client, Time, Forever, Params)
         {
             // Convert to milliseconds
-            OriginalTime = Client.GetRoleplay().WantedLevel * 5;
+            OriginalTime = 5;
             TimeLeft = Client.GetRoleplay().JailedTimeLeft * 60000;
 
             Client.GetRoleplay().UpdateTimerDialogue("Jail-Timer", "add", Client.GetRoleplay().JailedTimeLeft, OriginalTime);
@@ -67,8 +67,7 @@ namespace Polar.HabboRoleplay.Timers.Types
                     int ToJail = PolarEnvironment.GetGame().GetRPRoomManager().TryToGetJail(MyCity, out Data);
                     int ToJailback = PolarEnvironment.GetGame().GetRPRoomManager().TryToGetJail(MyCity, out Data);
 
-                    if (base.Client.GetHabbo().CurrentRoomId == ToJail || base.Client.GetHabbo().CurrentRoomId == ToJailback)//prision de la cd
-                        RoleplayManager.SendUser(base.Client, ToJail, "");
+                    RoleplayManager.SendUser(base.Client, ToJailback, "");
                     //RoleplayManager.SpawnChairs(base.Client, "comodin_carr2");
 
                 }
@@ -94,8 +93,9 @@ namespace Polar.HabboRoleplay.Timers.Types
         // Handle the state when the user is in jail or stunned
         private void HandleJailState()
         {
-            if (!base.Client.GetRoleplay().IsJailed && !base.Client.GetRoleplay().IsStun)
+            if (!base.Client.GetRoleplay().IsJailed)
             {
+                ;
                 Client.GetRoleplay().UpdateTimerDialogue("Jail-Timer", "remove", Client.GetRoleplay().JailedTimeLeft, OriginalTime);
                 if (!RoleplayManager.GenerateRoom(Client.GetRoomUser().RoomId, out Room Room))
                     return;
@@ -105,10 +105,10 @@ namespace Polar.HabboRoleplay.Timers.Types
                 int ToJail = PolarEnvironment.GetGame().GetRPRoomManager().TryToGetJail(MyCity, out Data);
                 int ToJailback = PolarEnvironment.GetGame().GetRPRoomManager().TryToGetJailBack(MyCity, out Data);
 
-                if (base.Client.GetHabbo().CurrentRoomId == ToJail || base.Client.GetHabbo().CurrentRoomId == ToJailback)//prision de la cd
-                    RoleplayManager.SendUser(base.Client, ToJail, "");
+                RoleplayManager.SendUser(base.Client, ToJailback, "");
+                RoleplayManager.Shout(base.Client, "*Cumple su condena en prisión y es puest@ en libertad*", 4);
 
-                RoleplayManager.Shout(base.Client, "*Se libera de la cárcel*", 4);
+
                 ProcessReleaseFromJail();
             }
         }
@@ -116,14 +116,6 @@ namespace Polar.HabboRoleplay.Timers.Types
         // Process the release of the player from jail and update the necessary states
         private void ProcessReleaseFromJail()
         {
-            if (base.Client.GetRoleplay().JailedTimeLeft != -5)
-            {
-                base.Client.GetRoleplay().OnProbation = true;
-                base.Client.GetRoleplay().ProbationTimeLeft = 5;
-                base.Client.GetRoleplay().TimerManager.CreateTimer("probation", 1000, false);
-                base.Client.SendWhisper($"Usted ha sido puesto en libertad condicional por {base.Client.GetRoleplay().ProbationTimeLeft} minutos", 1);
-            }
-
             ResetJailStates();
             UpdateWantedStars();
         }
@@ -205,11 +197,6 @@ namespace Polar.HabboRoleplay.Timers.Types
         {
             RoleplayManager.Shout(base.Client, "*Se libera de la cárcel ya que han cumplido su condena*", 4);
             UpdateJailLook();
-            base.Client.GetRoleplay().OnProbation = true;
-            base.Client.GetRoleplay().ProbationTimeLeft = 5;
-            base.Client.SendWhisper($"Usted ha sido puesto en libertad condicional por {base.Client.GetRoleplay().ProbationTimeLeft} minutos", 1);
-            base.Client.SendWhisper("Si comete algún crimen durante la libertad condicional, su nivel de estrella aumentará", 1);
-            base.Client.GetRoleplay().TimerManager.CreateTimer("probation", 1000, false);
             ResetJailStates();
         }
     }

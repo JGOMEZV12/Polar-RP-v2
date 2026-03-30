@@ -184,6 +184,11 @@ namespace Polar.HabboRoleplay.Combat.Types
                 return;
             }
 
+            if (BotUser.GetRoom().SafeZoneEnabled)
+            {
+                Client.SendWhisper("ES una zona segura, no puedes disparar a este bot.", 1);
+                return;
+            }
             // If about to die
             bool Died = false;
 

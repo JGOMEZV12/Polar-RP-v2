@@ -78,7 +78,7 @@ namespace ConnectionManager
                 {
                     Interlocked.Increment(ref this.acceptedConnections);
 
-                    ConnectionInformation connection = new ConnectionInformation(dataStream, this.acceptedConnections, this.parser.Clone() as IDataParser, Ip);
+                    ConnectionInformation connection = new ConnectionInformation(this.parser.Clone() as IDataParser, dataStream, Ip, this.acceptedConnections);
 
                     connection.connectionClose += new ConnectionInformation.ConnectionChange(this.c_connectionChanged);
 

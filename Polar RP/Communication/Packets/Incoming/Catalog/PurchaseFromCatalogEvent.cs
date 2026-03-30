@@ -5,6 +5,7 @@ using Polar.Communication.Packets.Outgoing.Inventory.Bots;
 using Polar.Communication.Packets.Outgoing.Inventory.Furni;
 using Polar.Communication.Packets.Outgoing.Inventory.Pets;
 using Polar.Communication.Packets.Outgoing.Inventory.Purse;
+using Polar.Communication.Packets.Outgoing.Moderation;
 using Polar.Communication.Packets.Outgoing.Rooms.Notifications;
 using Polar.Communication.Packets.Outgoing.Users;
 using Polar.Core;
@@ -42,53 +43,60 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                 string extraData = packet.PopString();
                 int amount = packet.PopInt();
 
-                //Console.WriteLine($"Datos recibidos: PageId={pageId}, OfferId={offerId}, ExtraData='{extraData}', Amount={amount}");
+               // Console.WriteLine($"Datos recibidos: PageId={pageId}, OfferId={offerId}, ExtraData='{extraData}', Amount={amount}");
 
                 // Validar cantidad
                 amount = Math.Clamp(amount, 1, 100);
-                //Console.WriteLine($"Cantidad ajustada: {amount}");
+               // Console.WriteLine($"Cantidad ajustada: {amount}");
 
                 // Obtener el item del catálogo
                 CatalogItem catalogItem = null;
                 CatalogPage page = null;
 
-                // CASO 1: PageId = -1 (compra directa por OfferId)
+                var catalog = PolarEnvironment.GetGame().GetCatalog();
+
+                // DIAGNÓSTICO: Mostrar información sobre la oferta
+                if (catalog.OfferItems.ContainsKey(offerId))
+                {
+                    var debugItem = catalog.OfferItems[offerId];
+                    //Console.WriteLine($"DEBUG: OfferId {offerId} existe en OfferItems -> ItemId={debugItem.Id}, PageId={debugItem.PageId}, Name={debugItem.Name}");
+                }
+                else
+                {
+                    //Console.WriteLine($"DEBUG: OfferId {offerId} NO existe en OfferItems");
+                }
+
+                // ESTRATEGIA MEJORADA: Buscar primero por offerId si pageId es -1
                 if (pageId == -1)
                 {
                     //Console.WriteLine($"Compra directa por OfferId: {offerId}");
 
-                    // Buscar el item directamente por OfferId
-                    var catalog = PolarEnvironment.GetGame().GetCatalog();
-
-                    // Método 1: Buscar en OfferItems
-                    if (catalog.OfferItems.TryGetValue(offerId, out catalogItem))
+                    // Buscar en todas las páginas por el offerId
+                    bool found = false;
+                    foreach (var catalogPage in catalog.GetPages())
                     {
-                        //Console.WriteLine($"Item encontrado en OfferItems: {catalogItem.Id} - {catalogItem.Name}");
+                        if (catalogPage.ItemOffers.TryGetValue(offerId, out catalogItem))
+                        {
+                            page = catalogPage;
+                            found = true;
+                            //Console.WriteLine($"Item encontrado en página {page.Id}: {catalogItem.Id} - {catalogItem.Name}");
+                            break;
+                        }
+                    }
 
-                        // Obtener la página del item
+                    // Si no se encuentra en las páginas, buscar en OfferItems
+                    if (!found && catalog.OfferItems.TryGetValue(offerId, out catalogItem))
+                    {
+                       // Console.WriteLine($"Item encontrado en OfferItems: {catalogItem.Id} - {catalogItem.Name}");
+
+                        // Intentar obtener la página
                         if (catalog.TryGetPage(catalogItem.PageId, out page))
                         {
-                            //Console.WriteLine($"Página encontrada: {page.Id} - {page.Caption}");
+                           // Console.WriteLine($"Página encontrada: {page.Id} - {page.Caption}");
                         }
                         else
                         {
-                            //Console.WriteLine($"ERROR: No se encontró la página {catalogItem.PageId} para el item");
-                            session.SendNotification("Error: Página no encontrada");
-                            return;
-                        }
-                    }
-                    // Método 2: Buscar en todas las páginas
-                    else
-                    {
-                        //Console.WriteLine($"Buscando item en todas las páginas...");
-                        foreach (var catalogPage in catalog.GetPages())
-                        {
-                            if (catalogPage.ItemOffers.TryGetValue(offerId, out catalogItem))
-                            {
-                                page = catalogPage;
-                                //Console.WriteLine($"Item encontrado en página {page.Id}: {catalogItem.Id} - {catalogItem.Name}");
-                                break;
-                            }
+                           // Console.WriteLine($"WARNING: Página {catalogItem.PageId} no encontrada, continuando sin validación de página");
                         }
                     }
 
@@ -99,19 +107,21 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                         return;
                     }
                 }
-                // CASO 2: Compra normal por página
                 else
                 {
-                    // Obtener página del catálogo
-                    if (!PolarEnvironment.GetGame().GetCatalog().TryGetPage(pageId, out page))
+                    //Console.WriteLine($"Compra normal por página: {pageId}");
+
+                    // Validar que la página existe
+                    if (!catalog.TryGetPage(pageId, out page))
                     {
-                        //Console.WriteLine($"Página {pageId} no encontrada");
+                        //Console.WriteLine($"ERROR: Página {pageId} no encontrada");
                         session.SendNotification("La página no existe");
                         return;
                     }
 
                     //Console.WriteLine($"Página encontrada: {page.Id} - {page.Caption}");
 
+                    // Validar permisos de página
                     if (!page.Enabled || !page.Visible)
                     {
                         //Console.WriteLine($"Página no habilitada o visible");
@@ -128,29 +138,356 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                         return;
                     }
 
-                    // Obtener item del catálogo
-                    catalogItem = GetCatalogItem(page, offerId);
+                    // Buscar el item en la página
+                    catalogItem = FindCatalogItemInPage(page, offerId);
+
                     if (catalogItem == null)
                     {
-                        //Console.WriteLine($"Item no encontrado para OfferId {offerId} en página {pageId}");
-                        session.SendNotification("El artículo no existe");
-                        return;
+                        //Console.WriteLine($"ERROR: Item no encontrado para OfferId {offerId} en página {pageId}");
+
+                        // Intentar buscar en todas las páginas como fallback
+                        //Console.WriteLine($"Buscando como fallback en todas las páginas...");
+                        foreach (var catalogPage in catalog.GetPages())
+                        {
+                            if (catalogPage.ItemOffers.TryGetValue(offerId, out catalogItem))
+                            {
+                                page = catalogPage;
+                                //Console.WriteLine($"Item encontrado en página {page.Id}: {catalogItem.Id} - {catalogItem.Name}");
+                                break;
+                            }
+                        }
+
+                        if (catalogItem == null)
+                        {
+                            session.SendNotification("El artículo no existe");
+                            return;
+                        }
                     }
                 }
 
-                //Console.WriteLine($"Item encontrado: {catalogItem.Id} - {catalogItem.Name}");
-                //Console.WriteLine($"Tipo: {catalogItem.Data.Type}, Costo: {catalogItem.CostCredits}c/{catalogItem.CostPixels}d/{catalogItem.CostDiamonds}dm");
+                // Validación final del item
+                if (catalogItem == null)
+                {
+                    Console.WriteLine($"ERROR CRÍTICO: catalogItem es null después de toda la búsqueda");
+                    session.SendNotification("Error interno: artículo no encontrado");
+                    return;
+                }
+
+                //Console.WriteLine($"ITEM FINAL SELECCIONADO: Id={catalogItem.Id}, OfferId={offerId}, Name={catalogItem.Name}, PageId={catalogItem.PageId}");
+                //Console.WriteLine($"Datos del item: Type={catalogItem.Data.Type}, Sprite={catalogItem.Data.SpriteId}, Interaction={catalogItem.Data.InteractionType}");
+                //Console.WriteLine($"Costos: {catalogItem.CostCredits}c, {catalogItem.CostPixels}d, {catalogItem.CostDiamonds}dm");
 
                 // Procesar la compra
                 ProcessPurchase(session, catalogItem, extraData, amount);
             }
             catch (Exception ex)
             {
-                //Console.WriteLine($"ERROR en PurchaseFromCatalogEvent: {ex.Message}");
-                //Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                Console.WriteLine($"ERROR en PurchaseFromCatalogEvent: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 session.SendNotification("Error al procesar la compra");
             }
+            finally
+            {
+                //Console.WriteLine($"=== PurchaseFromCatalogEvent FIN ===\n");
+            }
         }
+
+        private CatalogItem FindCatalogItemInPage(CatalogPage page, int identifier)
+        {
+            //Console.WriteLine($"Buscando item en página {page.Id} con identificador: {identifier}");
+
+            // 1. Buscar por CatalogItem.Id (catalog_items.id) - Lo que el cliente envía
+            if (page.Items.TryGetValue(identifier, out CatalogItem item))
+            {
+                //Console.WriteLine($"Encontrado por CatalogItem.Id: {identifier}");
+                //Console.WriteLine($"  -> OfferId en BD: {item.OfferId}, FurnitureId: {item.Id}");
+                return item;
+            }
+
+            // 2. Buscar por OfferId (catalog_items.offer_id)
+            if (page.ItemOffers.TryGetValue(identifier, out item))
+            {
+                //Console.WriteLine($"Encontrado por OfferId: {identifier}");
+                //Console.WriteLine($"  -> CatalogItem.Id: {item.Id}, FurnitureId: {item.Id}");
+                return item;
+            }
+
+            // 3. Buscar por FurnitureId (catalog_items.item_id)
+            foreach (var catalogItem in page.Items.Values)
+            {
+                if (catalogItem.Id == identifier)
+                {
+                    //Console.WriteLine($"Encontrado por FurnitureId: {identifier}");
+                    //Console.WriteLine($"  -> CatalogItem.Id: {catalogItem.Id}, OfferId: {catalogItem.OfferId}");
+                    return catalogItem;
+                }
+            }
+
+            //Console.WriteLine($"Item NO encontrado en página {page.Id}: {identifier}");
+            return null;
+        }
+
+        private void ProcessPurchase(GameClient session, CatalogItem item, string extraData, int amount)
+        {
+           //Console.WriteLine($"=== Procesando compra de '{item.Name}' ===");
+
+
+            // Calcular costos totales
+            int totalCredits = item.CostCredits * amount;
+            int totalPixels = item.CostPixels * amount;
+            int totalDiamonds = item.CostDiamonds * amount;
+
+            //Console.WriteLine($"Costos totales para {amount} unidad(es):");
+            //Console.WriteLine($"  Créditos: {totalCredits} (usuario tiene: {session.GetHabbo().Credits})");
+            //Console.WriteLine($"  Pixels: {totalPixels} (usuario tiene: {session.GetHabbo().Duckets})");
+            //Console.WriteLine($"  Diamantes: {totalDiamonds} (usuario tiene: {session.GetHabbo().Diamonds})");
+
+            // Validar fondos
+            if (session.GetHabbo().Credits < totalCredits)
+            {
+                //Console.WriteLine($"ERROR: Créditos insuficientes (necesita {totalCredits}, tiene {session.GetHabbo().Credits})");
+                session.SendNotification($"Necesitas {totalCredits} créditos");
+                return;
+            }
+
+            if (session.GetHabbo().Duckets < totalPixels)
+            {
+                //Console.WriteLine($"ERROR: Pixels insuficientes (necesita {totalPixels}, tiene {session.GetHabbo().Duckets})");
+                session.SendNotification($"Necesitas {totalPixels} pixels");
+                return;
+            }
+
+            if (session.GetHabbo().Diamonds < totalDiamonds)
+            {
+                //Console.WriteLine($"ERROR: Diamantes insuficientes (necesita {totalDiamonds}, tiene {session.GetHabbo().Diamonds})");
+                session.SendNotification($"Necesitas {totalDiamonds} diamantes");
+                return;
+            }
+
+            // Procesar item limitado
+            if (item.IsLimited)
+            {
+                //Console.WriteLine($"Procesando item limitado: Stack={item.LimitedEditionStack}, Sells={item.LimitedEditionSells}");
+                if (!ProcessLimitedItem(item, session))
+                    return;
+            }
+
+            #region Create the extraData
+            switch (item.Data.InteractionType)
+            {
+                case InteractionType.NONE:
+                    extraData = "";
+                    break;
+
+                case InteractionType.WHISPER_TILE:
+                case InteractionType.SLIDING_DOORS:
+                    extraData = "0";
+                    break;
+                case InteractionType.Cocaina:
+                case InteractionType.HEROINA:
+                case InteractionType.WEEDMATERIA:
+                case InteractionType.WEEDPORRO:
+                    extraData = "0";
+                    break;
+
+                case InteractionType.GUILD_ITEM:
+                case InteractionType.GUILD_GATE:
+                case InteractionType.GUILD_FORUM:
+                    break;
+
+                case InteractionType.PINATA:
+                case InteractionType.PINATATRIGGERED:
+                case InteractionType.MAGICEGG:
+                case InteractionType.MAGICCHEST:
+                    extraData = "0";
+                    break;
+
+                #region Pet handling
+
+                case InteractionType.pet0:
+                case InteractionType.pet1:
+                case InteractionType.pet2:
+                case InteractionType.pet3:
+                case InteractionType.pet4:
+                case InteractionType.pet5:
+                case InteractionType.pet6:
+                case InteractionType.pet7:
+                case InteractionType.pet8:
+                case InteractionType.pet9:
+                case InteractionType.pet10:
+                case InteractionType.pet11:
+                case InteractionType.pet12:
+                case InteractionType.pet13: //Caballo
+                case InteractionType.pet14:
+                case InteractionType.pet15:
+                case InteractionType.pet16: //Mascota agregada
+                case InteractionType.pet17: //Mascota agregada
+                case InteractionType.pet18: //Mascota agregada
+                case InteractionType.pet19: //Mascota agregada
+                case InteractionType.pet20: //Mascota agregada
+                case InteractionType.pet21: //Mascota agregada
+                case InteractionType.pet22: //Mascota agregada
+                case InteractionType.pet23:
+                case InteractionType.pet24:
+                case InteractionType.pet25:
+                case InteractionType.pet26:
+                case InteractionType.pet28:
+                case InteractionType.pet29:
+                case InteractionType.pet30:
+                case InteractionType.pet31:
+                case InteractionType.pet32:
+                case InteractionType.pet33:
+                case InteractionType.pet34:
+                case InteractionType.pet35:
+                case InteractionType.pet36:
+                case InteractionType.pet37:
+                case InteractionType.pet38:
+                case InteractionType.pet39:
+                case InteractionType.pet40:
+                case InteractionType.pet41:
+                case InteractionType.pet42:
+                case InteractionType.pet43:
+                    try
+                    {
+
+                        string[] Bits = extraData.Split('\n');
+                        string PetName = Bits[0];
+                        string Race = Bits[1];
+                        string Color = Bits[2];
+
+                        int.Parse(Race); // to trigger any possible errors
+
+                        if (!PetUtility.CheckPetName(PetName))
+                            return;
+
+                        if (Race.Length > 2)
+                            return;
+
+                        if (Color.Length != 6)
+                            return;
+
+                        PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(session, "ACH_PetLover", 1);
+                    }
+                    catch (Exception e)
+                    {
+                        Logging.LogException(e.ToString());
+                        return;
+                    }
+
+                    break;
+
+                #endregion
+
+                case InteractionType.FLOOR:
+                case InteractionType.WALLPAPER:
+                case InteractionType.LANDSCAPE:
+
+                    Double Number = 0;
+
+                    try
+                    {
+                        if (string.IsNullOrEmpty(extraData))
+                            Number = 0;
+                        else
+                            Number = Double.Parse(extraData, PolarEnvironment.CultureInfo);
+                    }
+                    catch (Exception e)
+                    {
+                        Logging.HandleException(e, "Catalog.HandlePurchase: " + extraData);
+                    }
+
+                    extraData = Number.ToString().Replace(',', '.');
+                    break; // maintain extra data // todo: validate
+
+                case InteractionType.POSTIT:
+                    extraData = "FFFF33";
+                    break;
+
+                case InteractionType.MOODLIGHT:
+                    extraData = "1,1,1,#000000,255";
+                    break;
+
+                case InteractionType.TROPHY:
+                    extraData = session.GetHabbo().Username + Convert.ToChar(9) + DateTime.Now.Day + "-" + DateTime.Now.Month + "-" + DateTime.Now.Year + Convert.ToChar(9) + extraData;
+                    break;
+
+                case InteractionType.MANNEQUIN:
+                    extraData = "m" + Convert.ToChar(5) + ".ch-210-1321.lg-285-92" + Convert.ToChar(5) + "Default Mannequin";
+                    break;
+
+                case InteractionType.BADGE_DISPLAY:
+                    if (!session.GetHabbo().GetBadgeComponent().HasBadge(extraData))
+                    {
+                        session.SendMessage(new BroadcastMessageAlertComposer("¡Vaya !, parece que usted no es dueño de esta insignia."));
+                        return;
+                    }
+
+                    extraData = extraData + Convert.ToChar(9) + session.GetHabbo().Username + Convert.ToChar(9) + DateTime.Now.Day + "-" + DateTime.Now.Month + "-" + DateTime.Now.Year;
+                    break;
+
+                case InteractionType.BADGE:
+                    {
+                        if (session.GetHabbo().GetBadgeComponent().HasBadge(item.Data.ItemName))
+                        {
+                            session.SendMessage(new PurchaseErrorComposer(1));
+                            return;
+                        }
+                        break;
+                    }
+                default:
+                    extraData = "";
+                    break;
+            }
+            #endregion
+
+            // Deductir monedas
+            //Console.WriteLine("Deductiendo monedas...");
+            DeductCurrency(session, totalCredits, totalPixels, totalDiamonds);
+
+            // Crear y entregar item
+            //Console.WriteLine("Entregando item(s)...");
+            DeliverItem(session, item, extraData, amount);
+
+            // Enviar confirmación
+            //Console.WriteLine("Enviando confirmación de compra...");
+            session.SendMessage(new PurchaseOKComposer(item, item.Data));
+
+            // Notificación
+            SendPurchaseNotification(session, item, amount);
+
+            // Actualizar inventario
+            session.SendMessage(new FurniListUpdateComposer());
+
+            // Registrar en log si es necesario
+            //LogPurchase(session, item, amount, totalCredits, totalPixels, totalDiamonds);
+
+            //Console.WriteLine($"=== Compra completada exitosamente ===\n");
+        }
+
+        /*private void LogPurchase(GameClient session, CatalogItem item, int amount, int credits, int pixels, int diamonds)
+        {
+            try
+            {
+                using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+                {
+                    dbClient.SetQuery("INSERT INTO `catalog_purchases_log` (user_id, item_id, offer_id, item_name, amount, cost_credits, cost_pixels, cost_diamonds, timestamp) VALUES (@uid, @iid, @oid, @name, @amount, @credits, @pixels, @diamonds, UNIX_TIMESTAMP())");
+                    dbClient.AddParameter("uid", session.GetHabbo().Id);
+                    dbClient.AddParameter("iid", item.Id);
+                    dbClient.AddParameter("oid", item.OfferId);
+                    dbClient.AddParameter("name", item.Name);
+                    dbClient.AddParameter("amount", amount);
+                    dbClient.AddParameter("credits", credits);
+                    dbClient.AddParameter("pixels", pixels);
+                    dbClient.AddParameter("diamonds", diamonds);
+                    dbClient.RunQuery();
+                }
+                Console.WriteLine($"Compra registrada en log: {item.Name} x{amount}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al registrar compra en log: {ex.Message}");
+            }
+        }*/
 
         private CatalogItem GetCatalogItem(CatalogPage page, int identifier)
         {
@@ -172,59 +509,7 @@ namespace Polar.Communication.Packets.Incoming.Catalog
             return null;
         }
 
-        private void ProcessPurchase(GameClient session, CatalogItem item, string extraData, int amount)
-        {
-            //Console.WriteLine($"=== Procesando compra ===");
-            //Console.WriteLine($"Item: {item.Name}, Tipo: {item.Data.Type}, Cantidad: {amount}");
-
-            // Calcular costos totales
-            int totalCredits = item.CostCredits * amount;
-            int totalPixels = item.CostPixels * amount;
-            int totalDiamonds = item.CostDiamonds * amount;
-
-            //Console.WriteLine($"Costos: Credits={totalCredits}, Pixels={totalPixels}, Diamonds={totalDiamonds}");
-            //Console.WriteLine($"Fondos usuario: Credits={session.GetHabbo().Credits}, Pixels={session.GetHabbo().Duckets}, Diamonds={session.GetHabbo().Diamonds}");
-
-            // Validar fondos
-            if (session.GetHabbo().Credits < totalCredits ||
-                session.GetHabbo().Duckets < totalPixels ||
-                session.GetHabbo().Diamonds < totalDiamonds)
-            {
-                //Console.WriteLine("Fondos insuficientes");
-                session.SendNotification("No tienes suficientes fondos");
-                return;
-            }
-
-            // Procesar item limitado
-            if (item.IsLimited)
-            {
-                //Console.WriteLine($"Item limitado: Stack={item.LimitedEditionStack}, Sells={item.LimitedEditionSells}");
-                if (!ProcessLimitedItem(item, session))
-                    return;
-            }
-
-            // Deduct currency
-            //Console.WriteLine("Deductiendo monedas...");
-            DeductCurrency(session, totalCredits, totalPixels, totalDiamonds);
-
-            // Crear y entregar item
-            //Console.WriteLine("Entregando item...");
-            DeliverItem(session, item, extraData, amount);
-
-            // Enviar confirmación
-            //Console.WriteLine("Enviando confirmación de compra...");
-            session.SendMessage(new PurchaseOKComposer(item, item.Data));
-
-            // Notificación
-            SendPurchaseNotification(session, item, amount);
-
-            // Actualizar inventario
-            session.SendMessage(new FurniListUpdateComposer());
-
-            //Console.WriteLine($"=== Compra completada exitosamente ===");
-            //return;
-        }
-
+       
         private bool ProcessLimitedItem(CatalogItem item, GameClient session)
         {
             if (item.LimitedEditionStack <= item.LimitedEditionSells)
@@ -299,7 +584,386 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                     break;
 
                 case "p": // Pet
-                    DeliverPet(session, catalogItem, extraData);
+                    switch (catalogItem.Data.InteractionType)
+                    {
+                        #region Pets
+                        #region Pet 0
+                        case InteractionType.pet0:
+                            string[] PetData = extraData.Split('\n');
+                            Pet GeneratedPet = PetUtility.CreatePet(session.GetHabbo().Id, PetData[0], 0, PetData[1], PetData[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet);
+
+                            break;
+                        #endregion
+                        #region Pet 1
+                        case InteractionType.pet1:
+                            string[] PetData1 = extraData.Split('\n');
+                            Pet GeneratedPet1 = PetUtility.CreatePet(session.GetHabbo().Id, PetData1[0], 1, PetData1[1], PetData1[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet1);
+
+                            break;
+                        #endregion
+                        #region Pet 2
+                        case InteractionType.pet2:
+                            string[] PetData5 = extraData.Split('\n');
+                            Pet GeneratedPet5 = PetUtility.CreatePet(session.GetHabbo().Id, PetData5[0], 2, PetData5[1], PetData5[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet5);
+
+                            break;
+                        #endregion
+                        #region Pet 3
+                        case InteractionType.pet3:
+                            string[] PetData2 = extraData.Split('\n');
+                            Pet GeneratedPet2 = PetUtility.CreatePet(session.GetHabbo().Id, PetData2[0], 3, PetData2[1], PetData2[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet2);
+
+                            break;
+                        #endregion
+                        #region Pet 4
+                        case InteractionType.pet4:
+                            string[] PetData3 = extraData.Split('\n');
+                            Pet GeneratedPet3 = PetUtility.CreatePet(session.GetHabbo().Id, PetData3[0], 4, PetData3[1], PetData3[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet3);
+
+                            break;
+                        #endregion
+                        #region Pet 5
+                        case InteractionType.pet5:
+                            string[] PetData7 = extraData.Split('\n');
+                            Pet GeneratedPet7 = PetUtility.CreatePet(session.GetHabbo().Id, PetData7[0], 5, PetData7[1], PetData7[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet7);
+
+                            break;
+                        #endregion
+                        #region Pet 6 (wrong?)
+                        case InteractionType.pet6:
+                            string[] PetData4 = extraData.Split('\n');
+                            Pet GeneratedPet4 = PetUtility.CreatePet(session.GetHabbo().Id, PetData4[0], 6, PetData4[1], PetData4[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet4);
+
+                            break;
+                        #endregion
+                        #region Pet 7 (wrong?)
+                        case InteractionType.pet7:
+                            string[] PetData6 = extraData.Split('\n');
+                            Pet GeneratedPet6 = PetUtility.CreatePet(session.GetHabbo().Id, PetData6[0], 7, PetData6[1], PetData6[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet6);
+
+                            break;
+                        #endregion
+                        #region Pet 8
+                        case InteractionType.pet8:
+                            string[] PetData8 = extraData.Split('\n');
+                            Pet GeneratedPet8 = PetUtility.CreatePet(session.GetHabbo().Id, PetData8[0], 8, PetData8[1], PetData8[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet8);
+
+                            break;
+                        #endregion
+                        #region Pet 8
+                        case InteractionType.pet9:
+                            string[] PetData9 = extraData.Split('\n');
+                            Pet GeneratedPet9 = PetUtility.CreatePet(session.GetHabbo().Id, PetData9[0], 9, PetData9[1], PetData9[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet9);
+
+                            break;
+                        #endregion
+                        #region Pet 10
+                        case InteractionType.pet10:
+                            string[] PetData10 = extraData.Split('\n');
+                            Pet GeneratedPet10 = PetUtility.CreatePet(session.GetHabbo().Id, PetData10[0], 10, PetData10[1], PetData10[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet10);
+
+                            break;
+                        #endregion
+                        #region Pet 11
+                        case InteractionType.pet11:
+                            string[] PetData11 = extraData.Split('\n');
+                            Pet GeneratedPet11 = PetUtility.CreatePet(session.GetHabbo().Id, PetData11[0], 11, PetData11[1], PetData11[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet11);
+
+                            break;
+                        #endregion
+                        #region Pet 12
+                        case InteractionType.pet12:
+                            string[] PetData12 = extraData.Split('\n');
+                            Pet GeneratedPet12 = PetUtility.CreatePet(session.GetHabbo().Id, PetData12[0], 12, PetData12[1], PetData12[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet12);
+
+                            break;
+                        #endregion
+                        #region Pet 13
+                        case InteractionType.pet13: //Caballo - Horse
+                            string[] PetData13 = extraData.Split('\n');
+                            Pet GeneratedPet13 = PetUtility.CreatePet(session.GetHabbo().Id, PetData13[0], 13, PetData13[1], PetData13[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet13);
+
+                            break;
+                        #endregion
+                        #region Pet 14
+                        case InteractionType.pet14:
+                            string[] PetData14 = extraData.Split('\n');
+                            Pet GeneratedPet14 = PetUtility.CreatePet(session.GetHabbo().Id, PetData14[0], 14, PetData14[1], PetData14[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet14);
+
+                            break;
+                        #endregion
+                        #region Pet 15
+                        case InteractionType.pet15:
+                            string[] PetData15 = extraData.Split('\n');
+                            Pet GeneratedPet15 = PetUtility.CreatePet(session.GetHabbo().Id, PetData15[0], 15, PetData15[1], PetData15[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet15);
+
+                            break;
+                        #endregion
+                        #region Pet 16
+                        case InteractionType.pet16: // Mascota Agregada
+                            string[] PetData16 = extraData.Split('\n');
+                            Pet GeneratedPet16 = PetUtility.CreatePet(session.GetHabbo().Id, PetData16[0], 16, PetData16[1], PetData16[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet16);
+
+                            break;
+                        #endregion
+                        #region Pet 17
+                        case InteractionType.pet17: // Mascota Agregada
+                            string[] PetData17 = extraData.Split('\n');
+                            Pet GeneratedPet17 = PetUtility.CreatePet(session.GetHabbo().Id, PetData17[0], 17, PetData17[1], PetData17[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet17);
+
+                            break;
+                        #endregion
+                        #region Pet 18
+                        case InteractionType.pet18: // Mascota Agregada
+                            string[] PetData18 = extraData.Split('\n');
+                            Pet GeneratedPet18 = PetUtility.CreatePet(session.GetHabbo().Id, PetData18[0], 18, PetData18[1], PetData18[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet18);
+
+                            break;
+                        #endregion
+                        #region Pet 19
+                        case InteractionType.pet19: // Mascota Agregada
+                            string[] PetData19 = extraData.Split('\n');
+                            Pet GeneratedPet19 = PetUtility.CreatePet(session.GetHabbo().Id, PetData19[0], 19, PetData19[1], PetData19[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet19);
+
+                            break;
+                        #endregion
+                        #region Pet 20
+                        case InteractionType.pet20: // Mascota Agregada
+                            string[] PetData20 = extraData.Split('\n');
+                            Pet GeneratedPet20 = PetUtility.CreatePet(session.GetHabbo().Id, PetData20[0], 20, PetData20[1], PetData20[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet20);
+
+                            break;
+                        #endregion
+                        #region Pet 21
+                        case InteractionType.pet21: // Mascota Agregada
+                            string[] PetData21 = extraData.Split('\n');
+                            Pet GeneratedPet21 = PetUtility.CreatePet(session.GetHabbo().Id, PetData21[0], 21, PetData21[1], PetData21[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet21);
+
+                            break;
+                        #endregion
+                        #region Pet 22
+                        case InteractionType.pet22: // Mascota Agregada
+                            string[] PetData22 = extraData.Split('\n');
+                            Pet GeneratedPet22 = PetUtility.CreatePet(session.GetHabbo().Id, PetData22[0], 22, PetData22[1], PetData22[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet22);
+
+                            break;
+                        #endregion
+                        #region Pet 23
+                        case InteractionType.pet23: // Mascota Agregada
+                            string[] PetData23 = extraData.Split('\n');
+                            Pet GeneratedPet23 = PetUtility.CreatePet(session.GetHabbo().Id, PetData23[0], 23, PetData23[1], PetData23[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet23);
+
+                            break;
+                        #endregion
+                        #region Pet 24
+                        case InteractionType.pet24: // Mascota Agregada
+                            string[] PetData24 = extraData.Split('\n');
+                            Pet GeneratedPet24 = PetUtility.CreatePet(session.GetHabbo().Id, PetData24[0], 24, PetData24[1], PetData24[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet24);
+
+                            break;
+                        #endregion
+                        #region Pet 25
+                        case InteractionType.pet25: // Mascota Agregada
+                            string[] PetData25 = extraData.Split('\n');
+                            Pet GeneratedPet25 = PetUtility.CreatePet(session.GetHabbo().Id, PetData25[0], 25, PetData25[1], PetData25[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet25);
+
+                            break;
+                        #endregion
+                        #region Pet 26
+                        case InteractionType.pet26: // Mascota Agregada
+                            string[] PetData26 = extraData.Split('\n');
+                            Pet GeneratedPet26 = PetUtility.CreatePet(session.GetHabbo().Id, PetData26[0], 26, PetData26[1], PetData26[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet26);
+
+                            break;
+                        #endregion
+                        #region Pet 28
+                        case InteractionType.pet28: // Mascota Agregada
+                            string[] PetData28 = extraData.Split('\n');
+                            Pet GeneratedPet28 = PetUtility.CreatePet(session.GetHabbo().Id, PetData28[0], 28, PetData28[1], PetData28[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet28);
+
+                            break;
+                        #endregion
+                        #region Pet 29
+                        case InteractionType.pet29:
+                            string[] PetData29 = extraData.Split('\n');
+                            Pet GeneratedPet29 = PetUtility.CreatePet(session.GetHabbo().Id, PetData29[0], 29, PetData29[1], PetData29[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet29);
+
+                            break;
+                        #endregion
+                        #region Pet 30
+                        case InteractionType.pet30:
+                            string[] PetData30 = extraData.Split('\n');
+                            Pet GeneratedPet30 = PetUtility.CreatePet(session.GetHabbo().Id, PetData30[0], 30, PetData30[1], PetData30[2]);
+
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet30);
+
+                            break;
+                        #endregion
+                        #region Pet 31
+                        case InteractionType.pet31:
+                            string[] PetData31 = extraData.Split('\n');
+                            Pet GeneratedPet31 = PetUtility.CreatePet(session.GetHabbo().Id, PetData31[0], 31, PetData31[1], PetData31[2]);
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet31);
+                            break;
+                        #endregion
+                        #region Pet 32
+                        case InteractionType.pet32:
+                            string[] PetData32 = extraData.Split('\n');
+                            Pet GeneratedPet32 = PetUtility.CreatePet(session.GetHabbo().Id, PetData32[0], 32, PetData32[1], PetData32[2]);
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet32);
+                            break;
+                        #endregion
+                        #region Pet 33
+                        case InteractionType.pet33:
+                            string[] PetData33 = extraData.Split('\n');
+                            Pet GeneratedPet33 = PetUtility.CreatePet(session.GetHabbo().Id, PetData33[0], 33, PetData33[1], PetData33[2]);
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet33);
+                            break;
+                        #endregion
+                        #region Pet 34
+                        case InteractionType.pet34:
+                            string[] PetData34 = extraData.Split('\n');
+                            Pet GeneratedPet34 = PetUtility.CreatePet(session.GetHabbo().Id, PetData34[0], 34, PetData34[1], PetData34[2]);
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet34);
+                            break;
+                        #endregion
+                        #region Pet 35
+                        case InteractionType.pet35:
+                            string[] PetData35 = extraData.Split('\n');
+                            Pet GeneratedPet35 = PetUtility.CreatePet(session.GetHabbo().Id, PetData35[0], 35, PetData35[1], PetData35[2]);
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet35);
+                            break;
+                        #endregion
+                        #region Pet 36
+                        case InteractionType.pet36:
+                            string[] PetData36 = extraData.Split('\n');
+                            Pet GeneratedPet36 = PetUtility.CreatePet(session.GetHabbo().Id, PetData36[0], 36, PetData36[1], PetData36[2]);
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet36);
+                            break;
+                        #endregion
+                        #region Pet 37
+                        case InteractionType.pet37:
+                            string[] PetData37 = extraData.Split('\n');
+                            Pet GeneratedPet37 = PetUtility.CreatePet(session.GetHabbo().Id, PetData37[0], 37, PetData37[1], PetData37[2]);
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet37);
+                            break;
+                        #endregion
+                        #region Pet 38
+                        case InteractionType.pet38:
+                            string[] PetData38 = extraData.Split('\n');
+                            Pet GeneratedPet38 = PetUtility.CreatePet(session.GetHabbo().Id, PetData38[0], 38, PetData38[1], PetData38[2]);
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet38);
+                            break;
+                        #endregion
+                        #region Pet 39
+                        case InteractionType.pet39:
+                            string[] PetData39 = extraData.Split('\n');
+                            Pet GeneratedPet39 = PetUtility.CreatePet(session.GetHabbo().Id, PetData39[0], 39, PetData39[1], PetData39[2]);
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet39);
+                            break;
+                        #endregion
+                        #region Pet 40
+                        case InteractionType.pet40:
+                            string[] PetData40 = extraData.Split('\n');
+                            Pet GeneratedPet40 = PetUtility.CreatePet(session.GetHabbo().Id, PetData40[0], 40, PetData40[1], PetData40[2]);
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet40);
+                            break;
+                        #endregion
+                        #region Pet 41
+                        case InteractionType.pet41:
+                            string[] PetData41 = extraData.Split('\n');
+                            Pet GeneratedPet41 = PetUtility.CreatePet(session.GetHabbo().Id, PetData41[0], 41, PetData41[1], PetData41[2]);
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet41);
+                            break;
+                        #endregion
+                        #region Pet 42
+                        case InteractionType.pet42:
+                            string[] PetData42 = extraData.Split('\n');
+                            Pet GeneratedPet42 = PetUtility.CreatePet(session.GetHabbo().Id, PetData42[0], 42, PetData42[1], PetData42[2]);
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet42);
+                            break;
+                        #endregion
+                        #region Pet 43
+                        case InteractionType.pet43:
+                            string[] PetData43 = extraData.Split('\n');
+                            Pet GeneratedPet43 = PetUtility.CreatePet(session.GetHabbo().Id, PetData43[0], 43, PetData43[1], PetData43[2]);
+                            session.GetHabbo().GetInventoryComponent().TryAddPet(GeneratedPet43);
+                            break;
+                        #endregion
+                        #endregion
+                    }
+
+                    session.SendMessage(new FurniListNotificationComposer(0, 3));
+                    session.SendMessage(new PetInventoryComposer(session.GetHabbo().GetInventoryComponent().GetPets()));
+
+                    ItemData PetFood = null;
+                    if (PolarEnvironment.GetGame().GetItemManager().GetItem(320, out PetFood))
+                    {
+                        Item Food = ItemFactory.CreateSingleItemNullable(PetFood, session.GetHabbo(), "", "");
+                        if (Food != null)
+                        {
+                            session.GetHabbo().GetInventoryComponent().TryAddItem(Food);
+                            session.SendMessage(new FurniListNotificationComposer(Food.Id, 1));
+                        }
+                    }
                     break;
 
                 default:
@@ -321,8 +985,119 @@ namespace Polar.Communication.Packets.Incoming.Catalog
             //Console.WriteLine($"Creando furniture: Amount={amount}");
 
             List<Item> items = new List<Item>();
+            Item NewItem = null;
+            switch (item.Data.InteractionType)
+            {
+                default:
+                    if (amount > 1)
+                    {
+                        items = ItemFactory.CreateMultipleItems(item.Data, session.GetHabbo(), extraData, amount);
+                    }
+                    else
+                    {
+                        NewItem = ItemFactory.CreateSingleItemNullable(item.Data, session.GetHabbo(), extraData, extraData, 0, item.LimitedEditionSells, item.LimitedEditionStack);
 
-            if (amount > 1)
+                        if (NewItem != null)
+                        {
+                            items.Add(NewItem);
+                        }
+                    }
+                    break;
+
+                case InteractionType.GUILD_GATE:
+                case InteractionType.GUILD_ITEM:
+                case InteractionType.GUILD_FORUM:
+                    if (amount > 1)
+                    {
+                        items = ItemFactory.CreateMultipleItems(item.Data, session.GetHabbo(), extraData, amount);
+                    }
+                    else
+                    {
+                        // FIX: extraData puede llegar vacío, usar TryParse para evitar FormatException
+                        int guildId = 0;
+                        if (!string.IsNullOrEmpty(extraData))
+                            int.TryParse(extraData, out guildId);
+
+                        NewItem = ItemFactory.CreateSingleItemNullable(item.Data, session.GetHabbo(), extraData, extraData, guildId);
+
+                        if (NewItem != null)
+                        {
+                            items.Add(NewItem);
+                        }
+                    }
+                    break;
+
+                case InteractionType.MUSIC_DISC:
+                    string flags = Convert.ToString(item.ExtradataInt);
+                    if (amount > 1)
+                    {
+                        items = ItemFactory.CreateMultipleItems(item.Data, session.GetHabbo(), extraData, amount);
+                    }
+                    else
+                    {
+                        NewItem = ItemFactory.CreateSingleItemNullable(item.Data, session.GetHabbo(), flags, flags);
+
+                        if (NewItem != null)
+                        {
+                            items.Add(NewItem);
+                        }
+                    }
+                    break;
+               
+                case InteractionType.ARROW:
+                case InteractionType.ARROW2:
+                case InteractionType.TELEPORT:
+                    for (int i = 0; i < amount; i++)
+                    {
+                        List<Item> TeleItems = ItemFactory.CreateTeleporterItems(item.Data, session.GetHabbo());
+
+                        if (TeleItems != null)
+                        {
+                            items.AddRange(TeleItems);
+                        }
+                    }
+                    break;
+
+                case InteractionType.MOODLIGHT:
+                    {
+                        if (amount > 1)
+                        {
+                            items = ItemFactory.CreateMultipleItems(item.Data, session.GetHabbo(), extraData, amount);
+                        }
+                        else
+                        {
+                            NewItem = ItemFactory.CreateSingleItemNullable(item.Data, session.GetHabbo(), extraData, extraData);
+
+                            if (NewItem != null)
+                            {
+                                items.Add(NewItem);
+                                ItemFactory.CreateMoodlightData(NewItem);
+                            }
+                        }
+                    }
+                    break;
+
+                case InteractionType.TONER:
+                    {
+                        if (amount > 1)
+                        {
+                            items = ItemFactory.CreateMultipleItems(item.Data, session.GetHabbo(), extraData, amount);
+                        }
+                        else
+                        {
+                            NewItem = ItemFactory.CreateSingleItemNullable(item.Data, session.GetHabbo(), extraData, extraData);
+
+                            if (NewItem != null)
+                            {
+                                items.Add(NewItem);
+                                ItemFactory.CreateTonerData(NewItem);
+                            }
+                        }
+                    }
+                    break;
+
+            }
+           /* if (amount > 1)
             {
                 items = ItemFactory.CreateMultipleItems(item.Data, session.GetHabbo(), extraData, amount);
                 //Console.WriteLine($"Creados {items?.Count ?? 0} items múltiples");
@@ -335,7 +1110,7 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                     items.Add(newItem);
                     //Console.WriteLine($"Creado 1 item: {newItem.Id}");
                 }
-            }
+            }*/
 
             if (items != null)
             {
@@ -411,11 +1186,10 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                     string race = petData[1];
                     string color = petData[2];
 
-                    //Console.WriteLine($"Pet data: Name='{petName}', Race='{race}', Color='{color}'");
+                    Console.WriteLine($"Pet data: Name='{petName}', Race='{race}', Color='{color}'");
 
-                    if (int.TryParse(race, out int petType))
-                    {
-                        var pet = PetUtility.CreatePet(session.GetHabbo().Id, petName, petType, race, color);
+
+                        var pet = PetUtility.CreatePet(session.GetHabbo().Id, petName, Convert.ToInt32(race), race, color);
                         if (pet != null)
                         {
                             session.GetHabbo().GetInventoryComponent().TryAddPet(pet);
@@ -423,7 +1197,7 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                             session.SendMessage(new PetInventoryComposer(session.GetHabbo().GetInventoryComponent().GetPets()));
                             //Console.WriteLine($"Pet creado: {pet.PetId}, Type: {pet.Type}");
                         }
-                    }
+                    
                 }
                 else
                 {

@@ -121,7 +121,7 @@ namespace Polar.HabboRoleplay.ApartmentsOwned
 
         public bool BuyNewApartment(GameClient Session, string Model, string Name, int ApartId, int LobbyId, string City, bool FloorEditor)
         {
-            RoomData NewRoom = PolarEnvironment.GetGame().GetRoomManager().CreateRoom(Session, Name, "", Model, 1, City, 50, 0);
+            RoomData NewRoom = PolarEnvironment.GetGame().GetRoomManager().CreateRoom(Session, Name, "", Model, 9, City, 50, 0);
             if (NewRoom != null)
             {
                 int APID = 0;

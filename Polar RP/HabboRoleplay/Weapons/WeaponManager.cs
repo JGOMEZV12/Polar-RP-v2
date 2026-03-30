@@ -6,6 +6,12 @@ using log4net;
 
 namespace Polar.HabboRoleplay.Weapons
 {
+    public enum WeaponCategory
+    {
+        ArmaDeFuego = 1,
+        ArmaBlanca = 2,
+        Utiliario = 3
+    }
     public static class WeaponManager
     {
         private static readonly ILog log = LogManager.GetLogger("Polar.HabboRoleplay.Weapons");
@@ -88,10 +94,15 @@ namespace Polar.HabboRoleplay.Weapons
                 int WLife = Convert.ToInt32(Row["life"]);
                 bool isVip = PolarEnvironment.EnumToBool(Row["vip"].ToString());
 
+                string categoryStr = Convert.ToString(Row["category"]);
+                WeaponCategory category;
+                if (!Enum.TryParse(categoryStr, true, out category))
+                    category = WeaponCategory.ArmaDeFuego;
+
                 if (Weapons.ContainsKey(WeaponUnfriendlyName))
                     continue;
 
-                Weapon Weapon = new Weapon(ID, WeaponUnfriendlyName, WeaponName, FiringText, EquipText, UnEquipText, ReloadText, Energy, EffectID, HandItem, Range, MinDamage, MaxDamage, ClipSize, ReloadTime, Cost, CostFine, Stock, LevelRequirement, true, ClipSize, WLife, isVip, 0);
+                Weapon Weapon = new Weapon(ID, WeaponUnfriendlyName, WeaponName, FiringText, EquipText, UnEquipText, ReloadText, Energy, EffectID, HandItem, Range, MinDamage, MaxDamage, ClipSize, ReloadTime, Cost, CostFine, Stock, LevelRequirement, true, ClipSize, WLife, isVip, 0, category);
                 Weapons.TryAdd(WeaponUnfriendlyName, Weapon);
 
                 Enables.Add(Weapon.EffectID);

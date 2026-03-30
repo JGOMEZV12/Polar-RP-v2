@@ -1,9 +1,8 @@
-﻿using System;
+using ConnectionManager;
+using System;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-
-using Fleck;
+using Polar.Net;
 using Polar.HabboHotel.Items;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Rooms;
@@ -42,7 +41,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -71,39 +70,55 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             return;
                         #endregion
 
-                        #region Comodin Conditions
-                        Item BTile = null;
-                        BTile = Room.GetRoomItemHandler().GetFloor.FirstOrDefault(x => x.GetBaseItem().ItemName.ToLower() == "comodin_carro" && x.Coordinate == Client.GetRoomUser().Coordinate);
-                        if (BTile == null)
-                        {
-                            Client.SendWhisper("Debes acercarte al despacho para comprar el arma.", 1);
-                            return;
-                        }
-                        #endregion
-
                         Client.GetRoleplay().ViewWeaponsList = true;
 
-                        #region HTML
-                        string html = "";
-                        
-                        foreach (var weapon in WSkinManager.WSkins.Values.OrderBy(x => x.Cost))
+                        // Obtener todos los skins ordenados por costo
+                        var allSkins = WSkinManager.WSkins.Values.OrderBy(x => x.Cost).ToList();
+
+                        // Agrupar por Name2 (nombre del arma base)
+                        var skinsPorArma = allSkins.GroupBy(s => s.Name2).ToList();
+
+                        StringBuilder html = new StringBuilder();
+
+                        foreach (var grupo in skinsPorArma)
                         {
+                            string armaBase = grupo.Key; // ej: "ak47"
+                            var skins = grupo.ToList();
 
-                            html += "<div class=\"ft1\">";
-                            html += "<div class=\"circular-box\"><img src=\"" + RoleplayManager.CdnURL2 + "/armas/" + weapon.Name + ".png\" /></div>";
-                            html += "<div class=\"datos2\"><span>" + weapon.PublicName + "</span>";
-                            html += "<div class=\"hr2\"></div>";
-                            html += "Arma: <span>" + weapon.Name2 + "</span>";
-                            html += "<div class=\"hr2\"></div>";
-                            html += "<span style=\"color:#339900\"><font color=\"orange\">" + String.Format("{0:N0}", weapon.Cost) + " RB</font></span><br><div id=\"" + weapon.Name + "," + weapon.PublicName + "\" class=\"shopskin\"></div>";
-                            html += "</div>";
-                            html += "</div>";
+                            // Usar el primer skin del grupo para la imagen inicial y datos
+                            var skinDefault = skins.First();
+
+                            // Contenedor principal para el arma y sus skins
+                            html.AppendLine("<div class='ft1' data-arma-base='" + armaBase + "'>");
+
+                            // Imagen (se actualizará vía JS)
+                            html.AppendLine("    <div class='circular-box'><img class='skin-image' src='" + RoleplayManager.CdnURL2 + "/armas/" + skinDefault.Name + ".png' data-base-src='" + RoleplayManager.CdnURL2 + "/armas/' /></div>");
+
+                            html.AppendLine("    <div class='datos2'>");
+                            html.AppendLine("        <span class='skin-publicname'>" + skinDefault.PublicName + "</span>");
+                            html.AppendLine("        <div class='hr2'></div>");
+                            html.AppendLine("        <span>Arma: " + armaBase + "</span>");
+                            html.AppendLine("        <div class='hr2'></div>");
+                            html.AppendLine("        <span>Skin:</span>");
+                            // Selector de skins
+                            html.AppendLine("        <select class='skin-selector' style='padding: 2px;width: 90%;border-width: 1px;border-color: rgba(0, 0, 0, .3);border-radius: .25rem;'>");
+                            foreach (var skin in skins)
+                            {
+                                string selected = (skin == skinDefault) ? "selected" : "";
+                                html.AppendLine($"            <option value='{skin.Name}' data-public='{skin.PublicName}' data-cost='{skin.Cost}' {selected}>{skin.PublicName}</option>");
+                            }
+                            html.AppendLine("        </select>");
+                            html.AppendLine("        <div class='hr2'></div>");
+
+                            // Precio y botón de compra
+                            html.AppendLine("        <span style='color:#339900'><font color='orange'>" + String.Format("{0:N0}", skinDefault.Cost) + " RB</font></span><br>");
+                            html.AppendLine($"        <div id='{skinDefault.Name},{skinDefault.PublicName}' class='shopskin' data-skin-name='{skinDefault.Name}' data-skin-public='{skinDefault.PublicName}' data-cost='{skinDefault.Cost}'></div>");
+                            html.AppendLine("    </div>");
+                            html.AppendLine("</div>");
                         }
-                        #endregion
 
-                        string SendData = "";
-                        SendData += html;
-                        Socket.Send("compose_shop_skins|openshop|" + SendData);
+                        string SendData = html.ToString();
+                        Socket.SendWS( "compose_shop_skins|openshop|" + SendData);
                         Client.GetRoleplay().CooldownManager.CreateCooldown("openshopwskin", 1000, 1);
                         break;
                     }
@@ -113,7 +128,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 case "closeshop":
                     {
                         Client.GetRoleplay().ViewWeaponsList = false;
-                        Socket.Send("compose_shop_skins|closeshop|");
+                        Socket.SendWS( "compose_shop_skins|closeshop|");
                         break;
                     }
                 #endregion
@@ -136,13 +151,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if(weapon == null)
                         {
-                            Socket.Send("compose_shop_skins|shopmsg|Ha ocurrido un problema al obtener la Información del Arma. [2]");
+                            Socket.SendWS( "compose_shop_skins|shopmsg|Ha ocurrido un problema al obtener la Información del Arma. [2]");
                             return;
                         }
 
                         if (Client.GetRoleplay().OwnedWeapons.ContainsKey(weapon.Name2.ToLower()) == false)
                         {
-                            Socket.Send("compose_shop_skins|shopmsg|¡No posees está arma! Comprala.");
+                            Socket.SendWS( "compose_shop_skins|shopmsg|¡No posees está arma! Comprala.");
                             return;
                         }
 
@@ -151,7 +166,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         {
                             if (Client.GetRoleplay().BankChequings < weapon.Cost)
                             {
-                                Socket.Send("compose_shop_skins|shopmsg|No tienes dinero suficiente para comprar esa arma.");
+                                Socket.SendWS( "compose_shop_skins|shopmsg|No tienes dinero suficiente para comprar esa arma.");
                                 return;
                             }
                         }
@@ -159,30 +174,30 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         {
                             if (Client.GetHabbo().Diamonds < weapon.Cost)
                             {
-                                Socket.Send("compose_shop_skins|shopmsg|No tienes los Rubies suficientes para comprar esa arma.");
+                                Socket.SendWS( "compose_shop_skins|shopmsg|No tienes los Rubies suficientes para comprar esa arma.");
                                 return;
                             }
                         }
 
                         if (weapon.Stock < 1)
                         {
-                            Socket.Send("compose_shop_skins|shopmsg|Lo sentimos, pero esta arma se ha agotado");
+                            Socket.SendWS( "compose_shop_skins|shopmsg|Lo sentimos, pero esta arma se ha agotado");
                             return;
                         }
                         if (Client.GetRoleplay().BankTarget < 1)
                         {
-                            Socket.Send("compose_shop_skins|shopmsg|Lo sentimos, pero aquí solo aceptamos débito y usted no tiene tarjeta, vaya al banco y solicite");
+                            Socket.SendWS( "compose_shop_skins|shopmsg|Lo sentimos, pero aquí solo aceptamos débito y usted no tiene tarjeta, vaya al banco y solicite");
                             return;
                         }
                         if (Client.GetRoleplay().BankChequings < weapon.Cost)
                         {
-                            Socket.Send("compose_shop_skins|shopmsg|¡Lo siento, no puedes pagar una " + weapon.PublicName + " no tiene dinero en su cuenta bancaria!");
+                            Socket.SendWS( "compose_shop_skins|shopmsg|¡Lo siento, no puedes pagar una " + weapon.PublicName + " no tiene dinero en su cuenta bancaria!");
                             return;
                         }
 
                         if (Client.GetRoleplay().OwnedWeapons.ContainsKey(weapon.Name2.ToLower()) == false)
                         {
-                            Socket.Send("compose_shop_skins|shopmsg|¡No posees está arma! Comprala.");
+                            Socket.SendWS( "compose_shop_skins|shopmsg|¡No posees está arma! Comprala.");
                             return;
                         }
                         #endregion
@@ -193,10 +208,10 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         {
                             //Client.GetHabbo().Credits -= weapon.Cost;
                             Client.GetRoleplay().BankChequings -= weapon.Cost;
-                            Socket.Send("compose_atm|change_balance_1|" + Client.GetRoleplay().BankChequings);
+                            Socket.SendWS( "compose_atm|change_balance_1|" + Client.GetRoleplay().BankChequings);
                             Client.GetHabbo().UpdateCreditsBalance();
                             RoleplayManager.Shout(Client, "*Compra el skin " + weapon.PublicName + " y paga $" + String.Format("{0:N0}", weapon.Cost) + "*", 5);
-                            Socket.Send("compose_atm|change_balance_1|" + Client.GetRoleplay().BankChequings);
+                            Socket.SendWS( "compose_atm|change_balance_1|" + Client.GetRoleplay().BankChequings);
                         }
                         else
                         {
@@ -233,5 +248,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

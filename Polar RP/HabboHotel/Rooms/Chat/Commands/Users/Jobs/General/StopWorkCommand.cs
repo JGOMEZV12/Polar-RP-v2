@@ -63,7 +63,8 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.General
 
             WorkManager.RemoveWorkerFromList(Session);
             Session.GetRoleplay().IsWorking = false;
-            Session.GetHabbo().Poof();
+            Session.Shout("*Piensa un poco y decide dejar de trabajar*", 4);
+            HabboRoleplay.Misc.RoleplayManager.GetLookAndMotto(Session, "poof");
             Session.GetRoleplay().CooldownManager.CreateCooldown("stopwork", 1000, 10);
         }
     }

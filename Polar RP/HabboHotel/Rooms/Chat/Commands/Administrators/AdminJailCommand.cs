@@ -150,9 +150,12 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Administrators
 
             RoleplayManager.CheckOnCar(TargetClient);
 
-            TargetClient.GetRoleplay().IsJailed = true;
-            TargetClient.GetRoleplay().JailedTimeLeft = WantedTime - ReduceTime;
-            TargetClient.GetRoleplay().TimerManager.CreateTimer("jail", 1000, false);
+            if (!TargetClient.GetRoleplay().IsJailed)
+            {
+                TargetClient.GetRoleplay().IsJailed = true;
+                TargetClient.GetRoleplay().JailedTimeLeft = WantedTime;
+                TargetClient.GetRoleplay().TimerManager.CreateTimer("jail", 1000, false);
+            }
 
             //int JailRID = Convert.ToInt32(RoleplayData.GetData("jail", "insideroomid"));
 
@@ -179,7 +182,16 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Administrators
                 PolarEnvironment.GetGame().GetClientManager().JailAlert("[RADIO] " + TargetClient.GetHabbo().Username + " Acaba de ser arrestado por " + Session.GetHabbo().Username + "! Buen trabajo a todos.");
             }
 
-            PolarEnvironment.SendMs("**__¡LiveFeed!__** `|` **" + TargetClient.GetHabbo().Username + "** Ha sido arrestad@ por **" + Session.GetHabbo().Username + "**");
+/*
+            try
+            {
+                PolarEnvironment.SendMs("**__¡LiveFeed!__** `|` **" + TargetClient.GetHabbo().Username + "** Ha sido arrestad@ por **" + Session.GetHabbo().Username + "**");
+            }
+            catch (Exception ex)
+            {
+                // Solo loggear, no interrumpir el flujo
+                Console.WriteLine($"[AdminJail] Error enviando a Discord: {ex.Message}");
+            }*/
 
             Session.GetRoleplay().Arrests++;
             TargetClient.GetRoleplay().Arrested++;

@@ -14,26 +14,26 @@ namespace Polar.Communication.Packets.Outgoing.Catalog
         private readonly GameClient _session;
         private readonly HashSet<int> _processedPages;
 
-        public CatalogIndexComposer(GameClient session, ICollection<CatalogPage> pages)
+        public CatalogIndexComposer(GameClient session, ICollection<CatalogPage> pages, string Mode)
             : base(ServerPacketHeader.CatalogIndexMessageComposer)
         {
             _session = session ?? throw new ArgumentNullException(nameof(session));
             _processedPages = new HashSet<int>();
 
-            WriteCatalogIndex(pages);
+            WriteCatalogIndex(pages, Mode);
         }
 
-        private void WriteCatalogIndex(ICollection<CatalogPage> pages)
+        private void WriteCatalogIndex(ICollection<CatalogPage> pages, string Mode)
         {
             // Encabezado del catálogo
             WriteBoolean(true); // Catálogo activado
 
             // Créditos del usuario
             var habbo = _session.GetHabbo();
-            WriteInteger(habbo?.Credits ?? 0);
+            WriteInteger(0);
 
             // Puntos seasonal (ajustar según tu sistema)
-            WriteInteger(GetSeasonalPoints());
+            WriteInteger(-1);
 
             // Nodo raíz
             WriteString("root");
@@ -55,8 +55,8 @@ namespace Polar.Communication.Packets.Outgoing.Catalog
             }
 
             // Footer
-            WriteBoolean(HasNewItems());
-            WriteString("NORMAL"); // Modo del catálogo
+            WriteBoolean(false);
+            WriteString(Mode); // Modo del catálogo
         }
 
         private void AppendPage(CatalogPage page)

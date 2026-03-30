@@ -1,9 +1,9 @@
+using ConnectionManager;
 ﻿using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
-using Fleck;
+using Polar.Net;
 using Polar.HabboHotel.Items;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Rooms;
@@ -27,7 +27,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -88,7 +88,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         #endregion
 
                         Client.GetRoleplay().ViewCamCargas = true;
-                        Socket.Send("compose_camionero|open|" + Amn + "|" + Med + "|" + Crack + "|" + Piezas + "|");
+                        Socket.SendWS( "compose_camionero|open|" + Amn + "|" + Med + "|" + Crack + "|" + Piezas + "|");
                     }
                     break;
                 #endregion
@@ -110,7 +110,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         #region Conditions
                         if (RoleplayManager.PurgeStarted)
                         {
-                            Socket.Send("compose_camionero|cammsg|¡No puedes trabajar durante la purga!");
+                            Socket.SendWS( "compose_camionero|cammsg|¡No puedes trabajar durante la purga!");
                             return;
                         }
                         #endregion
@@ -120,7 +120,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                         if (Groups.Count <= 0)
                         {
-                            Socket.Send("compose_camionero|cammsg|No tienes ningún trabajo para hacer eso.");
+                            Socket.SendWS( "compose_camionero|cammsg|No tienes ningún trabajo para hacer eso.");
                             return;
                         }
 
@@ -132,14 +132,14 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             {
                                 if (Groups[1].GType != 2)
                                 {
-                                    Socket.Send("compose_camionero|cammsg|((No perteneces a ningún trabajo usar ese comando))");
+                                    Socket.SendWS( "compose_camionero|cammsg|((No perteneces a ningún trabajo usar ese comando))");
                                     return;
                                 }
                                 GroupNumber = 1; // Segundo indicie de variable
                             }
                             else
                             {
-                                Socket.Send("compose_camionero|cammsg|((No perteneces a ningún trabajo para usar ese comando))");
+                                Socket.SendWS( "compose_camionero|cammsg|((No perteneces a ningún trabajo para usar ese comando))");
                                 return;
                             }
                         }
@@ -162,19 +162,19 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             //Room.Group.DeleteMember(Client.GetHabbo().Id);// OJO ACÁ
 
-                            Socket.Send("compose_camionero|cammsg|Lo sentimos, ese trabajo no existe. Te hemos removido ese trabajo.");
+                            Socket.SendWS( "compose_camionero|cammsg|Lo sentimos, ese trabajo no existe. Te hemos removido ese trabajo.");
                             return;
                         }
 
                         if (!GroupManager.HasJobCommand(Client, "camionero"))
                         {
-                            Socket.Send("compose_camionero|cammsg|Debes tener el trabajo de Camionero para usar ese comando.");
+                            Socket.SendWS( "compose_camionero|cammsg|Debes tener el trabajo de Camionero para usar ese comando.");
                             return;
                         }
 
                         if (!Client.GetRoleplay().DrivingCar)
                         {
-                            Socket.Send("compose_camionero|cammsg|Debes conducir un Camión para hacer eso.");
+                            Socket.SendWS( "compose_camionero|cammsg|Debes conducir un Camión para hacer eso.");
                             return;
                         }
 
@@ -191,14 +191,14 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         }
                         if (vehicle == null)
                         {
-                            Socket.Send("compose_camionero|cammsg|¡Ha ocurrido un error al buscar los datos del vehículo que conduces!");
+                            Socket.SendWS( "compose_camionero|cammsg|¡Ha ocurrido un error al buscar los datos del vehículo que conduces!");
                             return;
                         }
                         #endregion
 
                         if (!GroupManager.GetJob(corp).Name.Contains("Camioneros"))
                         {
-                            Socket.Send("compose_camionero|cammsg|Debes conducir un Camión para hacer eso.");
+                            Socket.SendWS( "compose_camionero|cammsg|Debes conducir un Camión para hacer eso.");
                             return;
                         }
 
@@ -206,7 +206,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         int CamRoomID = PolarEnvironment.GetGame().GetRoleplayRoomManager().TryToGetCamioneros(MyCity1, out PlayRoom mData);//camioneros de la cd.
                         if (Client.GetHabbo().CurrentRoomId != CamRoomID)
                         {
-                            Socket.Send("compose_camionero|cammsg|¡Debes estar en la zona de cargamento para Camioneros!");
+                            Socket.SendWS( "compose_camionero|cammsg|¡Debes estar en la zona de cargamento para Camioneros!");
                             return;
                         }*/
                         #endregion
@@ -215,23 +215,23 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         List<VehiclesOwned> VO = PolarEnvironment.GetGame().GetVehiclesOwnedManager().getVehiclesOwnedList(Client.GetRoleplay().DrivingCarId);
                         if (VO == null || VO.Count <= 0)
                         {
-                            Socket.Send("compose_camionero|cammsg|((No se pudo obtener información del vehículo que conduces))");
+                            Socket.SendWS( "compose_camionero|cammsg|((No se pudo obtener información del vehículo que conduces))");
                             return;
                         }
                         if (VO[0].CamOwnId > 0 && VO[0].CamOwnId != Client.GetHabbo().Id)
                         {
-                            Socket.Send("compose_camionero|cammsg|Este camión ya se encuentra cargado por otra persona.");
+                            Socket.SendWS( "compose_camionero|cammsg|Este camión ya se encuentra cargado por otra persona.");
                             return;
                         }
                         // Para controlar que cargue solo un camion a la vez.
                         if (Client.GetRoleplay().CamCargId > 0)
                         {
-                            Socket.Send("compose_camionero|cammsg|Ya has cargado un Camión. No puedes hacer más de un recorrido a la vez. Usa ':abandonarcarga' para comenzar uno nuevo.");
+                            Socket.SendWS( "compose_camionero|cammsg|Ya has cargado un Camión. No puedes hacer más de un recorrido a la vez. Usa ':abandonarcarga' para comenzar uno nuevo.");
                             return;
                         }
                         if (VO[0].CamState > 0)
                         {
-                            Socket.Send("compose_camionero|cammsg|Tu camión ya fue cargado. ¡Ve a entregar la carga a tu destino!");
+                            Socket.SendWS( "compose_camionero|cammsg|Tu camión ya fue cargado. ¡Ve a entregar la carga a tu destino!");
                             return;
                         }
 
@@ -240,14 +240,14 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         BTile = Room.GetRoomItemHandler().GetFloor.FirstOrDefault(x => x.GetBaseItem().ItemName.ToLower() == "comodin_carro" && x.Coordinate == Client.GetRoomUser().Coordinate);
                         if (BTile == null)
                         {
-                            Socket.Send("compose_camionero|cammsg|Debes estar en la zona de Cargamento para Cargar tu camión.");
+                            Socket.SendWS( "compose_camionero|cammsg|Debes estar en la zona de Cargamento para Cargar tu camión.");
                             return;
                         }
                         #endregion
 
                         if (Client.GetRoleplay().IsCamLoading)
                         {
-                            Socket.Send("compose_camionero|cammsg|Ya te encuentras cargando el camión. Por favor espera...");
+                            Socket.SendWS( "compose_camionero|cammsg|Ya te encuentras cargando el camión. Por favor espera...");
                             return;
                         }
                         #endregion
@@ -259,13 +259,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         {
                             if (ID < 1 || ID > 4)
                             {
-                                Socket.Send("compose_camionero|cammsg|ID de carga inválida. Usa :cargas para ver un listado de ellas.");
+                                Socket.SendWS( "compose_camionero|cammsg|ID de carga inválida. Usa :cargas para ver un listado de ellas.");
                                 return;
                             }
 
                            /* if (Client.GetRoleplay().PassiveMode && (ID == 3 || ID == 4))
                             {
-                                Socket.Send("compose_camionero|cammsg|¡No puedes llevar cargamentos ilegales en modo pasivo!");
+                                Socket.SendWS( "compose_camionero|cammsg|¡No puedes llevar cargamentos ilegales en modo pasivo!");
                                 return;
                             }*/
 
@@ -289,11 +289,11 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             Client.GetRoleplay().CooldownManager.CreateCooldown("cargcam", 1000, 5);
 
                             Client.GetRoleplay().ViewCamCargas = false;
-                            Socket.Send("compose_camionero|close|");
+                            Socket.SendWS( "compose_camionero|close|");
                         }
                         else
                         {
-                            Socket.Send("compose_camionero|cammsg|Ingresa una ID válida. ((:cargarcamion [ID]))");
+                            Socket.SendWS( "compose_camionero|cammsg|Ingresa una ID válida. ((:cargarcamion [ID]))");
                             return;
                         }
                         #endregion
@@ -984,11 +984,19 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 case "close":
                     {
                         Client.GetRoleplay().ViewCamCargas = false;
-                        Socket.Send("compose_camionero|close|");
+                        Socket.SendWS( "compose_camionero|close|");
                     }
                     break;
                 #endregion
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

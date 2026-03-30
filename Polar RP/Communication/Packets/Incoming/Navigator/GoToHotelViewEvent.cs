@@ -1,12 +1,14 @@
-﻿using System;
-using System.Linq;
-using System.Text;
-using System.Collections.Generic;
-
+﻿using Polar.Communication.Packets.Outgoing.Rooms.Session;
 using Polar.HabboHotel.Rooms;
-using Polar.Communication.Packets.Outgoing.Rooms.Session;
-using Polar.HabboRoleplay.Misc;
 using Polar.HabboHotel.Users;
+using Polar.HabboRoleplay.ApartmentsOwned;
+using Polar.HabboRoleplay.Houses;
+using Polar.HabboRoleplay.Misc;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+using System.Text;
 
 namespace Polar.Communication.Packets.Incoming.Navigator
 {
@@ -23,7 +25,20 @@ namespace Polar.Communication.Packets.Incoming.Navigator
             if (OldRoom <= 0)
                 OldRoom = 1;
 
-           // Session.SendMessage(new RoomForwardComposer(1));
+            var ApartInside = PolarEnvironment.GetGame().GetApartmentOwnedManager().GetApartmentByInsideRoom(Session.GetHabbo().HomeRoom);
+
+            #region Casa
+            if (ApartInside != null)
+            {
+                RoleplayManager.SendUserOld(Session, ApartInside.LobbyId);
+            }
+            else
+            {
+                Session.SendMessage(new RoomForwardComposer(OldRoom));
+            }
+                #endregion
+
+                //Session.SendMessage(new RoomForwardComposer(OldRoom));
             //RoleplayManager.SendUserNew(Session, OldRoom);
             /*
             if (Session.GetHabbo().InRoom)

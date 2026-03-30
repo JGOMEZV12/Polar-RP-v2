@@ -1,18 +1,27 @@
-﻿using Polar.HabboHotel.Users;
-using Fleck;
+using ConnectionManager;
+﻿using System;
+using System.Linq;
+using System.Text;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using System.Data;
 using Polar.HabboHotel.GameClients;
-using Polar.HabboRoleplay.Misc;
 using Polar.HabboHotel.Rooms;
+using Polar.HabboRoleplay.Misc;
 using Polar.HabboHotel.Groups;
 using Polar.Communication.Packets.Outgoing.Groups;
-using System.Data;
-using Polar.Database.Interfaces;
-using Polar.HabboRoleplay.Turfs;
 using Polar.Communication.Packets.Outgoing.Messenger;
+using Polar.Database.Interfaces;
+using Polar.HabboHotel.Users;
+using Polar.HabboRoleplay.Turfs;
+using Polar.Communication.Packets.Outgoing.Rooms.Notifications;
+using Polar.Net;
+// Agregar un alias para evitar la ambigüedad
+using Group = Polar.HabboHotel.Groups.Group;
 
 namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 {
-    /// <summary>|
+    /// <summary>
     /// GangsWebEvent class.
     /// </summary>
     class GangsWebEvent : IWebEvent
@@ -23,10 +32,10 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
-
-            if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
+            if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) ||
+                !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
                 return;
 
             string Action = (Data.Contains(',') ? Data.Split(',')[0] : Data);
@@ -36,79 +45,72 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Open
                 case "open":
                     {
+                        var habbo = Client?.GetHabbo();
+                        if (habbo == null)
+                            return;
+
                         // Gang List & Stats
-                        string html = "", tabs = "";
-                        string HasGang = "False";
+                        var htmlBuilder = new StringBuilder();
+                        var tabsBuilder = new StringBuilder();
+                        string hasGang = "False";
 
-                        List<Group> Groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(Client.GetHabbo().Id);
-                        if (Groups != null && Groups.Count > 0)
-                            HasGang = "True";
+                        List<Group> groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(habbo.Id);
+                        if (groups != null && groups.Count > 0)
+                            hasGang = "True";
 
-                        string ButtonText = "Crear banda ($ "+ String.Format("{0:N0}", RoleplayManager.GangsPrice) +")";
+                        string buttonText = $"Crear banda ($ {string.Format("{0:N0}", RoleplayManager.GangsPrice)})";
 
                         #region HTML
-                        html += "<div class=\"heading\">Lista de Bandas</div>";
+                        htmlBuilder.Append("<div class=\"heading\">Lista de Bandas</div>");
+                        htmlBuilder.Append($"<input id=\"GA_Search\" type=\"text\" data-lpignore=\"true\" class=\"dark-input-text flex-1 mr-1\" value=\"\" maxlength=\"50\" autocomplete=\"off\" placeholder=\"Buscar bandas por nombre\" style=\"width: 628px\">");
+                        htmlBuilder.Append("<br><br>");
+                        htmlBuilder.Append("<div id=\"GA_List\" class=\"-m-1 flex flex-wrap\">");
 
-                        html += "<input id=\"GA_Search\" type=\"text\" data-lpignore=\"true\" class=\"dark-input-text flex-1 mr-1\" value=\"\" maxlength=\"50\" autocomplete=\"off\" placeholder=\"Buscar bandas por nombre\" style=\"width: 628px\">";
-                        html += "<br><br>";
-
-                        html += "<div id=\"GA_List\" class=\"-m-1 flex flex-wrap\">";
                         foreach (Group group in PolarEnvironment.GetGame().GetGroupManager().GangsG.ToList())
                         {
                             if (group.Id == 1000)
-                            {
+                                continue;
 
-                            }
-                            else
-                            {
-                                html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45.5%;\">";
-                                html += "<div class=\"mr-2\">";
-                                html += "<p>" + group.Name + "</p>";
-                                html += "<p>" + group.Members.Count() + " miembro(s)</p>";
-                                html += "</div>";
-                                html += "<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto data-gang\" data-balloon=\"Ver info\" data-balloon-pos=\"left\" data-gang=\"" + group.Id + "\"><img src=\"" + RoleplayManager.HotelUrl + "/group-badge/badge/" + group.GetBadge() + "\" draggable=\"false\" ondragstart=\"return false;\" style=\"cursor: pointer;\"></div>";
-                                html += "</div>";
-                            }
+                            htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45.5%;\">");
+                            htmlBuilder.Append("<div class=\"mr-2\">");
+                            htmlBuilder.Append($"<p>{group.Name}</p>");
+                            htmlBuilder.Append($"<p>{group.Members.Count()} miembro(s)</p>");
+                            htmlBuilder.Append("</div>");
+                            htmlBuilder.Append($"<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto data-gang\" data-balloon=\"Ver info\" data-balloon-pos=\"left\" data-gang=\"{group.Id}\">");
+                            htmlBuilder.Append($"<img src=\"{RoleplayManager.HotelUrl}/group-badge/badge/{group.GetBadge()}\" draggable=\"false\" ondragstart=\"return false;\" style=\"cursor: pointer;\">");
+                            htmlBuilder.Append("</div>");
+                            htmlBuilder.Append("</div>");
                         }
-                        html += "</div>";
+
+                        htmlBuilder.Append("</div>");
                         #endregion
 
                         #region TABS
-                        if (HasGang == "True")
+                        if (hasGang == "True" && groups != null && groups.Count > 0)
                         {
-                            tabs += "<div id=\"GA_My_Members\" class=\"Tabbed_tab_1apzZ GA_My_Members Tabbed_selected_3aJyT\" style=\"min-width: 75px;\">";
-                            tabs += "Miembros";
-                            tabs += "</div>";
+                            tabsBuilder.Append("<div id=\"GA_My_Members\" class=\"Tabbed_tab_1apzZ GA_My_Members Tabbed_selected_3aJyT\" style=\"min-width: 75px;\">Miembros</div>");
 
-                            if (Groups[0].IsAdmin(Client.GetHabbo().Id) || Client.GetHabbo().GetPermissions().HasRight("group_management_override"))
+                            if (groups[0].IsAdmin(habbo.Id) || (habbo.GetPermissions()?.HasRight("group_management_override") == true))
                             {
-                                tabs += "<div id=\"GA_My_Ranks\" class=\"Tabbed_tab_1apzZ GA_My_Ranks\" style=\"min-width: 75px;\">";
-                                tabs += "Rangos";
-                                tabs += "</div>";
+                                tabsBuilder.Append("<div id=\"GA_My_Ranks\" class=\"Tabbed_tab_1apzZ GA_My_Ranks\" style=\"min-width: 75px;\">Rangos</div>");
                             }
 
-                            if (((!Groups[0].IsAdmin(Client.GetHabbo().Id) || !Groups[0].IsMember(Client.GetHabbo().Id))/* && !GroupManager.HasJobCommand(Client, "hire", true)*/) && !Client.GetHabbo().GetPermissions().HasRight("corporation_rights")) { }
-                            else
+                            if ((groups[0].IsAdmin(habbo.Id) || groups[0].IsMember(habbo.Id)) ||
+                                (habbo.GetPermissions()?.HasRight("corporation_rights") == true))
                             {
-                                tabs += "<div id=\"GA_My_Requests\" class=\"Tabbed_tab_1apzZ GA_My_Requests\" style=\"min-width: 75px;\">";
-                                tabs += "Solicitudes";
-                                tabs += "</div>";
+                                tabsBuilder.Append("<div id=\"GA_My_Requests\" class=\"Tabbed_tab_1apzZ GA_My_Requests\" style=\"min-width: 75px;\">Solicitudes</div>");
                             }
 
-                            tabs += "<div id=\"GA_My_Stats\" class=\"Tabbed_tab_1apzZ GA_My_Stats\" style=\"min-width: 75px;\">";
-                            tabs += "Estad&iacute;sticas";
-                            tabs += "</div>";
+                            tabsBuilder.Append("<div id=\"GA_My_Stats\" class=\"Tabbed_tab_1apzZ GA_My_Stats\" style=\"min-width: 75px;\">Estad&iacute;sticas</div>");
 
-                            if (Groups[0].IsAdmin(Client.GetHabbo().Id) || Client.GetHabbo().GetPermissions().HasRight("group_management_override"))
+                            if (groups[0].IsAdmin(habbo.Id) || (habbo.GetPermissions()?.HasRight("group_management_override") == true))
                             {
-                                tabs += "<div id=\"GA_My_Edit\" class=\"Tabbed_tab_1apzZ GA_My_Edit\" style=\"min-width: 75px;\">";
-                                tabs += "Editar";
-                                tabs += "</div>";
+                                tabsBuilder.Append("<div id=\"GA_My_Edit\" class=\"Tabbed_tab_1apzZ GA_My_Edit\" style=\"min-width: 75px;\">Editar</div>");
                             }
                         }
                         #endregion
 
-                        Socket.Send("compose_gang|open|" + html + "|" + HasGang + "|" + ButtonText + "|" + tabs);
+                        Socket.SendWS( $"compose_gang|open|{htmlBuilder.ToString()}|{hasGang}|{buttonText}|{tabsBuilder.ToString()}");
                     }
                     break;
                 #endregion
@@ -116,7 +118,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Close
                 case "close":
                     {
-                        Socket.Send("compose_gang|close");
+                        Socket.SendWS( "compose_gang|close");
                     }
                     break;
                 #endregion
@@ -124,179 +126,134 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region My / New
                 case "mynew":
                     {
-                        bool HasGang = false;
+                        var habbo = Client?.GetHabbo();
+                        if (habbo == null)
+                            return;
 
-                        List<Group> Groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(Client.GetHabbo().Id);
-                        if (Groups != null && Groups.Count > 0)
-                            HasGang = true;
+                        List<Group> groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(habbo.Id);
+                        bool hasGang = groups != null && groups.Count > 0;
 
-                        if(!HasGang)
-                            Socket.Send("compose_gang|new_gang|");
+                        if (!hasGang)
+                        {
+                            Socket.SendWS( "compose_gang|new_gang|");
+                        }
                         else
                         {
-                            bool isAdmin = false;
-                            string html = "", tabs = "";
-
-                            #region Check if is Admin
-                            if (Groups[0].IsAdmin(Client.GetHabbo().Id) || Client.GetHabbo().GetPermissions().HasRight("group_management_override"))
-                                isAdmin = true;
-                            #endregion
+                            bool isAdmin = groups[0].IsAdmin(habbo.Id) ||
+                                         (habbo.GetPermissions()?.HasRight("group_management_override") == true);
+                            var htmlBuilder = new StringBuilder();
+                            var tabsBuilder = new StringBuilder();
 
                             #region HTML
-                            html += "<div>";
-                            html += "<div class=\"-m-2\">";
+                            htmlBuilder.Append("<div>");
+                            htmlBuilder.Append("<div class=\"-m-2\">");
 
-                            var AllRanks = Groups[0].Ranks.OrderBy(o => o.Value.RankId).ToList();
-                            AllRanks.Reverse();
-                            foreach (var Ranks in AllRanks)
+                            var allRanks = groups[0].Ranks.OrderByDescending(o => o.Value.RankId).ToList();
+
+                            foreach (var rank in allRanks)
                             {
-                                //<!-- Rank box -->
-                                html += "<div class=\"m-2\">";
-                                //<!-- Rank Header -->
-                                html += "<div class=\"heading relative group\">";
-                                html += "<div>" + Ranks.Value.Name + "</div>";
+                                htmlBuilder.Append("<div class=\"m-2\">");
+                                htmlBuilder.Append("<div class=\"heading relative group\">");
+                                htmlBuilder.Append($"<div>{rank.Value.Name}</div>");
+
                                 if (isAdmin)
                                 {
-                                    html += "<div class=\"absolute pin-t pin-r mr-1 h-full hidden group-hover:block\">";
-                                    html += "<div class=\"flex items-center h-full\"> ";
-
-                                    html += "<div data-rank=\"" + Ranks.Value.RankId + "\" data-action=\"settings\" class=\"cursor-pointer-r px-1\">";
-                                    html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/settings.png\">";
-                                    html += "</div>";
-
-                                    // Empresas no removibles no pueden alterar rangos
-                                    /*if (Groups[0].Removable)
-                                    {
-                                        html += "<div data-rank=\"" + Ranks.Value.RankId + "\" data-action=\"up\" class=\"cursor-pointer-r px-1\">";
-                                        html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/up-arrow.png\">";
-                                        html += "</div>";
-
-                                        html += "<div data-rank=\"" + Ranks.Value.RankId + "\" data-action=\"down\" class=\"cursor-pointer-r px-1\">";
-                                        html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/down-arrow.png\">";
-                                        html += "</div>";
-
-                                        html += "<div data-rank=\"" + Ranks.Value.RankId + "\" data-action=\"cross\" class=\"cursor-pointer-r px-1\">";
-                                        html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/cross.png\">";
-                                        html += "</div>";
-                                    }
-                                    */
-                                    html += "</div>";
-                                    html += "</div>";
+                                    htmlBuilder.Append("<div class=\"absolute pin-t pin-r mr-1 h-full hidden group-hover:block\">");
+                                    htmlBuilder.Append("<div class=\"flex items-center h-full\">");
+                                    htmlBuilder.Append($"<div data-rank=\"{rank.Value.RankId}\" data-action=\"settings\" class=\"cursor-pointer-r px-1\">");
+                                    htmlBuilder.Append($"<img src=\"{RoleplayManager.CdnURL}/ws_resources/images/settings.png\">");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("</div>");
                                 }
 
-                                html += "</div>";
+                                htmlBuilder.Append("</div>");
+                                htmlBuilder.Append("<div class=\"flex flex-wrap -m-1 justify-center\">");
 
-                                // < !-- User box -->
-                                html += "<div class=\"flex flex-wrap -m-1 justify-center\">";
-
-                                foreach (var Members in Groups[0].GetAllMembersDict)
+                                foreach (var member in groups[0].GetAllMembersDict.Where(m => m.Value.UserRank == rank.Value.RankId))
                                 {
-                                    if (Members.Value.UserRank == Ranks.Value.RankId)
+                                    string name = PolarEnvironment.GetGame().GetClientManager().GetNameById(Convert.ToInt32(member.Value.UserId)) ?? "Desconocido";
+                                    string look = PolarEnvironment.GetGame().GetClientManager().GetLookById(Convert.ToInt32(member.Value.UserId)) ?? "";
+
+                                    htmlBuilder.Append("<div class=\"bg-dark-4 rounded m-1 group cursor-pointer-r\">");
+                                    htmlBuilder.Append("<div class=\"m-px relative\">");
+                                    htmlBuilder.Append("<div class=\"overflow-hidden bg-light-05 rounded-t\" style=\"height: 55px;\">");
+                                    htmlBuilder.Append($"<center><div class=\"figure-H_RWF_0\" style=\"background-image: url(&quot;{RoleplayManager.AVATARIMG}{look}&quot;); width: 64px; height: 110px; margin-top: -20px;\"></div></center>");
+                                    htmlBuilder.Append("</div>");
+
+                                    bool isMember = groups[0].IsMember(habbo.Id);
+                                    bool canAscDesc = GroupManager.HasJobCommand(Client, "ascdesc");
+                                    bool canFire = GroupManager.HasJobCommand(Client, "fire");
+                                    bool itsMe = member.Value.UserId == habbo.Id;
+                                    bool itsSup = member.Value.UserRank >= (groups[0].Members.ContainsKey(habbo.Id) ? groups[0].Members[habbo.Id]?.UserRank ?? 0 : 0);
+
+                                    if ((isAdmin || (isMember && (canAscDesc || canFire) && !itsSup)) ||
+                                        (habbo.GetPermissions()?.HasRight("corporation_rights") == true))
                                     {
-                                        string Name = PolarEnvironment.GetGame().GetClientManager().GetNameById(Convert.ToInt32(Members.Value.UserId));// <= Busca en diccionario, Si es Off, hace SELECT directo.
-                                        string Look = PolarEnvironment.GetGame().GetClientManager().GetLookById(Convert.ToInt32(Members.Value.UserId));// <= Busca en diccionario, Si es Off, hace SELECT directo.
+                                        htmlBuilder.Append("<div class=\"absolute pin-b bg-dark-5 w-full hidden group-hover:block\" style=\"padding-top: 4px;padding-bottom: 4px;\">");
+                                        htmlBuilder.Append("<div class=\"flex justify-around\">");
+                                        htmlBuilder.Append($"<div data-user=\"{member.Value.UserId}\" data-action=\"up\" class=\"cursor-pointer-r px-1\">");
+                                        htmlBuilder.Append($"<img src=\"{RoleplayManager.CdnURL}/ws_resources/images/up-arrow.png\">");
+                                        htmlBuilder.Append("</div>");
+                                        htmlBuilder.Append($"<div data-user=\"{member.Value.UserId}\" data-action=\"down\" class=\"cursor-pointer-r px-1\">");
+                                        htmlBuilder.Append($"<img src=\"{RoleplayManager.CdnURL}/ws_resources/images/down-arrow.png\">");
+                                        htmlBuilder.Append("</div>");
 
-                                        //<!-- User info -->
-                                        html += "<div class=\"bg-dark-4 rounded m-1 group cursor-pointer-r\">";
-                                        html += "<div class=\"m-px relative\">";
-                                        html += "<div class=\"overflow-hidden bg-light-05 rounded-t\" style=\"height: 55px;\">";
-                                        html += "<center><div class=\"figure-H_RWF_0\" style=\"background-image: url(&quot;" + RoleplayManager.AVATARIMG + "" + Look + "&quot;); width: 64px; height: 110px; margin-top: -20px;\"></div></center>";
-                                        html += "</div>";
-
-                                        bool IsMember = Groups[0].IsMember(Client.GetHabbo().Id);
-                                        bool CanAscDesc = GroupManager.HasJobCommand(Client, "ascdesc");
-                                        bool CanFire = GroupManager.HasJobCommand(Client, "fire");
-                                        bool ItsMe = (Members.Value.UserId == Client.GetHabbo().Id);
-                                        bool ItsSup = (Members.Value.UserRank >= Groups[0].Members[Client.GetHabbo().Id].UserRank);
-                                        if (((isAdmin || (IsMember && (CanAscDesc || CanFire) && !ItsSup))) || Client.GetHabbo().GetPermissions().HasRight("corporation_rights"))
+                                        if (isAdmin || canFire || (habbo.GetPermissions()?.HasRight("corporation_rights") == true))
                                         {
-                                            html += "<div class=\"absolute pin-b bg-dark-5 w-full hidden group-hover:block\" style=\"padding-top: 4px;padding-bottom: 4px;\">";
-                                            html += "<div class=\"flex justify-around\">";
-                                            html += "<div data-user=\"" + Members.Value.UserId + "\" data-action=\"up\" class=\"cursor-pointer-r px-1\">";
-                                            html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/up-arrow.png\">";
-                                            html += "</div>";
-                                            html += "<div data-user=\"" + Members.Value.UserId + "\" data-action=\"down\" class=\"cursor-pointer-r px-1\">";
-                                            html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/down-arrow.png\">";
-                                            html += "</div>";
-                                            if (isAdmin || CanFire || Client.GetHabbo().GetPermissions().HasRight("corporation_rights"))
-                                            {
-                                                html += "<div data-user=\"" + Members.Value.UserId + "\" data-action=\"cross\" class=\"cursor-pointer-r px-1\">";
-                                                html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/cross.png\">";
-                                                html += "</div>";
-                                            }
-                                            html += "</div>";
-                                            html += "</div>";
+                                            htmlBuilder.Append($"<div data-user=\"{member.Value.UserId}\" data-action=\"cross\" class=\"cursor-pointer-r px-1\">");
+                                            htmlBuilder.Append($"<img src=\"{RoleplayManager.CdnURL}/ws_resources/images/cross.png\">");
+                                            htmlBuilder.Append("</div>");
                                         }
 
-                                        html += "</div>";
-                                        html += "<div class=\"text-center py-1\">" + Name + "</div>";
-                                        html += "</div>";
+                                        htmlBuilder.Append("</div>");
+                                        htmlBuilder.Append("</div>");
                                     }
+
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append($"<div class=\"text-center py-1\">{name}</div>");
+                                    htmlBuilder.Append("</div>");
                                 }
 
-                                html += "</div>";
-                                // < !-- End User box -->
-
-                                html += "</div>";
+                                htmlBuilder.Append("</div>");
+                                htmlBuilder.Append("</div>");
                             }
-                            html += "</div>";
-                            html += "</div>";
+
+                            htmlBuilder.Append("</div>");
+                            htmlBuilder.Append("</div>");
                             #endregion
 
                             #region TABS
-                            if (HasGang)
+                            tabsBuilder.Append("<div id=\"GA_My_Members\" class=\"Tabbed_tab_1apzZ GA_My_Members Tabbed_selected_3aJyT\" style=\"min-width: 75px;\">Miembros</div>");
+
+                            if ((habbo.GetPermissions()?.HasRight("corporation_rights") == true) ||
+                                (habbo.GetPermissions()?.HasRight("group_management_override") == true))
                             {
-                                tabs += "<div id=\"GA_My_Members\" class=\"Tabbed_tab_1apzZ GA_My_Members Tabbed_selected_3aJyT\" style=\"min-width: 75px;\">";
-                                tabs += "Miembros";
-                                tabs += "</div>";
-
-                                if (Client.GetHabbo().GetPermissions().HasRight("corporation_rights") || Client.GetHabbo().GetPermissions().HasRight("group_management_override"))
+                                tabsBuilder.Append("<div id=\"GA_My_Ranks\" class=\"Tabbed_tab_1apzZ GA_My_Ranks\" style=\"min-width: 75px;\">Rangos</div>");
+                                tabsBuilder.Append("<div id=\"GA_My_Requests\" class=\"Tabbed_tab_1apzZ GA_My_Requests\" style=\"min-width: 75px;\">Solicitudes</div>");
+                            }
+                            else
+                            {
+                                if (groups[0].IsAdmin(habbo.Id))
                                 {
-                                    tabs += "<div id=\"GA_My_Ranks\" class=\"Tabbed_tab_1apzZ GA_My_Ranks\" style=\"min-width: 75px;\">";
-                                    tabs += "Rangos";
-                                    tabs += "</div>";
-
-                                    tabs += "<div id=\"GA_My_Requests\" class=\"Tabbed_tab_1apzZ GA_My_Requests\" style=\"min-width: 75px;\">";
-                                    tabs += "Solicitudes";
-                                    tabs += "</div>";
-                                }
-                                else
-                                {
-                                    if (Groups[0].IsAdmin(Client.GetHabbo().Id))
-                                    {
-                                        tabs += "<div id=\"GA_My_Ranks\" class=\"Tabbed_tab_1apzZ GA_My_Ranks\" style=\"min-width: 75px;\">";
-                                        tabs += "Rangos";
-                                        tabs += "</div>";
-                                    }
-
-                                    if (((!Groups[0].IsAdmin(Client.GetHabbo().Id) || !Groups[0].IsMember(Client.GetHabbo().Id))/* && !PolarEnvironment.GetGame().GetGroupManager().HasJobCommand(Client, "hire", true)*/)) { }
-                                    else
-                                    {
-                                        tabs += "<div id=\"GA_My_Requests\" class=\"Tabbed_tab_1apzZ GA_My_Requests\" style=\"min-width: 75px;\">";
-                                        tabs += "Solicitudes";
-                                        tabs += "</div>";
-                                    }
-
+                                    tabsBuilder.Append("<div id=\"GA_My_Ranks\" class=\"Tabbed_tab_1apzZ GA_My_Ranks\" style=\"min-width: 75px;\">Rangos</div>");
                                 }
 
-                               
-
-                                tabs += "<div id=\"GA_My_Stats\" class=\"Tabbed_tab_1apzZ GA_My_Stats\" style=\"min-width: 75px;\">";
-                                tabs += "Estad&iacute;sticas";
-                                tabs += "</div>";
-
-                                if (Groups[0].IsAdmin(Client.GetHabbo().Id) || Client.GetHabbo().GetPermissions().HasRight("group_management_override"))
+                                if (groups[0].IsAdmin(habbo.Id) || groups[0].IsMember(habbo.Id))
                                 {
-                                    tabs += "<div id=\"GA_My_Edit\" class=\"Tabbed_tab_1apzZ GA_My_Edit\" style=\"min-width: 75px;\">";
-                                    tabs += "Editar";
-                                    tabs += "</div>";
+                                    tabsBuilder.Append("<div id=\"GA_My_Requests\" class=\"Tabbed_tab_1apzZ GA_My_Requests\" style=\"min-width: 75px;\">Solicitudes</div>");
                                 }
+                            }
+
+                            tabsBuilder.Append("<div id=\"GA_My_Stats\" class=\"Tabbed_tab_1apzZ GA_My_Stats\" style=\"min-width: 75px;\">Estad&iacute;sticas</div>");
+
+                            if (groups[0].IsAdmin(habbo.Id) || (habbo.GetPermissions()?.HasRight("group_management_override") == true))
+                            {
+                                tabsBuilder.Append("<div id=\"GA_My_Edit\" class=\"Tabbed_tab_1apzZ GA_My_Edit\" style=\"min-width: 75px;\">Editar</div>");
                             }
                             #endregion
 
-                            string SendData = "";
-                            SendData += html;
-                            Socket.Send("compose_gang|my_gang|" + SendData + "|" + tabs);
+                            Socket.SendWS( $"compose_gang|my_gang|{htmlBuilder.ToString()}|{tabsBuilder.ToString()}");
                         }
                     }
                     break;
@@ -307,6 +264,10 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                     {
                         #region Conditions
                         if (Client.GetRoleplay().TryGetCooldown("ga_create", true))
+                            return;
+
+                        var habbo = Client?.GetHabbo();
+                        if (habbo == null)
                             return;
 
                         #region Principal Conditions
@@ -320,7 +281,6 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             Client.SendWhisper("¡No puedes hacer eso mientras estás muert@!", 1);
                             return;
                         }
-
                         if (Client.GetRoleplay().IsJailed)
                         {
                             Client.SendWhisper("¡No puedes hacer eso mientras estás encarcelad@!", 1);
@@ -328,79 +288,76 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         }
                         if (Client.GetRoleplay().Level < 2)
                         {
-                            Socket.Send("compose_gang|msg_error|¡Necesitas al menos Nivel 2 para pertenecer a una banda!");
+                            Socket.SendWS( "compose_gang|msg_error|¡Necesitas al menos Nivel 2 para pertenecer a una banda!");
                             return;
                         }
                         if (GroupManager.HasJobCommand(Client, "law"))
                         {
-                            Socket.Send("compose_gang|msg_error|¡No puedes pertenecer a una banda y ser policía a la vez!");
+                            Socket.SendWS( "compose_gang|msg_error|¡No puedes pertenecer a una banda y ser policía a la vez!");
                             return;
                         }
                         #endregion
 
-                        bool HasGang = false;
-
-                        List<Group> Groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(Client.GetHabbo().Id);
-                        if (Groups != null && Groups.Count > 0)
-                            HasGang = true;
-
-                        if (HasGang)
+                        List<Group> groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(habbo.Id);
+                        if (groups?.Count > 0)
                             return;
 
-                        string[] ReceivedData = Data.Split(',');
-                        string GetGangName = ReceivedData[1];
-                        string GetColor1 = ReceivedData[3];
-                        string GetColor2 = ReceivedData[4];
-                        string GetBadge = ReceivedData[5];
+                        string[] receivedData = Data.Split(',');
+                        if (receivedData.Length < 6)
+                            return;
+
+                        string gangName = receivedData[1];
+                        string color1 = receivedData[3];
+                        string color2 = receivedData[4];
+                        string badge = receivedData[5];
 
                         // Filtramos por seguridad
-                        GetGangName = System.Text.RegularExpressions.Regex.Replace(GetGangName, "<(.|\\n)*?>", string.Empty);
-                        GetColor1 = System.Text.RegularExpressions.Regex.Replace(GetColor1, "<(.|\\n)*?>", string.Empty);
-                        GetColor2 = System.Text.RegularExpressions.Regex.Replace(GetColor2, "<(.|\\n)*?>", string.Empty);
-                        GetBadge = System.Text.RegularExpressions.Regex.Replace(GetBadge, "<(.|\\n)*?>", string.Empty);
+                        gangName = Regex.Replace(gangName, "<(.|\\n)*?>", string.Empty);
+                        color1 = Regex.Replace(color1, "<(.|\\n)*?>", string.Empty);
+                        color2 = Regex.Replace(color2, "<(.|\\n)*?>", string.Empty);
+                        badge = Regex.Replace(badge, "<(.|\\n)*?>", string.Empty);
 
-                        if (String.IsNullOrEmpty(GetGangName) || GetGangName.Length < 3)
+                        if (string.IsNullOrEmpty(gangName) || gangName.Length < 3)
                         {
-                            Socket.Send("compose_gang|msg_error|El nombre de tu banda debe tener al menos 3 caracteres.");
+                            Socket.SendWS( "compose_gang|msg_error|El nombre de tu banda debe tener al menos 3 caracteres.");
                             return;
                         }
-                        if (GetGangName.Length > 11)
+                        if (gangName.Length > 11)
                         {
-                            Socket.Send("compose_gang|msg_error|El nombre no debe ser mayor a 11 caracteres.");
+                            Socket.SendWS( "compose_gang|msg_error|El nombre no debe ser mayor a 11 caracteres.");
                             return;
                         }
-                        if(!System.Text.RegularExpressions.Regex.IsMatch(GetGangName, @"^[a-zA-Z0-9]+$"))
+                        if (!Regex.IsMatch(gangName, @"^[a-zA-Z0-9]+$"))
                         {
-                            Socket.Send("compose_gang|msg_error|¡No se aceptan caracteres especiales! Solo números y letras.");
-                            return;
-                        }
-                        int GetAccessType = 0;
-                        if (!int.TryParse(ReceivedData[2], out GetAccessType))
-                        {
-                            Socket.Send("compose_gang|msg_error|Ha ocurrido un problema al obtener la Información del tipo de acceso de la banda.");
+                            Socket.SendWS( "compose_gang|msg_error|¡No se aceptan caracteres especiales! Solo números y letras.");
                             return;
                         }
 
-                        if (Client.GetHabbo().Credits < RoleplayManager.GangsPrice)
+                        if (!int.TryParse(receivedData[2], out int accessType))
                         {
-                            Socket.Send("compose_gang|msg_error|No tienes $ "+ String.Format("{0:N0}", RoleplayManager.GangsPrice) +" para crear una banda.");
+                            Socket.SendWS( "compose_gang|msg_error|Ha ocurrido un problema al obtener la Información del tipo de acceso de la banda.");
+                            return;
+                        }
+
+                        if (habbo.Credits < RoleplayManager.GangsPrice)
+                        {
+                            Socket.SendWS( $"compose_gang|msg_error|No tienes $ {string.Format("{0:N0}", RoleplayManager.GangsPrice)} para crear una banda.");
                             return;
                         }
                         #endregion
 
                         #region Execute
-                        Group Group = null;                        
-                        if (!PolarEnvironment.GetGame().GetGroupManager().TryCreateGroup(Client.GetHabbo(), GetGangName, "", 0, GetBadge, GetColor1, GetColor2, out Group))
+                        if (!PolarEnvironment.GetGame().GetGroupManager().TryCreateGroup(habbo, gangName, "", 0, badge, color1, color2, out Group group))
                         {
-                            Socket.Send("compose_gang|msg_error|Ocurrió un problema al intentar crear la banda. Contacta con un Administrador.");
+                            Socket.SendWS( "compose_gang|msg_error|Ocurrió un problema al intentar crear la banda. Contacta con un Administrador.");
                             return;
                         }
 
-                        Client.GetHabbo().Credits -= RoleplayManager.GangsPrice;
-                        Client.GetHabbo().UpdateCreditsBalance();
+                        habbo.Credits -= RoleplayManager.GangsPrice;
+                        habbo.UpdateCreditsBalance();
 
-                        RoleplayManager.Shout(Client, "*Ha declarado la creación de una nueva banda llamada "+Group.Name+"*", 5);
-                        Socket.Send("compose_gang|msg_success|Banda creada exitosamente. Ahora podrás gestionarla desde aquí.");
+                        RoleplayManager.Shout(Client, $"*Ha declarado la creación de una nueva banda llamada {group.Name}*", 5);
+                        Socket.SendWS( "compose_gang|msg_success|Banda creada exitosamente. Ahora podrás gestionarla desde aquí.");
                         PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "mynew");
                         Client.GetRoleplay().CooldownManager.CreateCooldown("ga_create", 1000, 10);
                         #endregion
@@ -411,108 +368,96 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Rank Tools
                 case "rank_tools":
                     {
-                        List<Group> Groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(Client.GetHabbo().Id);
+                        var habbo = Client?.GetHabbo();
+                        if (habbo == null)
+                            return;
 
-                        if (Groups == null || Groups.Count <= 0)
+                        List<Group> groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(habbo.Id);
+                        if (groups == null || groups.Count <= 0)
                             return;
 
                         #region Check if is not Admin
-                        if (!Groups[0].IsAdmin(Client.GetHabbo().Id) && !Client.GetHabbo().GetPermissions().HasRight("group_management_override"))
+                        if (!groups[0].IsAdmin(habbo.Id) && !(habbo.GetPermissions()?.HasRight("group_management_override") == true))
                             return;
                         #endregion
 
-                        string[] ReceivedData = Data.Split(',');
-                        int GetRank;
-                        string WSAction = ReceivedData[2];
-
-                        if (!int.TryParse(ReceivedData[1], out GetRank))
+                        string[] receivedData = Data.Split(',');
+                        if (receivedData.Length < 3)
                             return;
 
-                        var AllRanks = Groups[0].Ranks.ToList();
-                        var AllMembers = Groups[0].GetAllMembersDict;
+                        if (!int.TryParse(receivedData[1], out int getRank))
+                            return;
+
+                        string wsAction = receivedData[2];
+                        var allRanks = groups[0].Ranks.ToList();
+                        var allMembers = groups[0].GetAllMembersDict;
 
                         // Validamos si existe el rango
-                        var check = AllRanks.Where(x => x.Value.RankId == GetRank);
-                        if (check.Count() <= 0)
+                        if (!allRanks.Any(x => x.Value.RankId == getRank))
                             return;
 
-                        switch (WSAction)
+                        switch (wsAction)
                         {
                             case "up":
                                 {
-                                    // Empresas oficiales del RP no son gestionables desde client. Solo DB.
-                                   /* if (!Groups[0].Removable)
-                                        return;*/
-
-                                    int newrank = (GetRank + 1);
+                                    int newRank = getRank + 1;
 
                                     // Validamos si existe un rango superior. 
-                                    var TopRank = AllRanks.Where(x => x.Value.RankId == newrank);
-                                    if (TopRank.Count() <= 0)
+                                    if (!allRanks.Any(x => x.Value.RankId == newRank))
                                         return;
 
-                                    using (var DB = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+                                    using (var db = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                                     {
-                                        // MYSQL PROCEDIMIENTO
-                                        DB.RunQuery("CALL `ModifRank`(" + GetRank + ", " + newrank + ", " + Groups[0].Id + ");");
+                                        db.RunQuery($"CALL `ModifRank`({getRank}, {newRank}, {groups[0].Id});");
 
-                                        AllRanks.Where(x => x.Value.RankId == newrank).ToList().ForEach(x => x.Value.RankId = 0);
-                                        AllRanks.Where(x => x.Value.RankId == GetRank).ToList().ForEach(x => x.Value.RankId = newrank);
-                                        AllRanks.Where(x => x.Value.RankId == 0).ToList().ForEach(x => x.Value.RankId = GetRank);
+                                        // Actualizar en memoria
+                                        foreach (var r in allRanks.Where(x => x.Value.RankId == newRank))
+                                            r.Value.RankId = 0;
+                                        foreach (var r in allRanks.Where(x => x.Value.RankId == getRank))
+                                            r.Value.RankId = newRank;
+                                        foreach (var r in allRanks.Where(x => x.Value.RankId == 0))
+                                            r.Value.RankId = getRank;
 
-                                        foreach (var Members in AllMembers.Where(x => x.Value.UserRank == newrank))
-                                        {
-                                            Members.Value.UserRank = 0;
-                                        }
-                                        foreach (var Members in AllMembers.Where(x => x.Value.UserRank == GetRank))
-                                        {
-                                            Members.Value.UserRank = newrank;
-                                        }
-                                        foreach (var Members in AllMembers.Where(x => x.Value.UserRank == 0))
-                                        {
-                                            Members.Value.UserRank = GetRank;
-                                        }
+                                        // Actualizar miembros
+                                        foreach (var m in allMembers.Where(x => x.Value.UserRank == newRank))
+                                            m.Value.UserRank = 0;
+                                        foreach (var m in allMembers.Where(x => x.Value.UserRank == getRank))
+                                            m.Value.UserRank = newRank;
+                                        foreach (var m in allMembers.Where(x => x.Value.UserRank == 0))
+                                            m.Value.UserRank = getRank;
                                     }
 
                                     PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "mynew");
-
                                 }
                                 break;
 
                             case "down":
                                 {
-                                    // Empresas oficiales del RP no son gestionables desde client. Solo DB.
-                                   /*if (!Groups[0].Removable)
-                                        return;*/
-
-                                    int newrank = (GetRank - 1);
+                                    int newRank = getRank - 1;
 
                                     // Validamos si existe un rango inferior. 
-                                    var BottomRank = AllRanks.Where(x => x.Value.RankId == newrank);
-                                    if (BottomRank == null)
+                                    if (!allRanks.Any(x => x.Value.RankId == newRank))
                                         return;
 
-                                    using (var DB = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+                                    using (var db = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                                     {
-                                        // MYSQL PROCEDIMIENTO
-                                        DB.RunQuery("CALL `ModifRank`(" + GetRank + ", " + newrank + ", " + Groups[0].Id + ");");
+                                        db.RunQuery($"CALL `ModifRank`({getRank}, {newRank}, {groups[0].Id});");
 
-                                        AllRanks.Where(x => x.Value.RankId == newrank).ToList().ForEach(x => x.Value.RankId = 0);
-                                        AllRanks.Where(x => x.Value.RankId == GetRank).ToList().ForEach(x => x.Value.RankId = newrank);
-                                        AllRanks.Where(x => x.Value.RankId == 0).ToList().ForEach(x => x.Value.RankId = GetRank);
+                                        // Actualizar en memoria
+                                        foreach (var r in allRanks.Where(x => x.Value.RankId == newRank))
+                                            r.Value.RankId = 0;
+                                        foreach (var r in allRanks.Where(x => x.Value.RankId == getRank))
+                                            r.Value.RankId = newRank;
+                                        foreach (var r in allRanks.Where(x => x.Value.RankId == 0))
+                                            r.Value.RankId = getRank;
 
-                                        foreach (var Members in AllMembers.Where(x => x.Value.UserRank == newrank))
-                                        {
-                                            Members.Value.UserRank = 0;
-                                        }
-                                        foreach (var Members in AllMembers.Where(x => x.Value.UserRank == GetRank))
-                                        {
-                                            Members.Value.UserRank = newrank;
-                                        }
-                                        foreach (var Members in AllMembers.Where(x => x.Value.UserRank == 0))
-                                        {
-                                            Members.Value.UserRank = GetRank;
-                                        }
+                                        // Actualizar miembros
+                                        foreach (var m in allMembers.Where(x => x.Value.UserRank == newRank))
+                                            m.Value.UserRank = 0;
+                                        foreach (var m in allMembers.Where(x => x.Value.UserRank == getRank))
+                                            m.Value.UserRank = newRank;
+                                        foreach (var m in allMembers.Where(x => x.Value.UserRank == 0))
+                                            m.Value.UserRank = getRank;
                                     }
 
                                     PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "mynew");
@@ -521,42 +466,32 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             case "cross":
                                 {
-                                    // Empresas oficiales del RP no son gestionables desde client. Solo DB.
-                                   /* if (!Groups[0].Removable)
-                                        return;*/
-
                                     // Si tiene un solo rango
-                                    if (AllRanks.Count() <= 1)
+                                    if (allRanks.Count <= 1)
                                         return;
 
-                                    // Rango clicado + 1 es el rango superior.
-                                    int uprank = (GetRank + 1);
-
                                     // Si hay miembros en ese rango, los cambiamos al rankid = 1
-
-                                    foreach (var Members in AllMembers.Where(x => x.Value.UserRank == GetRank))
+                                    foreach (var member in allMembers.Where(x => x.Value.UserRank == getRank))
                                     {
-                                        Members.Value.UserRank = 1;
+                                        member.Value.UserRank = 1;
                                     }
 
                                     // Borramos de DB
-                                    using (var DB = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+                                    using (var db = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                                     {
-                                        // MYSQL PROCEDIMIENTO
-                                        DB.RunQuery("CALL `DropRank`(" + GetRank + ", " + Groups[0].Id + ");");
+                                        db.RunQuery($"CALL `DropRank`({getRank}, {groups[0].Id});");
                                     }
 
                                     // Borramos del Diccionario
-                                    PolarEnvironment.GetGame().GetGroupManager().DeleteGroupRank(Groups[0].Id, GetRank);
+                                    PolarEnvironment.GetGame().GetGroupManager().DeleteGroupRank(groups[0].Id, getRank);
 
-                                    // Fix, read again de new list.
-                                    AllRanks = Groups[0].Ranks.ToList();
+                                    // Recalcular rangos superiores
+                                    int uprank = getRank + 1;
+                                    foreach (var r in allRanks.Where(x => x.Value.RankId >= uprank))
+                                        r.Value.RankId = r.Value.RankId - 1;
 
-                                    // Si hay rango superior, decrementamos su RankId para cada uno
-                                    AllRanks.Where(x => x.Value.RankId >= uprank).ToList().ForEach(x => x.Value.RankId = (x.Value.RankId - 1));
-
-                                    // Si hay usuarios en rangos superiores, decrementamos su RankId para cada uno
-                                    AllMembers.Where(x => x.Value.UserRank >= uprank).ToList().ForEach(x => x.Value.UserRank = (x.Value.UserRank - 1));
+                                    foreach (var m in allMembers.Where(x => x.Value.UserRank >= uprank))
+                                        m.Value.UserRank = m.Value.UserRank - 1;
 
                                     PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "mynew");
                                 }
@@ -564,80 +499,69 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             case "settings":
                                 {
-                                    GroupRank ThisRank = GroupManager.GetJobRank(Groups[0].Id, GetRank);
-
-                                    if (ThisRank == null)
+                                    GroupRank thisRank = GroupManager.GetJobRank(groups[0].Id, getRank);
+                                    if (thisRank == null)
                                         return;
 
-                                    string html = "";
+                                    var htmlBuilder = new StringBuilder();
 
                                     #region HTML
-                                    html += "<div class=\"heading\">Nombre del Rango</div>";
-                                    html += "<div class=\"flex\">";
-                                    html += "<input id=\"GangRankNewName\" type=\"text\" data-lpignore=\"true\" class=\"dark-input-text flex-1 mr-1\" value=\"" + ThisRank.Name + "\">";
-                                    html += "</div>";
-                                    html += "<br>";
-                                    
-                                    html += "<div class=\"flex\">";
-                                    html += "<button data-rank=\"" + GetRank + "\" data-action=\"SaveRank\" class=\"dark-button\" style=\"width: 100%;\">Cambiar nombre</button>";
-                                    html += "</div>";
+                                    htmlBuilder.Append("<div class=\"heading\">Nombre del Rango</div>");
+                                    htmlBuilder.Append("<div class=\"flex\">");
+                                    htmlBuilder.Append($"<input id=\"GangRankNewName\" type=\"text\" data-lpignore=\"true\" class=\"dark-input-text flex-1 mr-1\" value=\"{thisRank.Name}\">");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("<br>");
+                                    htmlBuilder.Append("<div class=\"flex\">");
+                                    htmlBuilder.Append($"<button data-rank=\"{getRank}\" data-action=\"SaveRank\" class=\"dark-button\" style=\"width: 100%;\">Cambiar nombre</button>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("<br>");
+                                    htmlBuilder.Append("<div class=\"heading\">Permisos</div>");
+                                    htmlBuilder.Append("<div class=\"flex\">");
+                                    htmlBuilder.Append("<table class=\"dark\">");
+                                    htmlBuilder.Append("<tr class=\"dark2\">");
+                                    htmlBuilder.Append("<th class=\"dark2\">Ascender/Descender</th>");
+                                    htmlBuilder.Append("<th class=\"dark2\">Reclutar</th>");
+                                    htmlBuilder.Append("<th class=\"dark2\">Expulsar</th>");
+                                    htmlBuilder.Append("<th class=\"dark2\">Invitar</th>");
+                                    htmlBuilder.Append("</tr>");
+                                    htmlBuilder.Append("<tr class=\"dark2\">");
 
-                                    html += "<br>";
-                                    html += "<div class=\"heading\">Permisos</div>";
-                                    html += "<div class=\"flex\">";
-                                    html += "<table class=\"dark\">";
-                                    html += "<tr class=\"dark2\">";
-                                    html += "<th class=\"dark2\">Ascender/Descender</th>";
-                                    html += "<th class=\"dark2\">Reclutar</th>";
-                                    html += "<th class=\"dark2\">Expulsar</th>";
-                                    html += "<th class=\"dark2\">Invitar</th>";
-                                    html += "</tr>";
-                                    html += "<tr class=\"dark2\">";
-                                    html += "<td class=\"dark2\">";
-                                    html += "<div data-rank=\"" + GetRank + "\" data-action=\"ascdesc\" class=\"cursor-pointer-r px-1\">";
-                                    if (ThisRank.HasCommand("ascdesc"))
-                                        html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/up-arrow.png\">";
-                                    else
-                                        html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/cross.png\">";
-                                    html += "</div>";
-                                    html += "</td>";
-                                    html += "<td class=\"dark2\">";
-                                    html += "<div data-rank=\"" + GetRank + "\" data-action=\"hire\" class=\"cursor-pointer-r px-1\">";
-                                    if (ThisRank.HasCommand("hire"))
-                                        html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/up-arrow.png\">";
-                                    else
-                                        html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/cross.png\">";
-                                    html += "</div>";
-                                    html += "</td>";
-                                    html += "<td class=\"dark2\">";
-                                    html += "<div data-rank=\"" + GetRank + "\" data-action=\"fire\" class=\"cursor-pointer-r px-1\">";
-                                    if (ThisRank.HasCommand("fire"))
-                                        html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/up-arrow.png\">";
-                                    else
-                                        html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/cross.png\">";
-                                    html += "</div>";
-                                    html += "</td>";
-                                    html += "<td class=\"dark2\">";
-                                    html += "<div data-rank=\"" + GetRank + "\" data-action=\"invite\" class=\"cursor-pointer-r px-1\">";
-                                    if (ThisRank.HasCommand("invite"))
-                                        html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/up-arrow.png\">";
-                                    else
-                                        html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/cross.png\">";
-                                    html += "</div>";
-                                    html += "</td>";
-                                    html += "</tr>";
-                                    html += "</table>";
-                                    html += "</div>";
-                                    html += "<br>";
+                                    // Ascender/Descender
+                                    htmlBuilder.Append("<td class=\"dark2\">");
+                                    htmlBuilder.Append($"<div data-rank=\"{getRank}\" data-action=\"ascdesc\" class=\"cursor-pointer-r px-1\">");
+                                    htmlBuilder.Append($"<img src=\"{RoleplayManager.CdnURL}/ws_resources/images/{(thisRank.HasCommand("ascdesc") ? "up-arrow.png" : "cross.png")}\">");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("</td>");
+
+                                    // Reclutar
+                                    htmlBuilder.Append("<td class=\"dark2\">");
+                                    htmlBuilder.Append($"<div data-rank=\"{getRank}\" data-action=\"hire\" class=\"cursor-pointer-r px-1\">");
+                                    htmlBuilder.Append($"<img src=\"{RoleplayManager.CdnURL}/ws_resources/images/{(thisRank.HasCommand("hire") ? "up-arrow.png" : "cross.png")}\">");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("</td>");
+
+                                    // Expulsar
+                                    htmlBuilder.Append("<td class=\"dark2\">");
+                                    htmlBuilder.Append($"<div data-rank=\"{getRank}\" data-action=\"fire\" class=\"cursor-pointer-r px-1\">");
+                                    htmlBuilder.Append($"<img src=\"{RoleplayManager.CdnURL}/ws_resources/images/{(thisRank.HasCommand("fire") ? "up-arrow.png" : "cross.png")}\">");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("</td>");
+
+                                    // Invitar
+                                    htmlBuilder.Append("<td class=\"dark2\">");
+                                    htmlBuilder.Append($"<div data-rank=\"{getRank}\" data-action=\"invite\" class=\"cursor-pointer-r px-1\">");
+                                    htmlBuilder.Append($"<img src=\"{RoleplayManager.CdnURL}/ws_resources/images/{(thisRank.HasCommand("invite") ? "up-arrow.png" : "cross.png")}\">");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("</td>");
+
+                                    htmlBuilder.Append("</tr>");
+                                    htmlBuilder.Append("</table>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("<br>");
                                     #endregion
 
-                                    string SendData = "";
-                                    SendData += html + "|";// EventData[2];
-                                    Socket.Send("compose_gang|ranks|" + SendData);
+                                    Socket.SendWS( $"compose_gang|ranks|{htmlBuilder.ToString()}|");
                                 }
-                                break;
-
-                            default:
                                 break;
                         }
                     }
@@ -647,234 +571,144 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Member Tools
                 case "member_tools":
                     {
-                        List<Group> Groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(Client.GetHabbo().Id);
-
-                        if (Groups == null || Groups.Count <= 0)
+                        var habbo = Client?.GetHabbo();
+                        if (habbo == null)
                             return;
 
-                        bool isAdmin = false;
-
-                        #region Check if is not Admin
-                        if (!Groups[0].IsAdmin(Client.GetHabbo().Id) && !Groups[0].IsMember(Client.GetHabbo().Id) && !Client.GetHabbo().GetPermissions().HasRight("group_management_override")/* && !PolarEnvironment.GetGame().GetGroupManager().HasJobCommand(Client, "ascdesc", true) && !PolarEnvironment.GetGame().GetGroupManager().HasJobCommand(Client, "fire", true)*/)
-                            return;
-                        else
-                            isAdmin = true;
-                        #endregion
-
-                        string[] ReceivedData = Data.Split(',');
-                        int GetUserId;
-                        string WSAction = ReceivedData[2];
-                        if (!int.TryParse(ReceivedData[1], out GetUserId))
+                        List<Group> groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(habbo.Id);
+                        if (groups == null || groups.Count <= 0)
                             return;
 
-                        var AllRanks = Groups[0].Ranks.ToList();
-                        var AllMembers = Groups[0].GetAllMembersDict;
-
-                        // Validamos si existe el usuario
-                        if (WSAction != "accept" && WSAction != "decline" && !Groups[0].IsMember(GetUserId) && !Groups[0].IsAdmin(GetUserId))
+                        string[] receivedData = Data.Split(',');
+                        if (receivedData.Length < 3)
                             return;
 
-                        switch (WSAction)
+                        if (!int.TryParse(receivedData[1], out int getUserId))
+                            return;
+
+                        string wsAction = receivedData[2];
+
+                        bool isAdmin = groups[0].IsAdmin(habbo.Id) ||
+                                     groups[0].IsMember(habbo.Id) ||
+                                     (habbo.GetPermissions()?.HasRight("group_management_override") == true);
+
+                        // Validamos si existe el usuario para acciones que no sean accept/decline
+                        if (wsAction != "accept" && wsAction != "decline" &&
+                            !groups[0].IsMember(getUserId) && !groups[0].IsAdmin(getUserId))
+                            return;
+
+                        switch (wsAction)
                         {
                             case "up":
-                                {
-
-                                    if (/*!Groups[0].Removable && */!Client.GetHabbo().GetPermissions().HasRight("corporation_rights"))
-                                    {
-                                        if (Groups[0].Members[GetUserId].UserId == Client.GetHabbo().Id)
-                                            return;
-                                    }
-
-                                    //if (((!Group.IsAdmin(GetUserId) || !Group.IsMember(GetUserId)) && !PolarEnvironment.GetGame().GetGroupManager().HasJobCommand(Client, "ascdesc")) && !Client.GetHabbo().GetPermissions().HasRight("corporation_rights"))
-                                    bool IsMember = Groups[0].IsMember(Client.GetHabbo().Id); 
-                                    bool CanAscDesc = GroupManager.HasJobCommand(Client, "ascdesc");
-                                    bool ItsMe = (Groups[0].Members[GetUserId].UserId == Client.GetHabbo().Id);
-                                    bool ItsSup = (Groups[0].Members[GetUserId].UserRank >= Groups[0].Members[Client.GetHabbo().Id].UserRank);
-                                    if (((!isAdmin && !(IsMember && CanAscDesc && !ItsSup))) && !Client.GetHabbo().GetPermissions().HasRight("corporation_rights"))
-                                        return;
-
-                                    int GetRank = Groups[0].Members[GetUserId].UserRank;
-                                    int newrank = (GetRank + 1);
-
-                                    /*if (!Groups[0].Removable)
-                                    {
-                                        if (newrank >= 6 && Groups[0].GetAdministrators.Count > 0)
-                                        {
-                                            Client.SendWhisper("¡No pueden haber dos líderes en una misma banda!", 1);
-                                            return;
-                                        }
-                                    }*/
-
-                                    // Validamos si existe un rango superior. 
-                                    var TopRank = AllRanks.Where(x => x.Value.RankId == newrank);
-                                    if (TopRank.Count() <= 0)
-                                        return;
-
-                                    using (var DB = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-                                    {
-                                        // MYSQL PROCEDIMIENTO
-                                        DB.RunQuery("CALL `ModifMember`(" + GetRank + ", " + newrank + ", " + Groups[0].Id + ", " + GetUserId + ");");
-
-                                        AllMembers.Where(x => x.Value.UserId == GetUserId).ToList().ForEach(x => x.Value.UserRank = newrank);
-
-                                    }
-                                    #region Trabajos NO Removibles Max Rank es 6. Hacer/Quitar Admin en  Rank 6
-                                   /* if (!Groups[0].Removable)
-                                    {
-                                        if (newrank == RoleplayManager.AdminRankGroupsNoRemov)
-                                        {
-                                            Groups[0].MakeAdmin(GetUserId);
-                                        }
-                                    }*/
-                                    #endregion
-
-                                    #region Mensaje de aviso al Target
-                                    GameClient TargetSession = PolarEnvironment.GetGame().GetClientManager().GetClientByUserID(GetUserId);
-                                    if (TargetSession != null)
-                                    {
-                                        RoleplayManager.Shout(TargetSession, "*Ha sido ascendid@ en su banda " + Groups[0].Name + "*", 5);
-                                        TargetSession.SendWhisper("¡Buenas noticias! Has sido ascendid@ de rango en tu banda.", 1);
-
-                                        if (Groups[0].IsAdmin(GetUserId))
-                                        {
-                                            TargetSession.GetRoleplay().GangId = Groups[0].Id;
-                                        }
-                                    }
-                                    #endregion
-
-                                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "mynew");
-
-                                }
-                                break;
-
                             case "down":
-                                {
-
-                                    if (/*!Groups[0].Removable && */!Client.GetHabbo().GetPermissions().HasRight("corporation_rights"))
-                                    {
-                                        if (Groups[0].Members[GetUserId].UserId == Client.GetHabbo().Id)
-                                            return;
-                                    }
-
-                                    //if (((!Group.IsAdmin(GetUserId) || !Group.IsMember(GetUserId)) && !PolarEnvironment.GetGame().GetGroupManager().HasJobCommand(Client, "ascdesc")) && !Client.GetHabbo().GetPermissions().HasRight("corporation_rights"))
-                                    bool IsMember = Groups[0].IsMember(Client.GetHabbo().Id);
-                                    bool CanAscDesc = GroupManager.HasJobCommand(Client, "ascdesc");
-                                    bool ItsMe = (Groups[0].Members[GetUserId].UserId == Client.GetHabbo().Id);
-                                    bool ItsSup = (Groups[0].Members[GetUserId].UserRank >= Groups[0].Members[Client.GetHabbo().Id].UserRank);
-                                    if (((!isAdmin && !(IsMember && CanAscDesc && !ItsSup))) && !Client.GetHabbo().GetPermissions().HasRight("corporation_rights"))
-                                        return;
-
-                                    int GetRank = Groups[0].Members[GetUserId].UserRank;
-                                    int newrank = (GetRank - 1);
-
-                                    if (Groups[0].IsAdmin(GetUserId) && !isAdmin && !Client.GetHabbo().GetPermissions().HasRight("corporation_rights"))
-                                    {
-                                        Client.SendWhisper("No puedes bajar de rango al líder de la Banda");
-                                        return;
-                                    }
-
-                                    // Validamos si existe un rango superior. 
-                                    var Bottom = AllRanks.Where(x => x.Value.RankId == newrank);
-                                    if (Bottom.Count() <= 0)
-                                        return;
-
-                                    using (var DB = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-                                    {
-                                        // MYSQL PROCEDIMIENTO
-                                        DB.RunQuery("CALL `ModifMember`(" + GetRank + ", " + newrank + ", " + Groups[0].Id + ", " + GetUserId + ");");
-
-                                        AllMembers.Where(x => x.Value.UserId == GetUserId).ToList().ForEach(x => x.Value.UserRank = newrank);
-                                    }
-                                    #region Trabajos NO Removibles Max Rank es 6. Hacer/Quitar Admin en  Rank 6
-                                    /*if (!Groups[0].Removable)
-                                    {
-                                        if (newrank != RoleplayManager.AdminRankGroupsNoRemov)
-                                            Groups[0].TakeAdmin(GetUserId);
-                                    }*/
-                                    #endregion
-
-                                    #region Mensaje de aviso al Target
-                                    GameClient TargetSession = PolarEnvironment.GetGame().GetClientManager().GetClientByUserID(GetUserId);
-                                    if (TargetSession != null)
-                                    {
-                                        RoleplayManager.Shout(TargetSession, "*Ha sido degradad@ de rango en su banda " + Groups[0].Name + "*", 5);
-                                        TargetSession.SendWhisper("Has sido degradad@ de rango en tu banda.", 1);
-
-                                        #region IsWorking
-                                        if (TargetSession != null)
-                                        {
-                                            if (TargetSession.GetRoleplay().IsWorking)
-                                            {
-                                                WorkManager.RemoveWorkerFromList(TargetSession);
-                                                TargetSession.GetRoleplay().IsWorking = false;
-                                                TargetSession.GetHabbo().Poof();
-
-                                            }
-                                        }
-                                        #endregion
-
-                                        if (!Groups[0].IsAdmin(GetUserId))
-                                        {
-                                            TargetSession.GetRoleplay().GangId = 0;
-                                        }
-                                    }
-                                    #endregion
-
-                                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "mynew");
-                                }
-                                break;
-
                             case "cross":
                                 {
-                                    // if (((!Group.IsAdmin(GetUserId) || !Group.IsMember(GetUserId)) && !PolarEnvironment.GetGame().GetGroupManager().HasJobCommand(Client, "fire")) && !Client.GetHabbo().GetPermissions().HasRight("corporation_rights"))
-                                    bool IsMember = Groups[0].IsMember(Client.GetHabbo().Id);
-                                    bool CanFire = GroupManager.HasJobCommand(Client, "fire");
+                                    bool isMember = groups[0].IsMember(habbo.Id);
+                                    bool canAscDesc = GroupManager.HasJobCommand(Client, "ascdesc");
+                                    bool canFire = GroupManager.HasJobCommand(Client, "fire");
+                                    bool itsMe = groups[0].Members.ContainsKey(getUserId) &&
+                                                groups[0].Members[getUserId]?.UserId == habbo.Id;
+                                    bool itsSup = groups[0].Members.ContainsKey(getUserId) &&
+                                                groups[0].Members.ContainsKey(habbo.Id) &&
+                                                groups[0].Members[getUserId]?.UserRank >= groups[0].Members[habbo.Id]?.UserRank;
 
-                                    if (((!isAdmin && !(IsMember && CanFire)) || Groups[0].Members[GetUserId].UserId == Client.GetHabbo().Id) && !Client.GetHabbo().GetPermissions().HasRight("corporation_rights"))
-                                        return;
-
-                                    // Si se intenta borrar a sí mismo (Que use :renunciar [id])
-                                    // Si es Admin (Fundador) no puede eliminarse así.
-                                    if (Groups[0].Members[GetUserId].UserId == Client.GetHabbo().Id)
-                                        return;
-
-                                    if (Groups[0].IsAdmin(GetUserId) && !Client.GetHabbo().GetPermissions().HasRight("corporation_rights"))
+                                    // Check permissions based on action
+                                    switch (wsAction)
                                     {
-                                        Client.SendWhisper("No puedes despedir al líner de la Banda");
-                                        return;
+                                        case "up":
+                                        case "down":
+                                            if (!(habbo.GetPermissions()?.HasRight("corporation_rights") == true))
+                                            {
+                                                if (itsMe)
+                                                    return;
+
+                                                if ((!isAdmin && !(isMember && canAscDesc && !itsSup)))
+                                                    return;
+                                            }
+                                            break;
+
+                                        case "cross":
+                                            if (!(habbo.GetPermissions()?.HasRight("corporation_rights") == true))
+                                            {
+                                                if (itsMe)
+                                                    return;
+
+                                                if ((!isAdmin && !(isMember && canFire)) || itsMe)
+                                                    return;
+                                            }
+                                            break;
                                     }
 
-                                    GameClient TargetSession = PolarEnvironment.GetGame().GetClientManager().GetClientByUserID(GetUserId);
-
-                                    string ExtraInf = "";
-
-                                    #region Sacar
-                                    if (Groups[0].IsAdmin(GetUserId))
+                                    if (wsAction == "up" || wsAction == "down")
                                     {
-                                        ExtraInf = "Se te revocado el liderázgo de " + Groups[0].Name;
+                                        if (!groups[0].Members.ContainsKey(getUserId))
+                                            return;
+
+                                        int getRank = groups[0].Members[getUserId].UserRank;
+                                        int newRank = wsAction == "up" ? getRank + 1 : getRank - 1;
+
+                                        if (wsAction == "down" && groups[0].IsAdmin(getUserId) &&
+                                            !isAdmin && !(habbo.GetPermissions()?.HasRight("corporation_rights") == true))
+                                        {
+                                            Client.SendWhisper("No puedes bajar de rango al líder de la Banda");
+                                            return;
+                                        }
+
+                                        // Validamos si existe el rango
+                                        if (!groups[0].Ranks.Any(x => x.Value.RankId == newRank))
+                                            return;
+
+                                        using (var db = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+                                        {
+                                            db.RunQuery($"CALL `ModifMember`({getRank}, {newRank}, {groups[0].Id}, {getUserId});");
+                                            groups[0].Members[getUserId].UserRank = newRank;
+                                        }
+
+                                        // Notificar al target
+                                        GameClient targetSession = PolarEnvironment.GetGame().GetClientManager().GetClientByUserID(getUserId);
+                                        if (targetSession != null)
+                                        {
+                                            string actionText = wsAction == "up" ? "ascendid@" : "degradad@";
+                                            RoleplayManager.Shout(targetSession, $"*Ha sido {actionText} en su banda {groups[0].Name}*", 5);
+                                            targetSession.SendWhisper($"Has sido {actionText} de rango en tu banda.", 1);
+                                        }
                                     }
+                                    else if (wsAction == "cross")
                                     {
-                                        ExtraInf = "Se te ha expulsado de la banda " + Groups[0].Name;
-                                    }
-                                    if (Groups[0].IsAdmin(GetUserId))
-                                        Groups[0].TakeAdmin(GetUserId);
+                                        if (groups[0].IsAdmin(getUserId) && !(habbo.GetPermissions()?.HasRight("corporation_rights") == true))
+                                        {
+                                            Client.SendWhisper("No puedes despedir al líder de la Banda");
+                                            return;
+                                        }
 
-                                    if (Groups[0].IsMember(GetUserId)) {
-                                        TargetSession.GetRoleplay().GangId = 0;
-                                        TargetSession.GetRoleplay().GangRank = 0;
-                                    }
-                                    #endregion
+                                        GameClient targetSession = PolarEnvironment.GetGame().GetClientManager().GetClientByUserID(getUserId);
 
-                                    // Si está ON, recibe alerta.
-                                    if (TargetSession != null)
-                                    {
-                                        if (ExtraInf != "")
-                                            TargetSession.SendNotification(ExtraInf);
+                                        string extraInfo = groups[0].IsAdmin(getUserId)
+                                            ? $"Se te revocado el liderázgo de {groups[0].Name}"
+                                            : $"Se te ha expulsado de la banda {groups[0].Name}";
 
-                                        // Refrescar información
-                                        PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(TargetSession, "event_group", "open");
-                                        RoleplayManager.Shout(TargetSession, "*Ha sido expulsado de la banda " + Groups[0].Name + "*", 5);
-                                        TargetSession.GetRoleplay().GangId = 0;
+                                        if (groups[0].IsAdmin(getUserId))
+                                            groups[0].TakeAdmin(getUserId);
+
+                                        if (groups[0].IsMember(getUserId))
+                                        {
+                                            if (targetSession != null)
+                                            {
+                                                targetSession.GetRoleplay().GangId = 0;
+                                                targetSession.GetRoleplay().GangRank = 0;
+                                            }
+                                            groups[0].DeleteMember(getUserId);
+                                        }
+
+                                        // Notificar al target
+                                        if (targetSession != null)
+                                        {
+                                            if (!string.IsNullOrEmpty(extraInfo))
+                                                targetSession.SendNotification(extraInfo);
+
+                                            PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(targetSession, "event_group", "open");
+                                            RoleplayManager.Shout(targetSession, $"*Ha sido expulsado de la banda {groups[0].Name}*", 5);
+                                        }
                                     }
 
                                     PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "mynew");
@@ -882,144 +716,113 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                                 break;
 
                             case "accept":
+                            case "decline":
                                 {
-                                    #region Check if is not Admin
-                                    if (!Groups[0].IsAdmin(Client.GetHabbo().Id) && !Groups[0].IsMember(Client.GetHabbo().Id) && !Client.GetHabbo().GetPermissions().HasRight("group_management_override") /*&& !PolarEnvironment.GetGame().GetGroupManager().HasJobCommand(Client, "hire", true)*/)
+                                    if (!groups[0].IsAdmin(habbo.Id) && !groups[0].IsMember(habbo.Id) &&
+                                        !(habbo.GetPermissions()?.HasRight("group_management_override") == true))
                                         return;
-                                    else
-                                        isAdmin = true;
-                                    #endregion
-                                    List<GroupMember> Administrators = Groups[0].Members.Values.Where(x => x.IsAdmin).OrderBy(x => x.UserId).ToList();
 
-                                    string VIPLider = PolarEnvironment.GetUserInfoBy("rank_vip", "id", Convert.ToString(Administrators[0].UserId));
-                                    int LimitMembers = RoleplayManager.GangsMaxMembers;
-                                    if (VIPLider == "1")
-                                        LimitMembers += 5;
-                                    else if (VIPLider == "2")
-                                        LimitMembers += 10;
-
-                                    if (Groups[0].GetAllMembersDict.Count() >= LimitMembers)
+                                    if (wsAction == "accept")
                                     {
-                                        Client.SendWhisper("¡Has alcanzado el máximo de miembros admitidos en una banda!", 1);
-                                        return;
-                                    }
+                                        List<GroupMember> administrators = groups[0].Members.Values
+                                            .Where(x => x.IsAdmin)
+                                            .OrderBy(x => x.UserId)
+                                            .ToList();
 
-                                    GameClient TargetClient = PolarEnvironment.GetGame().GetClientManager().GetClientByUserID(GetUserId);
+                                        string vipLider = PolarEnvironment.GetUserInfoBy("rank_vip", "id",
+                                            administrators.Count > 0 ? administrators[0].UserId.ToString() : "0");
+                                        int limitMembers = RoleplayManager.GangsMaxMembers;
+                                        if (vipLider == "1")
+                                            limitMembers += 5;
+                                        else if (vipLider == "2")
+                                            limitMembers += 10;
 
-                                    // Obtenemos los Trabajos del Target
-                                    List<Group> Gangs = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(GetUserId);
-                                    if (Gangs == null)
-                                    {
-                                        Client.SendWhisper("Ocurrió un problema al buscar las bandas de esa persona. Intentalo más tarde.", 1);
-                                        return;
-                                    }
-                                    int TotalGangs = Gangs.Count;
-
-                                    if (PolarEnvironment.GetGame().GetClientManager().GetLevelById(Convert.ToInt32(GetUserId)) < 2)
-                                    {
-                                        Client.SendWhisper("¡Esa persona es Nivel 1! Necesita al menos Nivel 2 para pertenecer a una banda.", 1);
-                                        return;
-                                    }
-
-                                    if (GroupManager.HasJobCommand(TargetClient, "law"))
-                                    {
-                                        Client.SendWhisper("¡Esa persona es policía! No puedes aceptarla en tu banda.", 1);
-                                        return;
-                                    }
-                                    else
-                                    {
-                                        // Si está On
-                                        if (TargetClient != null)
+                                        if (groups[0].GetAllMembersDict.Count >= limitMembers)
                                         {
-                                            if (TotalGangs == 0)
-                                            {
-                                                #region DirectJoin
+                                            Client.SendWhisper("¡Has alcanzado el máximo de miembros admitidos en una banda!", 1);
+                                            return;
+                                        }
 
-                                                //Si es Empresa (PRIVATE)
-                                                // Se metió a la lista de Requisitos, Aquí forzamos el Ingreso.
-                                                #region SendPackets AcceptGroupMembershipEvent
-                                                if (Groups[0].GroupType == GroupType.LOCKED)
+                                        GameClient targetClient = PolarEnvironment.GetGame().GetClientManager().GetClientByUserID(getUserId);
+                                        List<Group> targetGangs = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(getUserId);
+
+                                        if (targetGangs == null)
+                                        {
+                                            Client.SendWhisper("Ocurrió un problema al buscar las bandas de esa persona. Intentalo más tarde.", 1);
+                                            return;
+                                        }
+
+                                        if (PolarEnvironment.GetGame().GetClientManager().GetLevelById(getUserId) < 2)
+                                        {
+                                            Client.SendWhisper("¡Esa persona es Nivel 1! Necesita al menos Nivel 2 para pertenecer a una banda.", 1);
+                                            return;
+                                        }
+
+                                        if (GroupManager.HasJobCommand(targetClient, "law"))
+                                        {
+                                            Client.SendWhisper("¡Esa persona es policía! No puedes aceptarla en tu banda.", 1);
+                                            return;
+                                        }
+
+                                        if (targetGangs.Count == 0)
+                                        {
+                                            // Si está On
+                                            if (targetClient != null)
+                                            {
+                                                if (groups[0].GroupType == GroupType.LOCKED)
                                                 {
-                                                    int UserId = TargetClient.GetHabbo().Id;
-                                                    if (!Groups[0].HasRequest(UserId))
+                                                    if (!groups[0].HasRequest(getUserId))
                                                         return;
 
-                                                    Habbo Habbo = PolarEnvironment.GetHabboById(UserId);
-                                                    if (Habbo == null)
+                                                    Habbo targetHabbo = PolarEnvironment.GetHabboById(getUserId);
+                                                    if (targetHabbo == null)
                                                     {
                                                         Client.SendNotification("Oops, ha ocurrido un problema al buscar al usuario, es probable que se haya desconectado. ¡El proceso lo dejó en la Lista de Solicitudes de Banda!");
                                                         return;
                                                     }
 
-                                                    Groups[0].HandleRequest(UserId, true);
-
-                                                    Client.SendMessage(new GroupMemberUpdatedComposer(Groups[0].Id, Habbo, 4));
+                                                    groups[0].HandleRequest(getUserId, true);
+                                                    Client.SendMessage(new GroupMemberUpdatedComposer(groups[0].Id, targetHabbo, 4));
                                                 }
-                                                #endregion
 
-                                                if (Groups[0].HasChat)
+                                                if (groups[0].HasChat)
                                                 {
-                                                    
-                                                        //MessengerBuddy newgroup = new MessengerBuddy(-Room.Group.Id, Room.Group.Name, Room.Group.Badge, string.Empty, 0, false, true, false);
-                                                        TargetClient.SendMessage(new FriendListUpdateComposer(Groups[0], 0));
+                                                    targetClient.SendMessage(new FriendListUpdateComposer(groups[0], 0));
                                                 }
-                                                // Actualizamos Información del Rank del User
-                                                TargetClient.GetRoleplay().GangId = Groups[0].Id;
-                                                TargetClient.GetRoleplay().GangRank = 1;
-                                                Groups[0].UpdateGangMember(TargetClient.GetHabbo().Id);
 
-                                                #endregion
-                                                PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(TargetClient, "event_group", "open");
-                                                RoleplayManager.Shout(Client, "*Admite la entrada a " + PolarEnvironment.GetUsernameById(GetUserId) + " en su banda " + Groups[0].Name + "*", 5);
-                                                RoleplayManager.Shout(TargetClient, "*Ha sido admitido en la banda " + Groups[0].Name + "*", 5);
-                                                TargetClient.SendNotification("¡Felicitaciones! Han aceptado tu solicitud en la banda " + Groups[0].Name);
+                                                targetClient.GetRoleplay().GangId = groups[0].Id;
+                                                targetClient.GetRoleplay().GangRank = 1;
+                                                groups[0].UpdateGangMember(targetClient.GetHabbo().Id);
+
+                                                PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(targetClient, "event_group", "open");
+                                                RoleplayManager.Shout(Client, $"*Admite la entrada a {PolarEnvironment.GetUsernameById(getUserId)} en su banda {groups[0].Name}*", 5);
+                                                RoleplayManager.Shout(targetClient, $"*Ha sido admitido en la banda {groups[0].Name}*", 5);
+                                                targetClient.SendNotification($"¡Felicitaciones! Han aceptado tu solicitud en la banda {groups[0].Name}");
                                             }
+                                            // Si está Off
                                             else
                                             {
-                                                Client.SendWhisper("Esta persona ya pertenece a otra banda. Pídele que la abandone o rechaza su solicitud.", 1);
+                                                groups[0].HandleRequest(getUserId, true);
+                                                RoleplayManager.Shout(Client, $"*Admite la entrada a {PolarEnvironment.GetUsernameById(getUserId)} en su banda {groups[0].Name}*", 5);
                                             }
                                         }
-                                        // Si está Off
                                         else
                                         {
-                                            if (TotalGangs == 0)
-                                            {
-                                                Groups[0].HandleRequest(GetUserId, true);
-                                                RoleplayManager.Shout(Client, "*Admite la entrada a " + PolarEnvironment.GetUsernameById(GetUserId) + " en su banda " + Groups[0].Name + "*", 5);
-                                            }
-                                            else
-                                            {
-                                                Client.SendWhisper("Esta persona ya pertenece a otra banda. Pídele que la abandone o rechaza su solicitud.", 1);
-                                            }
+                                            Client.SendWhisper("Esta persona ya pertenece a otra banda. Pídele que la abandone o rechaza su solicitud.", 1);
                                         }
                                     }
+                                    else if (wsAction == "decline")
+                                    {
+                                        groups[0].HandleRequest(getUserId, false);
+                                        GameClient targetClient = PolarEnvironment.GetGame().GetClientManager().GetClientByUserID(getUserId);
+                                        if (targetClient != null)
+                                            PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(targetClient, "event_group", "open");
+                                    }
+
                                     PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "requests");
-
                                 }
-                                break;
-
-                            case "decline":
-                                {
-                                    #region Check if is not Admin
-                                    if (!Groups[0].IsAdmin(Client.GetHabbo().Id) && !Groups[0].IsMember(Client.GetHabbo().Id) && !Client.GetHabbo().GetPermissions().HasRight("group_management_override")/* && !PolarEnvironment.GetGame().GetGroupManager().HasJobCommand(Client, "hire", true)*/)
-                                        return;
-                                    else
-                                        isAdmin = true;
-                                    #endregion
-
-                                    Groups[0].HandleRequest(GetUserId, false);
-                                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "requests");
-
-                                    GameClient TargetClient = PolarEnvironment.GetGame().GetClientManager().GetClientByUserID(GetUserId);
-                                    if(TargetClient != null)
-                                        PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(TargetClient, "event_group", "open");
-                                }
-                                break;
-
-                            default:
                                 break;
                         }
-
                     }
                     break;
                 #endregion
@@ -1027,28 +830,30 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Ranks Tab
                 case "ranks":
                     {
-                        List<Group> Groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(Client.GetHabbo().Id);
+                        var habbo = Client?.GetHabbo();
+                        if (habbo == null)
+                            return;
 
-                        if (Groups == null || Groups.Count <= 0)
+                        List<Group> groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(habbo.Id);
+                        if (groups == null || groups.Count <= 0)
                             return;
 
                         #region Check if is not Admin
-                        if (!Groups[0].IsAdmin(Client.GetHabbo().Id) && !Client.GetHabbo().GetPermissions().HasRight("group_management_override"))
+                        if (!groups[0].IsAdmin(habbo.Id) && !(habbo.GetPermissions()?.HasRight("group_management_override") == true))
                             return;
                         #endregion
 
-                        string html = "";
+                        var htmlBuilder = new StringBuilder();
 
                         #region HTML
-                        html += "<div class=\"heading\">Agregar Rango</div>";
-                        html += "<div class=\"flex\">";
-                        html += "<input id=\"GA_InputRank\" type=\"text\" data-lpignore=\"true\" class=\"dark-input-text flex-1 mr-1\" value=\"\" maxlength=\"50\" autocomplete=\"off\">";
-                        html += "<button id=\"GA_My_AddRank\" class=\"dark-button\">Agregar</button>";
-                        html += "</div>";
+                        htmlBuilder.Append("<div class=\"heading\">Agregar Rango</div>");
+                        htmlBuilder.Append("<div class=\"flex\">");
+                        htmlBuilder.Append("<input id=\"GA_InputRank\" type=\"text\" data-lpignore=\"true\" class=\"dark-input-text flex-1 mr-1\" value=\"\" maxlength=\"50\" autocomplete=\"off\">");
+                        htmlBuilder.Append("<button id=\"GA_My_AddRank\" class=\"dark-button\">Agregar</button>");
+                        htmlBuilder.Append("</div>");
                         #endregion
 
-                        string SendData = html;
-                        Socket.Send("compose_gang|ranks|" + SendData);
+                        Socket.SendWS( $"compose_gang|ranks|{htmlBuilder.ToString()}");
                     }
                     break;
                 #endregion
@@ -1056,78 +861,66 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Manage
                 case "manage":
                     {
-                        List<Group> Groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(Client.GetHabbo().Id);
+                        var habbo = Client?.GetHabbo();
+                        if (habbo == null)
+                            return;
 
-                        if (Groups == null || Groups.Count <= 0)
+                        List<Group> groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(habbo.Id);
+                        if (groups == null || groups.Count <= 0)
                             return;
 
                         #region Check if is not Admin
-                        if (!Groups[0].IsAdmin(Client.GetHabbo().Id) && !Client.GetHabbo().GetPermissions().HasRight("group_management_override"))
+                        if (!groups[0].IsAdmin(habbo.Id) && !(habbo.GetPermissions()?.HasRight("group_management_override") == true))
                             return;
                         #endregion
 
-                        string[] ReceivedData = Data.Split(',');
+                        string[] receivedData = Data.Split(',');
+                        if (receivedData.Length < 2)
+                            return;
 
-                        string WSAction = ReceivedData[1];
-                        string DataString = "";
+                        string wsAction = receivedData[1];
+                        string dataString = "";
 
-                        if (WSAction != "open")
+                        if (wsAction != "open" && receivedData.Length > 2)
                         {
-                            DataString = ReceivedData[2];
+                            dataString = receivedData[2];
 
-                            if (String.IsNullOrWhiteSpace(DataString))
+                            if (string.IsNullOrWhiteSpace(dataString))
                                 return;
                         }
 
-                        switch (WSAction)
+                        switch (wsAction)
                         {
                             case "open":
-                                {
-                                    Socket.Send("compose_gang|ranks|");
-                                }
+                                Socket.SendWS( "compose_gang|ranks|");
                                 break;
 
                             case "addrank":
+                                if (dataString.Length > 50)
                                 {
-                                    if (DataString.Length > 50)
-                                    {
-                                        Socket.Send("compose_gang|msg_error|El nombre del rango es demasiado largo.");
-                                        return;
-                                    }
-                                    if (!System.Text.RegularExpressions.Regex.IsMatch(DataString, @"^[a-zA-Z0-9]+$"))
-                                    {
-                                        Socket.Send("compose_gang|msg_error|¡No se aceptan caracteres especiales! Solo números y letras.");
-                                        return;
-                                    }
-
-                                    if (Groups[0].Ranks.Count() >= 8)
-                                    {
-                                        Socket.Send("compose_gang|msg_error|Límite de 8 rangos alcanzados.");
-                                        return;
-                                    }
-
-                                    int NewRank = Groups[0].Ranks.Count() + 1;
-
-                                    string[] commands = null;
-                                    string[] workrooms = Groups[0].RoomId.ToString().Split(',');
-
-                                    /*
-                                    string[] commands = new string[1];
-                                    string[] workrooms = new string[1];
-                                    commands[0] = "";
-                                    workrooms[0] = "*";
-                                    */
-
-                                    Groups[0].AddRank(Groups[0].Id, NewRank, DataString, "", "", 0, commands, workrooms, 0);
-                                    Socket.Send("compose_gang|msg_success|Rango agregado exitosamente.");
-                                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "mynew");
+                                    Socket.SendWS( "compose_gang|msg_error|El nombre del rango es demasiado largo.");
+                                    return;
                                 }
-                                break;
+                                if (!Regex.IsMatch(dataString, @"^[a-zA-Z0-9]+$"))
+                                {
+                                    Socket.SendWS( "compose_gang|msg_error|¡No se aceptan caracteres especiales! Solo números y letras.");
+                                    return;
+                                }
 
-                            default:
+                                if (groups[0].Ranks.Count >= 8)
+                                {
+                                    Socket.SendWS( "compose_gang|msg_error|Límite de 8 rangos alcanzados.");
+                                    return;
+                                }
+
+                                int newRank = groups[0].Ranks.Count + 1;
+                                string[] workrooms = groups[0].RoomId.ToString().Split(',');
+
+                                groups[0].AddRank(groups[0].Id, newRank, dataString, "", "", 0, null, workrooms, 0);
+                                Socket.SendWS( "compose_gang|msg_success|Rango agregado exitosamente.");
+                                PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "mynew");
                                 break;
                         }
-
                     }
                     break;
                 #endregion
@@ -1135,77 +928,65 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Edit Rank
                 case "editrank":
                     {
-                        List<Group> Groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(Client.GetHabbo().Id);
+                        var habbo = Client?.GetHabbo();
+                        if (habbo == null)
+                            return;
 
-                        if (Groups == null || Groups.Count <= 0)
+                        List<Group> groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(habbo.Id);
+                        if (groups == null || groups.Count <= 0)
                             return;
 
                         #region Check if is not Admin
-                        if (!Groups[0].IsAdmin(Client.GetHabbo().Id) && !Client.GetHabbo().GetPermissions().HasRight("group_management_override"))
+                        if (!groups[0].IsAdmin(habbo.Id) && !(habbo.GetPermissions()?.HasRight("group_management_override") == true))
                             return;
                         #endregion
 
-                        string[] ReceivedData = Data.Split(',');
-
-                        int GetRank = 0;
-                        var AllRanks = Groups[0].Ranks.ToList();
-
-                        string WSAction = ReceivedData[1];
-
-                        if (!int.TryParse(ReceivedData[2], out GetRank))
+                        string[] receivedData = Data.Split(',');
+                        if (receivedData.Length < 3)
                             return;
+
+                        if (!int.TryParse(receivedData[2], out int getRank))
+                            return;
+
+                        string wsAction = receivedData[1];
 
                         // Validamos si existe el rango
-                        var check = AllRanks.Where(x => x.Value.RankId == GetRank);
-                        if (check.Count() <= 0)
+                        if (!groups[0].Ranks.Any(x => x.Value.RankId == getRank))
                             return;
 
-                        switch (WSAction)
+                        switch (wsAction)
                         {
-                            #region Save Rank
                             case "saverank":
+                                if (receivedData.Length < 4)
+                                    return;
+
+                                string rankName = receivedData[3];
+                                if (string.IsNullOrWhiteSpace(rankName))
                                 {
-                                    string RankName = ReceivedData[3];
-
-                                    #region Conditions
-                                    if (String.IsNullOrWhiteSpace(RankName))
-                                    {
-                                        Socket.Send("compose_gang|msg_error|Ese nombre de rango no es válido.");
-                                        return;
-                                    }
-                                    if (RankName.Length > 50)
-                                    {
-                                        Socket.Send("compose_gang|msg_error|Ese nombre de rango es demasiado largo.");
-                                        return;
-                                    }
-                                    #endregion
-
-                                    // Actualizamos DB y Diccionario en este método.
-                                    Groups[0].UpdateJobSettings(GetRank, RankName, 0, 0);
-                                    Socket.Send("compose_gang|msg_success|Cambios guardados satisfactoriamente.");
+                                    Socket.SendWS( "compose_gang|msg_error|Ese nombre de rango no es válido.");
+                                    return;
                                 }
-                                break;
-                            #endregion
+                                if (rankName.Length > 50)
+                                {
+                                    Socket.SendWS( "compose_gang|msg_error|Ese nombre de rango es demasiado largo.");
+                                    return;
+                                }
 
-                            #region Permissions
+                                groups[0].UpdateJobSettings(getRank, rankName, 0, 0);
+                                Socket.SendWS( "compose_gang|msg_success|Cambios guardados satisfactoriamente.");
+                                break;
+
                             case "permissions":
-                                {
-                                    string TypeCMD = ReceivedData[3];
+                                if (receivedData.Length < 4)
+                                    return;
 
-                                    if (TypeCMD != "ascdesc" && TypeCMD != "hire" && TypeCMD != "fire" && TypeCMD != "invite")
-                                        return;
+                                string typeCmd = receivedData[3];
+                                if (typeCmd != "ascdesc" && typeCmd != "hire" && typeCmd != "fire" && typeCmd != "invite")
+                                    return;
 
-                                    // Actualizamos DB y Diccionario en este método.
-                                    Groups[0].UpdateJobCommads(GetRank, TypeCMD);
-                                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "rank_tools," + GetRank + ",settings");
-                                }
+                                groups[0].UpdateJobCommads(getRank, typeCmd);
+                                PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", $"rank_tools,{getRank},settings");
                                 break;
-                            #endregion
-
-                            #region Default
-                            default:
-                                break;
-                                #endregion
                         }
                     }
                     break;
@@ -1214,93 +995,97 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Invitations Receiveds
                 case "invitations_re":
                     {
-                        string html = "";
+                        var habbo = Client?.GetHabbo();
+                        if (habbo == null)
+                            return;
+
+                        var htmlBuilder = new StringBuilder();
 
                         #region HTML
-                        html += "<div>";
-                        //<!-- General box -->
-                        html += "<div class=\"m-2\">";
+                        htmlBuilder.Append("<div>");
+                        htmlBuilder.Append("<div class=\"m-2\">");
+                        htmlBuilder.Append("<div class=\"heading relative group\">");
+                        htmlBuilder.Append("<div>Estas bandas te han invitado a un&iacute;rteles</div>");
+                        htmlBuilder.Append("</div>");
 
-                        //<!-- Header -->
-                        html += "<div class=\"heading relative group\">";
-                        html += "<div>Estas bandas te han invitado a un&iacute;rteles</div>";
-                        html += "</div>";
+                        int counter = 0;
 
-                        int Counter = 0;
-
-                        DataTable PhOwn = null;
-                        using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+                        DataTable phOwn = null;
+                        using (var dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                         {
-                            dbClient.SetQuery("SELECT * FROM `rp_gangs_requests` WHERE `user_id` = "+Client.GetHabbo().Id+"");
-                            PhOwn = dbClient.getTable();
+                            dbClient.SetQuery("SELECT * FROM `rp_gangs_requests` WHERE `user_id` = @userId");
+                            dbClient.AddParameter("userId", habbo.Id);
+                            phOwn = dbClient.getTable();
 
-                            if (PhOwn != null)
+                            if (phOwn != null)
                             {
-                                foreach (DataRow Row in PhOwn.Rows)
+                                foreach (DataRow row in phOwn.Rows)
                                 {
-                                    Group Gang = GroupManager.GetGang(Convert.ToInt32(Row["gang_id"]));
+                                    if (!int.TryParse(row["gang_id"]?.ToString(), out int gangId))
+                                        continue;
 
-                                    Counter++;
-                                    //<!-- Gang box -->
-                                    html += "<div class=\"flex flex-wrap -m-1 justify-center\">";
-                                    //<!-- Gang info -->
-                                    html += "<div class=\"bg-dark-4 rounded m-1 group cursor-pointer-r\" style=\"width: 23%;\">";
-                                    html += "<div class=\"m-px relative\">";
-                                    html += "<div class=\"overflow-hidden bg-light-05 rounded-t\">";
-                                    html += "<center><div class=\"figure-H_RWF_0\" style=\"background-image: url(" + RoleplayManager.HotelUrl + "/group-badge/badge/" + Gang.GetBadge() + "); width: 64px; height: 110px; margin-top: -20px;\"></div></center>";
-                                    html += "</div>";
-                                    html += "<div class=\"absolute pin-b bg-dark-5 w-full group-hover:block\" style=\"padding-top: 4px;padding-bottom: 4px;\">";
-                                    html += "<div class=\"flex justify-around\">";
-                                    html += "<div data-gang=\"" + Gang.Id + "\" data-action=\"accept\" class=\"cursor-pointer-r px-1\">";
-                                    html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/up-arrow.png\">";
-                                    html += "</div>";
-                                    html += "<div data-gang=\"" + Gang.Id + "\" data-action=\"decline\" class=\"cursor-pointer-r px-1\">";
-                                    html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/cross.png\">";
-                                    html += "</div>";
-                                    html += "</div>";
-                                    html += "</div>";
-                                    html += "</div>";
-                                    html += "<div class=\"text-center py-1\">"+Gang.Name+"</div>";
-                                    html += "</div>";
+                                    Group gang = GroupManager.GetGang(gangId);
+                                    if (gang == null)
+                                        continue;
 
-                                    html += "<div class=\"bg-dark-4 rounded m-1 group\" style=\"width: 69%;padding: 5px;\">";
-                                    html += "<p>Estad&iacute;sticas principales de la banda:</p>";
-                                    html += "<br>";
-                                    html += "<div style=\"max-height: 108px;overflow: auto;display: inline-flex;\">";
-                                    html += "<div class=\"gang_inf_box\">";
-                                    html += "<div><b>Asesinatos</b></div>";
-                                    html += "<div>"+String.Format("{0:N0}", Gang.GangKills)+"</div>";
-                                    html += "</div>";
-                                    html += "<div class=\"gang_inf_box\">";
-                                    html += "<div><b>Barrios capturados</b></div>";
-                                    html += "<div>" + String.Format("{0:N0}", Gang.GangTurfsTaken) + "</div>";
-                                    html += "</div>";
-                                    html += "<div class=\"gang_inf_box\">";
-                                    html += "<div><b>Barrios defendidos</b></div>";
-                                    html += "<div>" + String.Format("{0:N0}", Gang.GangTurfsDefended) + "</div>";
-                                    html += "</div>";
-                                    html += "<div class=\"gang_inf_box\">";
-                                    html += "<div><b>Riqueza</b></div>";
-                                    html += "<div>$ " + String.Format("{0:N0}", Gang.Balance) + "</div>";
-                                    html += "</div>";
-                                    html += "</div>";
-                                    html += "<br><br>";
-                                    html += "<i>M&aacute;s info. en el Perfil de la banda.</i>";
-                                    html += "</div>";
-                                    html += "</div>";
-                                    //<!-- End Gang box -->
+                                    counter++;
+                                    htmlBuilder.Append("<div class=\"flex flex-wrap -m-1 justify-center\">");
+                                    htmlBuilder.Append("<div class=\"bg-dark-4 rounded m-1 group cursor-pointer-r\" style=\"width: 23%;\">");
+                                    htmlBuilder.Append("<div class=\"m-px relative\">");
+                                    htmlBuilder.Append("<div class=\"overflow-hidden bg-light-05 rounded-t\">");
+                                    htmlBuilder.Append($"<center><div class=\"figure-H_RWF_0\" style=\"background-image: url({RoleplayManager.HotelUrl}/group-badge/badge/{gang.GetBadge()}); width: 64px; height: 110px; margin-top: -20px;\"></div></center>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("<div class=\"absolute pin-b bg-dark-5 w-full group-hover:block\" style=\"padding-top: 4px;padding-bottom: 4px;\">");
+                                    htmlBuilder.Append("<div class=\"flex justify-around\">");
+                                    htmlBuilder.Append($"<div data-gang=\"{gang.Id}\" data-action=\"accept\" class=\"cursor-pointer-r px-1\">");
+                                    htmlBuilder.Append($"<img src=\"{RoleplayManager.CdnURL}/ws_resources/images/up-arrow.png\">");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append($"<div data-gang=\"{gang.Id}\" data-action=\"decline\" class=\"cursor-pointer-r px-1\">");
+                                    htmlBuilder.Append($"<img src=\"{RoleplayManager.CdnURL}/ws_resources/images/cross.png\">");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append($"<div class=\"text-center py-1\">{gang.Name}</div>");
+                                    htmlBuilder.Append("</div>");
+
+                                    htmlBuilder.Append("<div class=\"bg-dark-4 rounded m-1 group\" style=\"width: 69%;padding: 5px;\">");
+                                    htmlBuilder.Append("<p>Estad&iacute;sticas principales de la banda:</p>");
+                                    htmlBuilder.Append("<br>");
+                                    htmlBuilder.Append("<div style=\"max-height: 108px;overflow: auto;display: inline-flex;\">");
+                                    htmlBuilder.Append("<div class=\"gang_inf_box\">");
+                                    htmlBuilder.Append("<div><b>Asesinatos</b></div>");
+                                    htmlBuilder.Append($"<div>{string.Format("{0:N0}", gang.GangKills)}</div>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("<div class=\"gang_inf_box\">");
+                                    htmlBuilder.Append("<div><b>Barrios capturados</b></div>");
+                                    htmlBuilder.Append($"<div>{string.Format("{0:N0}", gang.GangTurfsTaken)}</div>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("<div class=\"gang_inf_box\">");
+                                    htmlBuilder.Append("<div><b>Barrios defendidos</b></div>");
+                                    htmlBuilder.Append($"<div>{string.Format("{0:N0}", gang.GangTurfsDefended)}</div>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("<div class=\"gang_inf_box\">");
+                                    htmlBuilder.Append("<div><b>Riqueza</b></div>");
+                                    htmlBuilder.Append($"<div>$ {string.Format("{0:N0}", gang.Balance)}</div>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("<br><br>");
+                                    htmlBuilder.Append("<i>M&aacute;s info. en el Perfil de la banda.</i>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("</div>");
                                 }
                             }
                         }
 
-                        if (Counter <= 0)
-                            html += "<center><b style='color:red'>No tienes ninguna invitación de banda pendiente.</b></center>";
+                        if (counter <= 0)
+                            htmlBuilder.Append("<center><b style='color:red'>No tienes ninguna invitación de banda pendiente.</b></center>");
 
-                        html += "</div>";
-                        html += "</div>";
+                        htmlBuilder.Append("</div>");
+                        htmlBuilder.Append("</div>");
                         #endregion
 
-                        Socket.Send("compose_gang|invitations_re|" + html);
+                        Socket.SendWS( $"compose_gang|invitations_re|{htmlBuilder.ToString()}");
                     }
                     break;
                 #endregion
@@ -1308,79 +1093,79 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Invitations Sendeds
                 case "invitations_se":
                     {
-                        List<Group> Groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(Client.GetHabbo().Id);
-                        if (Groups == null || Groups.Count <= 0)
+                        var habbo = Client?.GetHabbo();
+                        if (habbo == null)
+                            return;
+
+                        List<Group> groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(habbo.Id);
+                        if (groups == null || groups.Count <= 0)
                         {
-                            Socket.Send("compose_gang|invitations_se|<center><b style='color:red'>No perteneces a ninguna banda para poder enviar invitaciones.</b></center>");
+                            Socket.SendWS( "compose_gang|invitations_se|<center><b style='color:red'>No perteneces a ninguna banda para poder enviar invitaciones.</b></center>");
                             return;
                         }
 
-                        bool CanInvite;
-                        #region Check if is not Admin
-                        if (!Groups[0].IsAdmin(Client.GetHabbo().Id) && !Groups[0].IsMember(Client.GetHabbo().Id) && !Client.GetHabbo().GetPermissions().HasRight("group_management_override")/* && !PolarEnvironment.GetGame().GetGroupManager().HasJobCommand(Client, "invite", true)*/)
-                            CanInvite = false;
-                        else
-                            CanInvite = true;
-                        #endregion
+                        bool canInvite = groups[0].IsAdmin(habbo.Id) ||
+                                       groups[0].IsMember(habbo.Id) ||
+                                       (habbo.GetPermissions()?.HasRight("group_management_override") == true);
 
-                        string html = "";
-                        var AllRequest = Groups[0].GetRequests;
+                        var htmlBuilder = new StringBuilder();
+                        var allRequest = groups[0].GetRequests.ToList();
 
                         #region HTML
-                        html += "<div>";
-                        //<!-- General box -->
-                        html += "<div class=\"m-2\">";
+                        htmlBuilder.Append("<div>");
+                        htmlBuilder.Append("<div class=\"m-2\">");
 
-                        //<!-- Header -->
-                        if (CanInvite)
+                        if (canInvite)
                         {
-                            html += "<div class=\"heading relative group\">";
-                            html += "<div>Invitar miembros a tu banda</div>";
-                            html += "</div>";
-                            html += "<div class=\"flex\">";
-                            html += "<input id=\"Input_G_I_S_User\" type=\"text\" data-lpignore=\"true\" class=\"dark-input-text flex-1 mr-1\" value=\"\" maxlength=\"50\" autocomplete=\"off\" placeholder=\"Escribe aquí el nombre de la persona que deseas invitar\">";
-                            html += "<button id=\"GA_Send_Inv\" class=\"dark-button\">Invitar</button>";
-                            html += "</div>";
-                            html += "<br>";
+                            htmlBuilder.Append("<div class=\"heading relative group\">");
+                            htmlBuilder.Append("<div>Invitar miembros a tu banda</div>");
+                            htmlBuilder.Append("</div>");
+                            htmlBuilder.Append("<div class=\"flex\">");
+                            htmlBuilder.Append("<input id=\"Input_G_I_S_User\" type=\"text\" data-lpignore=\"true\" class=\"dark-input-text flex-1 mr-1\" value=\"\" maxlength=\"50\" autocomplete=\"off\" placeholder=\"Escribe aquí el nombre de la persona que deseas invitar\">");
+                            htmlBuilder.Append("<button id=\"GA_Send_Inv\" class=\"dark-button\">Invitar</button>");
+                            htmlBuilder.Append("</div>");
+                            htmlBuilder.Append("<br>");
                         }
-                        
 
-                        html += "<div class=\"heading relative group\">";
-                        html += "<div>Invitaciones pendientes</div>";
-                        html += "</div>";
-                        html += "<table id=\"financelist\">";
+                        htmlBuilder.Append("<div class=\"heading relative group\">");
+                        htmlBuilder.Append("<div>Invitaciones pendientes</div>");
+                        htmlBuilder.Append("</div>");
+                        htmlBuilder.Append("<table id=\"financelist\">");
 
-                        foreach (var Request in AllRequest)
+                        foreach (var requestItem in allRequest)
                         {
-                            string Name = PolarEnvironment.GetGame().GetClientManager().GetNameById(Convert.ToInt32(Request));// <= Busca en diccionario, Si es Off, hace SELECT directo.
-                            string Look = PolarEnvironment.GetGame().GetClientManager().GetLookById(Convert.ToInt32(Request));// <= Busca en diccionario, Si es Off, hace SELECT directo.
+                            string requestString = requestItem.ToString();
+                            if (!int.TryParse(requestString, out int userId))
+                                continue;
 
-                            DataRow Row = null;
-                            using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+                            string name = PolarEnvironment.GetGame().GetClientManager().GetNameById(userId) ?? "Desconocido";
+                            string look = PolarEnvironment.GetGame().GetClientManager().GetLookById(userId) ?? "";
+
+                            using (var dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                             {
                                 dbClient.SetQuery("SELECT * FROM `rp_gangs_requests` WHERE `gang_id` = @id AND `user_id` = @userid LIMIT 1");
-                                dbClient.AddParameter("id", Groups[0].Id);
-                                dbClient.AddParameter("userid", Request);
-                                Row = dbClient.getRow();
+                                dbClient.AddParameter("id", groups[0].Id);
+                                dbClient.AddParameter("userid", userId);
 
-                                if (Row != null)
+                                var row = dbClient.getRow();
+                                if (row != null)
                                 {
-                                    html += "<tr>";
-                                    html += "<td>";
-                                    html += "<img src=\"" + RoleplayManager.AVATARIMG + "" + Look + "&headonly=1\">";
-                                    html += Name + " fue invitad@ a la banda";
-                                    html += "</td>";
-                                    html += "</tr>";
+                                    htmlBuilder.Append("<tr>");
+                                    htmlBuilder.Append("<td>");
+                                    htmlBuilder.Append($"<img src=\"{RoleplayManager.AVATARIMG}{look}&headonly=1\">");
+                                    htmlBuilder.Append($"{name} fue invitad@ a la banda");
+                                    htmlBuilder.Append("</td>");
+                                    htmlBuilder.Append("</tr>");
                                 }
                             }
                         }
 
-                        html += "</table>";
-                        html += "</div>";
-                        html += "</div>";
+                        htmlBuilder.Append("</table>");
+                        htmlBuilder.Append("</div>");
+                        htmlBuilder.Append("</div>");
                         #endregion
 
-                        Socket.Send("compose_gang|invitations_se|" + html);
+                        Socket.SendWS( $"compose_gang|invitations_se|{htmlBuilder.ToString()}");
                     }
                     break;
                 #endregion
@@ -1389,90 +1174,94 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 case "send_invitation":
                     {
                         #region Conditions
-                        List<Group> Groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(Client.GetHabbo().Id);
+                        var habbo = Client?.GetHabbo();
+                        if (habbo == null)
+                            return;
 
-                        if (Groups == null || Groups.Count <= 0)
+                        List<Group> groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(habbo.Id);
+                        if (groups == null || groups.Count <= 0)
                         {
-                            Socket.Send("compose_gang|invitations_se|<center><b style='color:red'>No perteneces a ninguna banda para poder enviar invitaciones.</b></center>");
+                            Socket.SendWS( "compose_gang|invitations_se|<center><b style='color:red'>No perteneces a ninguna banda para poder enviar invitaciones.</b></center>");
                             return;
                         }
 
-
                         #region Check if is not Admin
-                        if (!Groups[0].IsAdmin(Client.GetHabbo().Id) && !Groups[0].IsMember(Client.GetHabbo().Id) && !Client.GetHabbo().GetPermissions().HasRight("group_management_override")/* && !PolarEnvironment.GetGame().GetGroupManager().HasJobCommand(Client, "invite", true)*/)
+                        if (!groups[0].IsAdmin(habbo.Id) && !groups[0].IsMember(habbo.Id) &&
+                            !(habbo.GetPermissions()?.HasRight("group_management_override") == true))
                             return;
                         #endregion
 
-                        string[] ReceivedData = Data.Split(',');
-                        string Username = ReceivedData[1];
+                        string[] receivedData = Data.Split(',');
+                        if (receivedData.Length < 2)
+                            return;
+
+                        string username = receivedData[1];
 
                         // Filtramos por seguridad
-                        Username = System.Text.RegularExpressions.Regex.Replace(Username, "<(.|\\n)*?>", string.Empty);
+                        username = Regex.Replace(username, "<(.|\\n)*?>", string.Empty);
 
-                        if(Groups[0].GroupType == GroupType.OPEN)
+                        if (groups[0].GroupType == GroupType.OPEN)
                         {
-                            Socket.Send("compose_gang|msg_error|¡El acceso a tu banda es abierto! No puedes enviar invitaciones así. Cambia el modo de acceso.");
+                            Socket.SendWS( "compose_gang|msg_error|¡El acceso a tu banda es abierto! No puedes enviar invitaciones así. Cambia el modo de acceso.");
                             return;
                         }
 
-                        if (String.IsNullOrEmpty(Username))
+                        if (string.IsNullOrEmpty(username))
                         {
-                            Socket.Send("compose_gang|msg_error|Debes ingresar un nombe de usuario.");
+                            Socket.SendWS( "compose_gang|msg_error|Debes ingresar un nombre de usuario.");
                             return;
                         }
 
-                        if(Username.ToLower() == Client.GetHabbo().Username.ToLower())
+                        if (username.ToLower() == habbo.Username.ToLower())
                         {
-                            Socket.Send("compose_gang|msg_error|¡No puedes enviarte invitaciones a ti mism@!");
+                            Socket.SendWS( "compose_gang|msg_error|¡No puedes enviarte invitaciones a ti mism@!");
                             return;
                         }
 
-                        Habbo Habbo = PolarEnvironment.GetHabboByUsername(Username);
-
-                        if(Habbo == null)
+                        Habbo targetHabbo = PolarEnvironment.GetHabboByUsername(username);
+                        if (targetHabbo == null)
                         {
-                            Socket.Send("compose_gang|msg_error|No se encontró ningún usuario con ese nombre.");
+                            Socket.SendWS( "compose_gang|msg_error|No se encontró ningún usuario con ese nombre.");
                             return;
                         }
 
-                        if (Groups[0].HasRequest(Habbo.Id))
+                        if (groups[0].HasRequest(targetHabbo.Id))
                         {
-                            Socket.Send("compose_gang|msg_error|Ya se ha enviado una invitación a " + Habbo.Username + ".");
+                            Socket.SendWS( $"compose_gang|msg_error|Ya se ha enviado una invitación a {targetHabbo.Username}.");
                             return;
                         }
-                        if (Habbo.GetClient() != null && Habbo.GetClient().GetRoleplay().Level < 2)
+
+                        if (targetHabbo.GetClient() != null && targetHabbo.GetClient().GetRoleplay().Level < 2)
                         {
-                            Socket.Send("compose_gang|msg_error|¡Esa persona es Nivel 1! Necesita al menos Nivel 2 para pertenecer a una banda.");
+                            Socket.SendWS( "compose_gang|msg_error|¡Esa persona es Nivel 1! Necesita al menos Nivel 2 para pertenecer a una banda.");
                             return;
                         }
-                        if (Habbo.GetClient() != null && GroupManager.HasJobCommand(Habbo.GetClient(), "law"))
+
+                        if (targetHabbo.GetClient() != null && GroupManager.HasJobCommand(targetHabbo.GetClient(), "law"))
                         {
-                            Socket.Send("compose_gang|msg_error|¡Esa persona es policía! No puedes invitarla a tu banda.");
+                            Socket.SendWS( "compose_gang|msg_error|¡Esa persona es policía! No puedes invitarla a tu banda.");
                             return;
                         }
                         #endregion
 
                         #region Execute
-                        Client.GetRoleplay().BuyingCorp = false;
-                        Groups[0].AddNewMember(Habbo.Id, 1, true);// Metemos directo a db por seguridad y evitar bugs
+                        groups[0].AddNewMember(targetHabbo.Id, 1, true);
 
-                        List<GameClient> GroupAdmins = (from Clients in PolarEnvironment.GetGame().GetClientManager().GetClients.ToList() where Clients != null && Clients.GetHabbo() != null && Groups[0].IsAdmin(Clients.GetHabbo().Id) select Clients).ToList();
-                        foreach (GameClient Clients in GroupAdmins)
+                        if (targetHabbo.GetClient() != null)
                         {
-                            Client.SendMessage(new GroupMembershipRequestedComposer(Groups[0].Id, Habbo, 3));
+                            targetHabbo.GetClient().SendMessage(new GroupInfoComposer(groups[0], targetHabbo.GetClient()));
+                            PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(targetHabbo.GetClient(), "event_group", "open");
                         }
-                        //Client.SendMessage(new GroupInfoComposer(Groups[0], Client));
-                        if (Habbo.GetClient() != null)
-                        {
-                            Habbo.GetClient().SendMessage(new GroupInfoComposer(Groups[0], Habbo.GetClient()));
-                            PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Habbo.GetClient(), "event_group", "open");
-                        }
-                        Client.GetRoleplay().GangRequest = 0;
 
-                        Socket.Send("compose_gang|msg_success|Inivitación enviada a " + Habbo.Username + " correctamente.");
-                        Client.Shout("*Invita a " + Habbo.Username + " unirse a la pandilla: '" + Groups[0].Name + "'*", 4);
-                        Habbo.GetClient().SendWhisper("Para unirte a la pandilla: '" + Groups[0].Name + "' escribe ':aceptar pandilla' para unirte debes aportar 2.000$ para gastos", 34);
-                        Habbo.GetClient().GetRoleplay().OfferManager.CreateOffer("pandilla", Habbo.Id, Groups[0].Id);
+                        Socket.SendWS( $"compose_gang|msg_success|Invitación enviada a {targetHabbo.Username} correctamente.");
+                        Client.Shout($"*Invita a {targetHabbo.Username} unirse a la pandilla: '{groups[0].Name}'*", 4);
+
+                        if (targetHabbo.GetClient() != null)
+                        {
+                            targetHabbo.GetClient().SendWhisper($"Para unirte a la pandilla: '{groups[0].Name}' escribe ':aceptar pandilla' para unirte debes aportar 2.000$ para gastos", 34);
+                            targetHabbo.GetClient().GetRoleplay().OfferManager.CreateOffer("pandilla", targetHabbo.Id, groups[0].Id);
+                        }
+
                         PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "invitations_se");
                         #endregion
                     }
@@ -1485,86 +1274,86 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         if (Client.GetRoleplay().TryGetCooldown("inv_re_tools", true))
                             return;
 
-                        string[] ReceivedData = Data.Split(',');
-                        int GetGang;
-                        string WSAction = ReceivedData[2];
-
-                        if (!int.TryParse(ReceivedData[1], out GetGang))
+                        var habbo = Client?.GetHabbo();
+                        if (habbo == null)
                             return;
 
-                        Group Gang = GroupManager.GetGang(GetGang);
+                        string[] receivedData = Data.Split(',');
+                        if (receivedData.Length < 3)
+                            return;
 
-                        switch (WSAction)
+                        if (!int.TryParse(receivedData[1], out int getGang))
+                            return;
+
+                        string wsAction = receivedData[2];
+                        Group gang = GroupManager.GetGang(getGang);
+                        if (gang == null)
+                            return;
+
+                        switch (wsAction)
                         {
                             case "accept":
                                 {
                                     if (Client.GetRoleplay().Level < 2)
                                     {
-                                        Socket.Send("compose_gang|msg_error|¡Necesitas al menos Nivel 2 para pertenecer a una banda.");
+                                        Socket.SendWS( "compose_gang|msg_error|¡Necesitas al menos Nivel 2 para pertenecer a una banda.");
                                         return;
                                     }
 
                                     if (GroupManager.HasJobCommand(Client, "law"))
                                     {
-                                        Socket.Send("compose_gang|msg_error|¡No puedes pertenecer a una banda y ser policía a la vez!");
+                                        Socket.SendWS( "compose_gang|msg_error|¡No puedes pertenecer a una banda y ser policía a la vez!");
                                         return;
                                     }
 
-                                    List<Group> Groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(Client.GetHabbo().Id);
-                                    if (Groups != null && Groups.Count > 0)
+                                    List<Group> userGangs = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(habbo.Id);
+                                    if (userGangs != null && userGangs.Count > 0)
                                     {
-                                        Socket.Send("compose_gang|msg_error|¡Ya perteneces a una banda! No puedes ser miembro de más de una a la vez.");
+                                        Socket.SendWS( "compose_gang|msg_error|¡Ya perteneces a una banda! No puedes ser miembro de más de una a la vez.");
                                         return;
                                     }
-                                    List<GroupMember> Administrators = Gang.Members.Values.Where(x => x.IsAdmin).OrderBy(x => x.UserId).ToList();
 
-                                    string VIPLider = PolarEnvironment.GetUserInfoBy("rank_vip", "id", Convert.ToString(Administrators[0].UserId));
-                                    int LimitMembers = RoleplayManager.GangsMaxMembers;
-                                    if (VIPLider == "1")
-                                        LimitMembers += 5;
-                                    else if (VIPLider == "2")
-                                        LimitMembers += 10;
+                                    List<GroupMember> administrators = gang.Members.Values
+                                        .Where(x => x.IsAdmin)
+                                        .OrderBy(x => x.UserId)
+                                        .ToList();
 
-                                    if (Gang.GetAllMembersDict.Count() >= LimitMembers)
+                                    string vipLider = PolarEnvironment.GetUserInfoBy("rank_vip", "id",
+                                        administrators.Count > 0 ? administrators[0].UserId.ToString() : "0");
+                                    int limitMembers = RoleplayManager.GangsMaxMembers;
+                                    if (vipLider == "1")
+                                        limitMembers += 5;
+                                    else if (vipLider == "2")
+                                        limitMembers += 10;
+
+                                    if (gang.GetAllMembersDict.Count >= limitMembers)
                                     {
                                         Client.SendWhisper("¡La banda está llena! Ya no hay espacio para un/a nuev@ integrante", 1);
                                         return;
                                     }
 
-                                    #region DirectJoin
-
-                                    //Si es Empresa (PRIVATE)
-                                    // Se metió a la lista de Requisitos, Aquí forzamos el Ingreso.
-                                    #region SendPackets AcceptGroupMembershipEvent
-                                    if (Gang.GroupType == GroupType.LOCKED)
+                                    if (gang.GroupType == GroupType.LOCKED)
                                     {
-                                        int UserId = Client.GetHabbo().Id;
-                                        if (!Gang.HasRequest(UserId))
+                                        if (!gang.HasRequest(habbo.Id))
                                             return;
 
-                                        Habbo Habbo = PolarEnvironment.GetHabboById(UserId);
-                                        if (Habbo == null)
+                                        Habbo userHabbo = PolarEnvironment.GetHabboById(habbo.Id);
+                                        if (userHabbo == null)
                                         {
                                             Client.SendNotification("Oops, ha ocurrido un problema al buscar tu información.");
                                             return;
                                         }
 
-                                        Gang.HandleRequest(UserId, true);
-
-                                        Client.SendMessage(new GroupMemberUpdatedComposer(Gang.Id, Habbo, 4));
+                                        gang.HandleRequest(habbo.Id, true);
+                                        Client.SendMessage(new GroupMemberUpdatedComposer(gang.Id, userHabbo, 4));
                                     }
-                                    #endregion
 
-
-                                    // Actualizamos Información del Rank del User
-                                    Client.GetRoleplay().GangId = Gang.Id;
+                                    Client.GetRoleplay().GangId = gang.Id;
                                     Client.GetRoleplay().GangRank = 1;
-                                    Gang.UpdateGangMember(Client.GetHabbo().Id);
+                                    gang.UpdateGangMember(habbo.Id);
 
-                                    #endregion
-
-                                    RoleplayManager.Shout(Client, "*Ha aceptado la invitación de ingreso a la banda "+Gang.Name+"*", 5);
-                                    Socket.Send("compose_gang|msg_success|Has aceptado ingresar a la banda " + Gang.Name);
+                                    RoleplayManager.Shout(Client, $"*Ha aceptado la invitación de ingreso a la banda {gang.Name}*", 5);
+                                    Socket.SendWS( $"compose_gang|msg_success|Has aceptado ingresar a la banda {gang.Name}");
 
                                     PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_group", "open");
                                     PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "mynew");
@@ -1574,16 +1363,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 
                             case "decline":
                                 {
-                                    Gang.HandleRequest(Client.GetHabbo().Id, false);
-                                    RoleplayManager.Shout(Client, "*Ha rechazado la invitación de ingreso a la banda " + Gang.Name + "*", 5);
-                                    Socket.Send("compose_gang|msg_success|Has rechazado ingresar a la banda " + Gang.Name);
+                                    gang.HandleRequest(habbo.Id, false);
+                                    RoleplayManager.Shout(Client, $"*Ha rechazado la invitación de ingreso a la banda {gang.Name}*", 5);
+                                    Socket.SendWS( $"compose_gang|msg_success|Has rechazado ingresar a la banda {gang.Name}");
 
                                     PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_group", "open");
                                     PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "invitations_re");
                                 }
-                                break;
-
-                            default:
                                 break;
                         }
 
@@ -1595,117 +1381,125 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Requests
                 case "requests":
                     {
-                        List<Group> Groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(Client.GetHabbo().Id);
+                        var habbo = Client?.GetHabbo();
+                        if (habbo == null)
+                            return;
 
-                        if (Groups == null || Groups.Count <= 0)
+                        List<Group> groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(habbo.Id);
+                        if (groups == null || groups.Count <= 0)
                             return;
 
                         #region Check if is not Admin
-                        if (!Groups[0].IsAdmin(Client.GetHabbo().Id) && !Groups[0].IsMember(Client.GetHabbo().Id) && !Client.GetHabbo().GetPermissions().HasRight("group_management_override")/* && !PolarEnvironment.GetGame().GetGroupManager().HasJobCommand(Client, "hire", true)*/)
+                        if (!groups[0].IsAdmin(habbo.Id) && !groups[0].IsMember(habbo.Id) &&
+                            !(habbo.GetPermissions()?.HasRight("group_management_override") == true))
                             return;
                         #endregion
 
-                        string html = "";
-                        var AllRequest = Groups[0].GetRequests;
+                        var htmlBuilder = new StringBuilder();
+                        var allRequest = groups[0].GetRequests.ToList();
 
-                        #region HMTL
-                        html += "<div>";
-                        html += "<div class=\"-m-2\">";
-                        //<!-- General box -->
-                        html += "<div class=\"m-2\">";
+                        #region HTML
+                        htmlBuilder.Append("<div>");
+                        htmlBuilder.Append("<div class=\"-m-2\">");
+                        htmlBuilder.Append("<div class=\"m-2\">");
+                        htmlBuilder.Append("<div class=\"heading relative group\">");
+                        htmlBuilder.Append("<div>Solicitudes</div>");
+                        htmlBuilder.Append("</div>");
 
-                        //<!-- Header -->
-                        html += "<div class=\"heading relative group\">";
-                        html += "<div>Solicitudes</div>";
-                        html += "</div>";
-
-                        int Counter = 0;
-                        foreach (var Request in AllRequest)
+                        int counter = 0;
+                        foreach (var requestItem in allRequest)
                         {
-                            string Name = PolarEnvironment.GetGame().GetClientManager().GetNameById(Convert.ToInt32(Request));// <= Busca en diccionario, Si es Off, hace SELECT directo.
-                            string Look = PolarEnvironment.GetGame().GetClientManager().GetLookById(Convert.ToInt32(Request));// <= Busca en diccionario, Si es Off, hace SELECT directo.
+                            string requestString = requestItem.ToString();
+                            if (!int.TryParse(requestString, out int userId))
+                                continue;
 
-                            DataRow Row = null;
-                            using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+                            string name = PolarEnvironment.GetGame().GetClientManager().GetNameById(userId) ?? "Desconocido";
+                            string look = PolarEnvironment.GetGame().GetClientManager().GetLookById(userId) ?? "";
+
+                            using (var dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                             {
-                                //dbClient.SetQuery("SELECT * FROM rp_gangs_requests GR, rp_stats PS WHERE GR.gang_id = @id AND GR.user_id = @userid AND PS.id = GR.user_id LIMIT 1");
                                 dbClient.SetQuery("SELECT * FROM rp_stats WHERE gang_request = @id AND id = @userid LIMIT 1");
-                                dbClient.AddParameter("id", Groups[0].Id);
-                                dbClient.AddParameter("userid", Request);
-                                Row = dbClient.getRow();
+                                dbClient.AddParameter("id", groups[0].Id);
+                                dbClient.AddParameter("userid", userId);
 
-                                if (Row != null)
+                                var row = dbClient.getRow();
+                                if (row != null)
                                 {
-                                    Counter++;
+                                    counter++;
 
-                                    //< !-- User box -->
-                                    html += "<div class=\"flex flex-wrap -m-1 justify-center\">";
-                                    //<!-- User info -->
-                                    html += "<div class=\"bg-dark-4 rounded m-1 group cursor-pointer-r\" style=\"width: 23%;\">";
-                                    html += "<div class=\"m-px relative\">";
-                                    html += "<div class=\"overflow-hidden bg-light-05 rounded-t\">";
-                                    html += "<center><div class=\"figure-H_RWF_0\" style=\"background-image: url(&quot;" + RoleplayManager.AVATARIMG + "" + Look + "&quot;); width: 64px; height: 110px; margin-top: -20px;\"></div></center>";
-                                    html += "</div>";
-                                    html += "<div class=\"absolute pin-b bg-dark-5 w-full group-hover:block\" style=\"padding-top: 4px;padding-bottom: 4px;\">";
-                                    html += "<div class=\"flex justify-around\">";
-                                    html += "<div data-user=\"" + Request + "\" data-action=\"accept\" class=\"cursor-pointer-r px-1\">";
-                                    html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/up-arrow.png\">";
-                                    html += "</div>";
-                                    html += "<div data-user=\"" + Request + "\" data-action=\"decline\" class=\"cursor-pointer-r px-1\">";
-                                    html += "<img src=\"" + RoleplayManager.CdnURL + "/ws_resources/images/cross.png\">";
-                                    html += "</div>";
-                                    html += "</div>";
-                                    html += "</div>";
-                                    html += "</div>";
-                                    html += "<div class=\"text-center py-1\">" + Name + "</div>";
-                                    html += "</div>";
+                                    htmlBuilder.Append("<div class=\"flex flex-wrap -m-1 justify-center\">");
+                                    htmlBuilder.Append("<div class=\"bg-dark-4 rounded m-1 group cursor-pointer-r\" style=\"width: 23%;\">");
+                                    htmlBuilder.Append("<div class=\"m-px relative\">");
+                                    htmlBuilder.Append("<div class=\"overflow-hidden bg-light-05 rounded-t\">");
+                                    htmlBuilder.Append($"<center><div class=\"figure-H_RWF_0\" style=\"background-image: url(&quot;{RoleplayManager.AVATARIMG}{look}&quot;); width: 64px; height: 110px; margin-top: -20px;\"></div></center>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("<div class=\"absolute pin-b bg-dark-5 w-full group-hover:block\" style=\"padding-top: 4px;padding-bottom: 4px;\">");
+                                    htmlBuilder.Append("<div class=\"flex justify-around\">");
+                                    htmlBuilder.Append($"<div data-user=\"{userId}\" data-action=\"accept\" class=\"cursor-pointer-r px-1\">");
+                                    htmlBuilder.Append($"<img src=\"{RoleplayManager.CdnURL}/ws_resources/images/up-arrow.png\">");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append($"<div data-user=\"{userId}\" data-action=\"decline\" class=\"cursor-pointer-r px-1\">");
+                                    htmlBuilder.Append($"<img src=\"{RoleplayManager.CdnURL}/ws_resources/images/cross.png\">");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append($"<div class=\"text-center py-1\">{name}</div>");
+                                    htmlBuilder.Append("</div>");
 
-                                    html += "<div class=\"bg-dark-4 rounded m-1 group\" style=\"width: 69%;padding: 5px;\">";
-                                    html += "<p>Estad&iacute;sticas principales de "+Name+":</p>";
-                                    html += "<br>";
-                                    html += "<div style=\"max-height: 108px;overflow: auto;display: inline-flex;\">";
-                                    html += "<div class=\"gang_inf_box\">";
-                                    html += "<div><b>Nivel</b></div>";
-                                    html += "<div>" + String.Format("{0:N0}", Row["level"]) + "</div>";
-                                    html += "</div>";
-                                    html += "<div class=\"gang_inf_box\">";
-                                    html += "<div><b>Reputación</b></div>";
-                                    html += "<div>" + String.Format("{0:N0}", Row["stamina"]) + " / " + String.Format("{0:N0}", Row["stamina_exp"]) + "</div>";
-                                    html += "</div>";
-                                    html += "<div class=\"gang_inf_box\">";
-                                    html += "<div><b>Fuerza</b></div>";
-                                    html += "<div>" + String.Format("{0:N0}", Row["strength"]) + "</div>";
-                                    html += "</div>";
-                                    html += "<div class=\"gang_inf_box\">";
-                                    html += "<div><b>Arrestos realizados</b></div>";
-                                    html += "<div>" + String.Format("{0:N0}", Row["arrests"]) + "</div>";
-                                    html += "</div>";
-                                    html += "<div class=\"gang_inf_box\">";
-                                    html += "<div><b>Veces arrestado</b></div>";
-                                    html += "<div>" + String.Format("{0:N0}", Row["arrested"]) + "</div>";
-                                    html += "</div>";
-                                    html += "</div>";
-                                    html += "<br><br>";
-                                    html += "<i>M&aacute;s info. en el Perfil del usuario.</i>";
-                                    html += "</div>";
-                                    html += "</div>";
-                                    //<!-- End User box -->
+                                    htmlBuilder.Append("<div class=\"bg-dark-4 rounded m-1 group\" style=\"width: 69%;padding: 5px;\">");
+                                    htmlBuilder.Append("<p>Estad&iacute;sticas principales de " + name + ":</p>");
+                                    htmlBuilder.Append("<br>");
+                                    htmlBuilder.Append("<div style=\"max-height: 108px;overflow: auto;display: inline-flex;\">");
+
+                                    // Nivel
+                                    htmlBuilder.Append("<div class=\"gang_inf_box\">");
+                                    htmlBuilder.Append("<div><b>Nivel</b></div>");
+                                    htmlBuilder.Append($"<div>{string.Format("{0:N0}", row["level"])}</div>");
+                                    htmlBuilder.Append("</div>");
+
+                                    // Reputación
+                                    htmlBuilder.Append("<div class=\"gang_inf_box\">");
+                                    htmlBuilder.Append("<div><b>Reputación</b></div>");
+                                    htmlBuilder.Append($"<div>{string.Format("{0:N0}", row["stamina"])} / {string.Format("{0:N0}", row["stamina_exp"])}</div>");
+                                    htmlBuilder.Append("</div>");
+
+                                    // Fuerza
+                                    htmlBuilder.Append("<div class=\"gang_inf_box\">");
+                                    htmlBuilder.Append("<div><b>Fuerza</b></div>");
+                                    htmlBuilder.Append($"<div>{string.Format("{0:N0}", row["strength"])}</div>");
+                                    htmlBuilder.Append("</div>");
+
+                                    // Arrestos realizados
+                                    htmlBuilder.Append("<div class=\"gang_inf_box\">");
+                                    htmlBuilder.Append("<div><b>Arrestos realizados</b></div>");
+                                    htmlBuilder.Append($"<div>{string.Format("{0:N0}", row["arrests"])}</div>");
+                                    htmlBuilder.Append("</div>");
+
+                                    // Veces arrestado
+                                    htmlBuilder.Append("<div class=\"gang_inf_box\">");
+                                    htmlBuilder.Append("<div><b>Veces arrestado</b></div>");
+                                    htmlBuilder.Append($"<div>{string.Format("{0:N0}", row["arrested"])}</div>");
+                                    htmlBuilder.Append("</div>");
+
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("<br><br>");
+                                    htmlBuilder.Append("<i>M&aacute;s info. en el Perfil del usuario.</i>");
+                                    htmlBuilder.Append("</div>");
+                                    htmlBuilder.Append("</div>");
                                 }
                             }
                         }
 
-                        if (Counter <= 0)
-                            html += "<center><b style='color:red'>No hay solicitudes nuevas.</b></center>";
+                        if (counter <= 0)
+                            htmlBuilder.Append("<center><b style='color:red'>No hay solicitudes nuevas.</b></center>");
 
-                        html += "</div>";
-
-                        html += "</div>";
-                        html += "</div>";
+                        htmlBuilder.Append("</div>");
+                        htmlBuilder.Append("</div>");
+                        htmlBuilder.Append("</div>");
                         #endregion
 
-                        string SendData = "";
-                        SendData += html;
-                        Socket.Send("compose_gang|requests|" + SendData);
+                        Socket.SendWS( $"compose_gang|requests|{htmlBuilder.ToString()}");
                     }
                     break;
                 #endregion
@@ -1713,86 +1507,85 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Edit Tab
                 case "edit":
                     {
-                        List<Group> Groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(Client.GetHabbo().Id);
+                        var habbo = Client?.GetHabbo();
+                        if (habbo == null)
+                            return;
 
-                        if (Groups == null || Groups.Count <= 0)
+                        List<Group> groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(habbo.Id);
+                        if (groups == null || groups.Count <= 0)
                             return;
 
                         #region Check if is not Admin
-                        if (!Groups[0].IsAdmin(Client.GetHabbo().Id) && !Client.GetHabbo().GetPermissions().HasRight("corporation_rights"))
+                        if (!groups[0].IsAdmin(habbo.Id) && !(habbo.GetPermissions()?.HasRight("corporation_rights") == true))
                             return;
                         #endregion
 
-                        string html = "";
+                        var htmlBuilder = new StringBuilder();
 
                         #region HTML
-                        html += "<div class=\"mb-2\">";
-                        html += "<div class=\"heading\">Retirar dinero de la Banda</div>";
-                        html += "<div class=\"flex\">";
-                        html += "<input id=\"GA_Withdraw\" type=\"number\" data-lpignore=\"true\" class=\"dark-input-text flex-1 mr-1\" value=\"\" autocomplete=\"off\" placeholder=\"Cantidad de dinero a retirar\">";
-                        html += "<button id =\"GA_Withdraw_Btn\" data-action=\"Withdraw\" class=\"dark-button\">Retirar</button>";
-                        html += "</div>";
-                        if (Groups[0].CreatorId == Client.GetHabbo().Id || Client.GetHabbo().GetPermissions().HasRight("roleplay_corp_manager"))//Maybe a FUSE check for staff override?
+                        htmlBuilder.Append("<div class=\"mb-2\">");
+                        htmlBuilder.Append("<div class=\"heading\">Retirar dinero de la Banda</div>");
+                        htmlBuilder.Append("<div class=\"flex\">");
+                        htmlBuilder.Append("<input id=\"GA_Withdraw\" type=\"number\" data-lpignore=\"true\" class=\"dark-input-text flex-1 mr-1\" value=\"\" autocomplete=\"off\" placeholder=\"Cantidad de dinero a retirar\">");
+                        htmlBuilder.Append("<button id =\"GA_Withdraw_Btn\" data-action=\"Withdraw\" class=\"dark-button\">Retirar</button>");
+                        htmlBuilder.Append("</div>");
+
+                        if (groups[0].CreatorId == habbo.Id || (habbo.GetPermissions()?.HasRight("roleplay_corp_manager") == true))
                         {
+                            htmlBuilder.Append("<br>");
+                            htmlBuilder.Append("<div class=\"heading\">Transferir banda</div>");
+                            htmlBuilder.Append("<i>Al transferir el mando a otro miembro de la banda, perderás todas las herramientas de administrador en ella.</i><br>");
+                            htmlBuilder.Append("<div class=\"flex\">");
+                            htmlBuilder.Append("<select id=\"GA_Edit_Trans_U\" class=\"dark-button\" style=\"width: 100%;margin-right:5px\">");
+                            htmlBuilder.Append("<option value=\"0\" style=\"color:black\">Seleccionar miembro:</option>");
 
-                            html += "<br>";
-                        html += "<div class=\"heading\">Transferir banda</div>";
-                        html += "<i>Al transferir el mando a otro miembro de la banda, perderás todas las herramientas de administrador en ella.</i><br>";
-                        html += "<div class=\"flex\">";
-                        html += "<select id=\"GA_Edit_Trans_U\" class=\"dark-button\" style=\"width: 100%;margin-right:5px\">";
-                        html += "<option value=\"0\" style=\"color:black\">Seleccionar miembro:</option>";
-                        
-                        foreach (var Members in Groups[0].GetAllMembersDict)
-                        {
-                            if (Members.Value.UserId == Client.GetHabbo().Id)
-                                continue;
+                            foreach (var member in groups[0].GetAllMembersDict)
+                            {
+                                if (member.Value.UserId == habbo.Id)
+                                    continue;
 
-                            string Name = PolarEnvironment.GetGame().GetClientManager().GetNameById(Convert.ToInt32(Members.Value.UserId));// <= Busca en diccionario, Si es Off, hace SELECT directo.
+                                string name = PolarEnvironment.GetGame().GetClientManager().GetNameById(Convert.ToInt32(member.Value.UserId)) ?? "Desconocido";
+                                htmlBuilder.Append($"<option value=\"{name}\" style=\"color:black\">{name}</option>");
+                            }
 
-                            html += "<option value=\""+ Name + "\" style=\"color:black\">"+Name+"</option>";
+                            htmlBuilder.Append("</select>");
+                            htmlBuilder.Append("<button id =\"GA_Edit_Trans\" class=\"dark-button\" data-action=\"Transfer\">Transferir</button>");
+                            htmlBuilder.Append("</div>");
+
+                            htmlBuilder.Append("<br>");
+                            htmlBuilder.Append("<div class=\"heading\">Nombre de la Banda</div>");
+                            htmlBuilder.Append("<div class=\"flex\">");
+                            htmlBuilder.Append($"<input id=\"GA_Edit_Name\" type=\"text\" data-lpignore=\"true\" class=\"dark-input-text flex-1 mr-1\" value=\"{groups[0].Name}\" maxlength=\"50\" autocomplete=\"off\" placeholder=\"Escribe aqu&iacute; un nombre para tu banda\">");
+                            htmlBuilder.Append("<button id =\"GA_Edit_Name_Btn\" data-action=\"EditName\" class=\"dark-button\">Cambiar nombre</button>");
+                            htmlBuilder.Append("</div>");
                         }
 
-                        html += "</select>";
-                        html += "<button id =\"GA_Edit_Trans\" class=\"dark-button\" data-action=\"Transfer\">Transferir</button>";
-                        html += "</div>";
-                        
+                        string selected1 = (groups[0].GroupType == GroupType.LOCKED) ? "selected" : "";
+                        string selected2 = (groups[0].GroupType == GroupType.OPEN) ? "selected" : "";
 
-                            html += "<br>";
-                            html += "<div class=\"heading\">Nombre de la Banda</div>";
-                            html += "<div class=\"flex\">";
-                            html += "<input id=\"GA_Edit_Name\" type=\"text\" data-lpignore=\"true\" class=\"dark-input-text flex-1 mr-1\" value=\"" + Groups[0].Name + "\" maxlength=\"50\" autocomplete=\"off\" placeholder=\"Escribe aqu&iacute; un nombre para tu banda\">";
-                            html += "<button id =\"GA_Edit_Name_Btn\" data-action=\"EditName\" class=\"dark-button\">Cambiar nombre</button>";
-                            html += "</div>";
-                        }
-
-                        string selected1 = (Groups[0].GroupType == GroupType.LOCKED) ? "selected" : "";
-                        string selected2 = (Groups[0].GroupType == GroupType.OPEN) ? "selected" : "";
-                        html += "<br>";
-                        if (Groups[0].CreatorId == Client.GetHabbo().Id || Client.GetHabbo().GetPermissions().HasRight("roleplay_corp_manager"))//Maybe a FUSE check for staff override?
+                        htmlBuilder.Append("<br>");
+                        if (groups[0].CreatorId == habbo.Id || (habbo.GetPermissions()?.HasRight("roleplay_corp_manager") == true))
                         {
-                            html += "<div class=\"heading\">Tipo de acceso</div>";
-                        html += "<div class=\"flex\">";
-                        html += "<select id=\"GA_Edit_Type\" class=\"dark-button\" style=\"width: 100%\">";
-                        html += "<option value=\"1\" style=\"color:black\" " + selected1 + ">Por invitaci&oacute;n</option>";
-                        html += "<option value=\"0\" style=\"color:black\" " + selected2 + ">Abierto (Cualquiera puede unirse)</option>";
-                        html += "</select>";
-                        html += "</div>";
+                            htmlBuilder.Append("<div class=\"heading\">Tipo de acceso</div>");
+                            htmlBuilder.Append("<div class=\"flex\">");
+                            htmlBuilder.Append("<select id=\"GA_Edit_Type\" class=\"dark-button\" style=\"width: 100%\">");
+                            htmlBuilder.Append($"<option value=\"1\" style=\"color:black\" {selected1}>Por invitaci&oacute;n</option>");
+                            htmlBuilder.Append($"<option value=\"0\" style=\"color:black\" {selected2}>Abierto (Cualquiera puede unirse)</option>");
+                            htmlBuilder.Append("</select>");
+                            htmlBuilder.Append("</div>");
 
-                        html += "<br>";
-                        
-
-                            html += "<div class=\"heading\">Eliminar banda</div>";
-                            html += "<i>Al eliminar tu banda todos los datos serán borrados y los miembros expulsados. (No es reversible.)</i><br>";
-                            html += "<div class=\"flex\">";
-                            html += "<button id =\"GA_Delete_Btn\" class=\"dark-button\" data-action=\"Delete\" style=\"width: 100%\">Eliminar</button>";
-                            html += "</div>";
+                            htmlBuilder.Append("<br>");
+                            htmlBuilder.Append("<div class=\"heading\">Eliminar banda</div>");
+                            htmlBuilder.Append("<i>Al eliminar tu banda todos los datos serán borrados y los miembros expulsados. (No es reversible.)</i><br>");
+                            htmlBuilder.Append("<div class=\"flex\">");
+                            htmlBuilder.Append("<button id =\"GA_Delete_Btn\" class=\"dark-button\" data-action=\"Delete\" style=\"width: 100%\">Eliminar</button>");
+                            htmlBuilder.Append("</div>");
                         }
-                        html += "</div>";
+
+                        htmlBuilder.Append("</div>");
                         #endregion
 
-                        string SendData = "";
-                        SendData += html;
-                        Socket.Send("compose_gang|edit|" + SendData);
+                        Socket.SendWS( $"compose_gang|edit|{htmlBuilder.ToString()}");
                     }
                     break;
                 #endregion
@@ -1803,300 +1596,244 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         if (Client.GetRoleplay().TryGetCooldown("gang_edit", true))
                             return;
 
-                        List<Group> Groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(Client.GetHabbo().Id);
+                        var habbo = Client?.GetHabbo();
+                        if (habbo == null)
+                            return;
 
-                        if (Groups == null || Groups.Count <= 0)
+                        List<Group> groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(habbo.Id);
+                        if (groups == null || groups.Count <= 0)
                             return;
 
                         #region Check if is not Admin
-                        if (!Groups[0].IsAdmin(Client.GetHabbo().Id) && !Client.GetHabbo().GetPermissions().HasRight("corporation_rights"))
+                        if (!groups[0].IsAdmin(habbo.Id) && !(habbo.GetPermissions()?.HasRight("corporation_rights") == true))
                             return;
                         #endregion
 
-                        string[] ReceivedData = Data.Split(',');
-                        string WSAction = ReceivedData[1];
+                        string[] receivedData = Data.Split(',');
+                        if (receivedData.Length < 2)
+                            return;
 
-                        switch(WSAction)
+                        string wsAction = receivedData[1];
+
+                        switch (wsAction)
                         {
                             case "withdraw":
+                                if (receivedData.Length < 3)
+                                    return;
+
+                                if (!int.TryParse(receivedData[2], out int cant))
                                 {
-                                    int cant = 0;
-                                    if (!int.TryParse(ReceivedData[2], out cant))
-                                    {
-                                        Socket.Send("compose_gang|msg_error|Cantidad de dinero inválida.");
-                                        return;
-                                    }
-
-                                    List<GroupMember> Administrators = Groups[0].Members.Values.Where(x => x.IsAdmin).OrderBy(x => x.UserId).ToList();
-
-                                    if (Administrators.Count <= 0)
-                                    {
-                                        Socket.Send("compose_gang|msg_error|Esta empresa pertenece al Gobierno y no es posible retirar dinero.");
-                                        return;
-                                    }
-
-                                    if (Groups[0].Balance < cant)
-                                    {
-                                        Socket.Send("compose_gang|msg_error|La banda no cuenta con esa cantidad en su Riqueza para retirar.");
-                                        return;
-                                    }
-
-                                    if (cant <= 0)
-                                    {
-                                        Socket.Send("compose_gang|msg_error|Debes retirar una cantidad mayor a $ 0.");
-                                        return;
-                                    }
-
-                                    Client.GetHabbo().Credits += cant;
-                                    Client.GetHabbo().UpdateCreditsBalance();
-
-                                    Groups[0].Balance -= cant;
-                                    Groups[0].SetBussines(Groups[0].Balance);
-
-                                    RoleplayManager.Shout(Client, "*Ha retirado $ " + String.Format("{0:N0}", cant) + " de la riqueza de la banda " + Groups[0].Name + "*", 5);
-
-                                    Socket.Send("compose_gang|msg_success|Retiro realizado exitosamente.");
-                                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "edit");
+                                    Socket.SendWS( "compose_gang|msg_error|Cantidad de dinero inválida.");
+                                    return;
                                 }
+
+                                List<GroupMember> administrators = groups[0].Members.Values
+                                    .Where(x => x.IsAdmin)
+                                    .OrderBy(x => x.UserId)
+                                    .ToList();
+
+                                if (administrators.Count <= 0)
+                                {
+                                    Socket.SendWS( "compose_gang|msg_error|Esta empresa pertenece al Gobierno y no es posible retirar dinero.");
+                                    return;
+                                }
+
+                                if (groups[0].Balance < cant)
+                                {
+                                    Socket.SendWS( "compose_gang|msg_error|La banda no cuenta con esa cantidad en su Riqueza para retirar.");
+                                    return;
+                                }
+
+                                if (cant <= 0)
+                                {
+                                    Socket.SendWS( "compose_gang|msg_error|Debes retirar una cantidad mayor a $0.");
+                                    return;
+                                }
+
+                                habbo.Credits += cant;
+                                habbo.UpdateCreditsBalance();
+
+                                groups[0].Balance -= cant;
+                                groups[0].SetBussines(groups[0].Balance);
+
+                                RoleplayManager.Shout(Client, $"*Ha retirado $ {string.Format("{0:N0}", cant)} de la riqueza de la banda {groups[0].Name}*", 5);
+                                Socket.SendWS( "compose_gang|msg_success|Retiro realizado exitosamente.");
+                                PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "edit");
                                 break;
+
                             case "newname":
-                                {
-                                    if (Groups[0].IsAdmin(Client.GetHabbo().Id) && Groups[0].CreatorId != Client.GetHabbo().Id)
-                                    {
-                                        if (!Client.GetHabbo().GetPermissions().HasRight("roleplay_corp_manager"))
-                                        {
-                                            Client.SendWhisper("Oops, solo el dueño de la mafia puede cambiar el nombre!", 1);
-                                            return;
-                                        }
-                                    }
-                                    string NewName = ReceivedData[2];
-                                    NewName = System.Text.RegularExpressions.Regex.Replace(NewName, "<(.|\\n)*?>", string.Empty);
+                                if (receivedData.Length < 3)
+                                    return;
 
-                                    if (NewName.Length < 3 || String.IsNullOrEmpty(NewName))
+                                if (groups[0].IsAdmin(habbo.Id) && groups[0].CreatorId != habbo.Id)
+                                {
+                                    if (!(habbo.GetPermissions()?.HasRight("roleplay_corp_manager") == true))
                                     {
-                                        Socket.Send("compose_gang|msg_error|El nombre de tu banda debe tener al menos 3 caracteres.");
+                                        Client.SendWhisper("Oops, solo el dueño de la mafia puede cambiar el nombre!", 1);
                                         return;
                                     }
-
-                                    Groups[0].UpdateGroupName(NewName);
-                                    Socket.Send("compose_gang|msg_success|Nombre de la banda actualizado correctamente.");
-
-                                    foreach (Room Room in PolarEnvironment.GetGame().GetRoomManager().GetRooms())
-                                    {
-                                        if (Room == null || Room.Group == null || Room.Group.Id != Groups[0].Id)
-                                            continue;
-
-                                        foreach (RoomUser RoomUser in Room.GetRoomUserManager().GetRoomUsers())
-                                        {
-                                            if (RoomUser == null || RoomUser.GetClient() == null)
-                                                continue;
-
-                                            PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(RoomUser.GetClient(), "event_group", "open");
-                                        }
-                                    }
                                 }
+
+                                string newName = receivedData[2];
+                                newName = Regex.Replace(newName, "<(.|\\n)*?>", string.Empty);
+
+                                if (newName.Length < 3 || string.IsNullOrEmpty(newName))
+                                {
+                                    Socket.SendWS( "compose_gang|msg_error|El nombre de tu banda debe tener al menos 3 caracteres.");
+                                    return;
+                                }
+
+                                groups[0].UpdateGroupName(newName);
+                                Socket.SendWS( "compose_gang|msg_success|Nombre de la banda actualizado correctamente.");
                                 break;
+
                             case "newtype":
-                                {
-                                    if (Groups[0].IsAdmin(Client.GetHabbo().Id) && Groups[0].CreatorId != Client.GetHabbo().Id)
-                                    {
-                                        if (!Client.GetHabbo().GetPermissions().HasRight("roleplay_corp_manager"))
-                                        {
-                                            Client.SendWhisper("Oops, solo el dueño de la mafia puede modificarla!", 1);
-                                            return;
-                                        }
-                                    }
-                                    int NewType = 0;
+                                if (receivedData.Length < 3)
+                                    return;
 
-                                    if (!int.TryParse(ReceivedData[2], out NewType))
+                                if (groups[0].IsAdmin(habbo.Id) && groups[0].CreatorId != habbo.Id)
+                                {
+                                    if (!(habbo.GetPermissions()?.HasRight("roleplay_corp_manager") == true))
                                     {
-                                        Socket.Send("compose_gang|msg_error|Tipo de acceso inválido.");
+                                        Client.SendWhisper("Oops, solo el dueño de la mafia puede modificarla!", 1);
                                         return;
                                     }
-
-                                    Groups[0].UpdateGangAccessType(NewType);
-                                    Socket.Send("compose_gang|msg_success|Tipo de acceso a la banda actualizado correctamente.");
-
-                                    foreach (Room Room in PolarEnvironment.GetGame().GetRoomManager().GetRooms())
-                                    {
-                                        if (Room == null || Room.Group == null || Room.Group.Id != Groups[0].Id)
-                                            continue;
-
-                                        foreach (RoomUser RoomUser in Room.GetRoomUserManager().GetRoomUsers())
-                                        {
-                                            if (RoomUser == null || RoomUser.GetClient() == null)
-                                                continue;
-
-                                            PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(RoomUser.GetClient(), "event_group", "open");
-                                        }
-                                    }
                                 }
+
+                                if (!int.TryParse(receivedData[2], out int newType))
+                                {
+                                    Socket.SendWS( "compose_gang|msg_error|Tipo de acceso inválido.");
+                                    return;
+                                }
+
+                                groups[0].UpdateGangAccessType(newType);
+                                Socket.SendWS( "compose_gang|msg_success|Tipo de acceso a la banda actualizado correctamente.");
                                 break;
+
                             case "transfer":
+                                if (receivedData.Length < 3)
+                                    return;
+
+                                if (groups[0].IsAdmin(habbo.Id) && groups[0].CreatorId != habbo.Id)
                                 {
-                                    if (Groups[0].IsAdmin(Client.GetHabbo().Id) && Groups[0].CreatorId != Client.GetHabbo().Id)
+                                    if (!(habbo.GetPermissions()?.HasRight("roleplay_corp_manager") == true))
                                     {
-                                        if (!Client.GetHabbo().GetPermissions().HasRight("roleplay_corp_manager"))
-                                        {
-                                            Client.SendWhisper("Oops, solo el dueño de la mafia puede transferirla!", 1);
-                                            return;
-                                        }
-                                    }
-                                    string NewAdmin = ReceivedData[2];
-                                    NewAdmin = System.Text.RegularExpressions.Regex.Replace(NewAdmin, "<(.|\\n)*?>", string.Empty);
-
-                                    Habbo Target = PolarEnvironment.GetHabboByUsername(NewAdmin);
-
-                                    if(Target == null)
-                                    {
-                                        Socket.Send("compose_gang|msg_error|No se encontró a ningún usuario con ese nombre.");
+                                        Client.SendWhisper("Oops, solo el dueño de la mafia puede transferirla!", 1);
                                         return;
-                                    }
-
-                                    if (Target == Client.GetHabbo())
-                                    {
-                                        Socket.Send("compose_gang|msg_error|¡Tú ya eres el líder!");
-                                        return;
-                                    }
-
-                                    if(!Groups[0].IsMember(Target.Id))
-                                    {
-                                        Socket.Send("compose_gang|msg_error|¡Esa persona no es miembro de tu banda!");
-                                        return;
-                                    }
-
-                                    var AllMembers = Groups[0].GetAllMembersDict;
-                                    int GetRank = Groups[0].Members[Target.Id].UserRank;
-                                    int newrank = Groups[0].Members[Client.GetHabbo().Id].UserRank;
-
-                                    using (var DB = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-                                    {
-                                        // Quitamos rank a admin actual
-                                        // MYSQL PROCEDIMIENTO
-                                        DB.RunQuery("CALL `ModifMember`(" + newrank + ", " + GetRank + ", " + Groups[0].Id + ", " + Client.GetHabbo().Id + ");");
-
-                                        AllMembers.Where(x => x.Value.UserId == Client.GetHabbo().Id).ToList().ForEach(x => x.Value.UserRank = GetRank);
-
-                                        // Asignamos el nuevo admin
-                                        // MYSQL PROCEDIMIENTO
-                                        DB.RunQuery("CALL `ModifMember`(" + GetRank + ", " + newrank + ", " + Groups[0].Id + ", " + Target.Id + ");");
-
-                                        AllMembers.Where(x => x.Value.UserId == Target.Id).ToList().ForEach(x => x.Value.UserRank = newrank);
-
-                                    }
-
-                                    // Quita al old admin y coloca al nuevo admin
-                                    Groups[0].MakeAdmin(Target.Id);
-                                    // Colocamos el nuevo owner en la tabla groups (DB)
-                                    Groups[0].MakeOwner(Target.Id);
-
-                                    Socket.Send("compose_gang|msg_success|Banda transeferida con éxito. Ahora pertenece a " + Target.Username);
-                                    RoleplayManager.Shout(Client, "*Le ha transferido el mandato a "+Target.Username+" de la banda "+Groups[0].Name+"*", 5);
-                                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "mynew");
-
-                                    foreach (Room Room in PolarEnvironment.GetGame().GetRoomManager().GetRooms())
-                                    {
-                                        if (Room == null || Room.Group == null || Room.Group.Id != Groups[0].Id)
-                                            continue;
-
-                                        foreach (RoomUser RoomUser in Room.GetRoomUserManager().GetRoomUsers())
-                                        {
-                                            if (RoomUser == null || RoomUser.GetClient() == null)
-                                                continue;
-
-                                            PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(RoomUser.GetClient(), "event_group", "open");
-                                        }
-                                    }
-
-                                    if (Target.GetClient() != null)
-                                    {
-                                        RoleplayManager.Shout(Client, "*Obtiene el mandato de la banda " + Groups[0].Name + "*", 5);
-                                        Target.GetClient().SendNotification("¡Ahora eres el líder de la banda "+Groups[0].Name+"! Vuelve a dar clic a la pestaña \"Mi banda\" del panel para ver las nuevas herramientas administrativas.");
                                     }
                                 }
+
+                                string newAdmin = receivedData[2];
+                                newAdmin = Regex.Replace(newAdmin, "<(.|\\n)*?>", string.Empty);
+
+                                Habbo target = PolarEnvironment.GetHabboByUsername(newAdmin);
+                                if (target == null)
+                                {
+                                    Socket.SendWS( "compose_gang|msg_error|No se encontró a ningún usuario con ese nombre.");
+                                    return;
+                                }
+
+                                if (target == habbo)
+                                {
+                                    Socket.SendWS( "compose_gang|msg_error|¡Tú ya eres el líder!");
+                                    return;
+                                }
+
+                                if (!groups[0].IsMember(target.Id))
+                                {
+                                    Socket.SendWS( "compose_gang|msg_error|¡Esa persona no es miembro de tu banda!");
+                                    return;
+                                }
+
+                                var allMembers = groups[0].GetAllMembersDict;
+                                int getRank = groups[0].Members[target.Id].UserRank;
+                                int newRank = groups[0].Members[habbo.Id].UserRank;
+
+                                using (var db = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+                                {
+                                    db.RunQuery($"CALL `ModifMember`({newRank}, {getRank}, {groups[0].Id}, {habbo.Id});");
+                                    allMembers.Where(x => x.Value.UserId == habbo.Id).ToList().ForEach(x => x.Value.UserRank = getRank);
+
+                                    db.RunQuery($"CALL `ModifMember`({getRank}, {newRank}, {groups[0].Id}, {target.Id});");
+                                    allMembers.Where(x => x.Value.UserId == target.Id).ToList().ForEach(x => x.Value.UserRank = newRank);
+                                }
+
+                                groups[0].MakeAdmin(target.Id);
+                                groups[0].MakeOwner(target.Id);
+
+                                Socket.SendWS( $"compose_gang|msg_success|Banda transferida con éxito. Ahora pertenece a {target.Username}");
+                                RoleplayManager.Shout(Client, $"*Le ha transferido el mandato a {target.Username} de la banda {groups[0].Name}*", 5);
+                                PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "mynew");
+
+                                if (target.GetClient() != null)
+                                {
+                                    RoleplayManager.Shout(target.GetClient(), $"*Obtiene el mandato de la banda {groups[0].Name}*", 5);
+                                    target.GetClient().SendNotification($"¡Ahora eres el líder de la banda {groups[0].Name}! Vuelve a dar clic a la pestaña \"Mi banda\" del panel para ver las nuevas herramientas administrativas.");
+                                }
                                 break;
+
                             case "delete":
+                                if (groups[0].IsAdmin(habbo.Id) && groups[0].CreatorId != habbo.Id)
                                 {
-                                    if (Groups[0].IsAdmin(Client.GetHabbo().Id) && Groups[0].CreatorId != Client.GetHabbo().Id)
+                                    if (!(habbo.GetPermissions()?.HasRight("roleplay_corp_manager") == true))
                                     {
-                                        if (!Client.GetHabbo().GetPermissions().HasRight("roleplay_corp_manager"))
-                                        {
-                                            Client.SendWhisper("Oops, solo el dueño de la mafia puede eliminarla!", 1);
-                                            return;
-                                        }
-                                    }
-                                    foreach (Room Room in PolarEnvironment.GetGame().GetRoomManager().GetRooms())
-                                    {
-                                        if (Room == null || Room.Group == null || Room.Group.Id != Groups[0].Id)
-                                            continue;
-
-                                        Room.Group = null;
-                                        Room.RoomData.Group = null;//I'm not sure if this is needed or not, becauseof inheritance, but oh well.
-                                    }
-
-                                    //Remove it from the cache.
-                                    PolarEnvironment.GetGame().GetGroupManager().DeleteGroup(Groups[0].Id);
-
-                                    //Now the :S stuff.
-                                    using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-                                    {
-                                        dbClient.RunQuery("DELETE FROM `rp_gangs` WHERE `id` = '" + Groups[0].Id + "'");
-                                        //dbClient.RunQuery("DELETE FROM `group_memberships` WHERE `gang_id` = '" + Groups[0].Id + "'");
-                                        dbClient.RunQuery("DELETE FROM `rp_gangs_requests` WHERE `gang_id` = '" + Groups[0].Id + "'");
-                                        dbClient.RunQuery("UPDATE `rooms` SET `group_id` = '0' WHERE `group_id` = '" + Groups[0].Id + "' LIMIT 1");
-                                        //dbClient.RunQuery("DELETE FROM `items_groups` WHERE `group_id` = '" + Groups[0].Id + "'");
-                                        dbClient.SetQuery("SELECT items_groups.id FROM items_groups, items, rooms WHERE items_groups.group_id = '" + Groups[0].Id + "' AND items_groups.id = items.id AND items.room_id = rooms.id AND rooms.roomtype = 'private' LIMIT 1;");
-                                        DataRow Row = dbClient.getRow();
-                                        if (Row != null)
-                                        {
-                                            dbClient.SetQuery("DELETE FROM `items_groups` WHERE `id` = @GFLAG;");
-                                            dbClient.AddParameter("GFLAG", Convert.ToInt32(Row["id"]));
-                                            dbClient.RunQuery();
-                                        }
-
-                                        dbClient.RunQuery("DELETE FROM `groups_logs` WHERE `group_id` = '" + Groups[0].Id + "'");
-                                        dbClient.RunQuery("DELETE FROM `rp_gangs_ranks` WHERE `gang` = '" + Groups[0].Id + "'");
-                                        dbClient.RunQuery("UPDATE `rp_stats` SET `gang_id` = '0' WHERE `gang_id` = '" + Groups[0].Id + "' LIMIT 1");
-                                        dbClient.RunQuery("UPDATE `items_groups` SET `group_id` = '0' WHERE `group_id` = '" + Groups[0].Id + "' LIMIT 1");
-                                    }
-
-                                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "mynew");
-                                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "close");
-
-                                    foreach (Room Room in PolarEnvironment.GetGame().GetRoomManager().GetRooms())
-                                    {
-                                        if (Room == null || Room.Group == null || Room.Group.Id != Groups[0].Id)
-                                            continue;
-
-                                        //Unload it last.
-                                        PolarEnvironment.GetGame().GetRoomManager().UnloadRoom(Room, true);
-                                    }
-
-                                    //Say hey!
-                                    Client.SendNotification("Banda eliminada satisfactoriamente.");
-                                    Client.GetRoleplay().GangId = 0;
-                                }
-                                break;
-                            case "savegang":
-                                {
-                                    if (Client.GetHabbo().Credits < (RoleplayManager.GangsPrice / 4))
-                                    {
-                                        Socket.Send("compose_gang|msg_error|No tienes el dinero suficiente para pagar tu deuda.");
+                                        Client.SendWhisper("Oops, solo el dueño de la mafia puede eliminarla!", 1);
                                         return;
                                     }
-
-                                    Client.GetHabbo().Credits -= (RoleplayManager.GangsPrice / 4);
-                                    Client.GetHabbo().UpdateCreditsBalance();
-
-                                    Groups[0].Balance = 0;
-                                    Groups[0].SetBussines(Groups[0].Balance);
-                                    Socket.Send("compose_gang|msg_success|Deuda pagada exitosamente. Tu banda ya puede seguir operando.");
-                                    PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "edit");
-                                    RoleplayManager.Shout(Client, "*Ha pagado la deuda de su banda "+Groups[0].Name+" salvándola de la bancarota*", 5);
-
                                 }
+
+                                foreach (Room room in PolarEnvironment.GetGame().GetRoomManager().GetRooms())
+                                {
+                                    if (room?.Group?.Id != groups[0].Id)
+                                        continue;
+
+                                    room.Group = null;
+                                    room.RoomData.Group = null;
+                                }
+
+                                PolarEnvironment.GetGame().GetGroupManager().DeleteGroup(groups[0].Id);
+
+                                using (var dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+                                {
+                                    dbClient.RunQuery($"DELETE FROM `rp_gangs` WHERE `id` = '{groups[0].Id}'");
+                                    dbClient.RunQuery($"DELETE FROM `rp_gangs_requests` WHERE `gang_id` = '{groups[0].Id}'");
+                                    dbClient.RunQuery($"UPDATE `rooms` SET `group_id` = '0' WHERE `group_id` = '{groups[0].Id}' LIMIT 1");
+                                    dbClient.RunQuery($"DELETE FROM `groups_logs` WHERE `group_id` = '{groups[0].Id}'");
+                                    dbClient.RunQuery($"DELETE FROM `rp_gangs_ranks` WHERE `gang` = '{groups[0].Id}'");
+                                    dbClient.RunQuery($"UPDATE `rp_stats` SET `gang_id` = '0' WHERE `gang_id` = '{groups[0].Id}'");
+                                    dbClient.RunQuery($"UPDATE `items_groups` SET `group_id` = '0' WHERE `group_id` = '{groups[0].Id}'");
+                                }
+
+                                PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "mynew");
+                                PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "close");
+
+                                foreach (Room room in PolarEnvironment.GetGame().GetRoomManager().GetRooms())
+                                {
+                                    if (room?.Group?.Id != groups[0].Id)
+                                        continue;
+
+                                    PolarEnvironment.GetGame().GetRoomManager().UnloadRoom(room, true);
+                                }
+
+                                Client.SendNotification("Banda eliminada satisfactoriamente.");
+                                Client.GetRoleplay().GangId = 0;
                                 break;
-                            default:
+
+                            case "savegang":
+                                if (habbo.Credits < (RoleplayManager.GangsPrice / 4))
+                                {
+                                    Socket.SendWS( "compose_gang|msg_error|No tienes el dinero suficiente para pagar tu deuda.");
+                                    return;
+                                }
+
+                                habbo.Credits -= (RoleplayManager.GangsPrice / 4);
+                                habbo.UpdateCreditsBalance();
+
+                                groups[0].Balance = 0;
+                                groups[0].SetBussines(groups[0].Balance);
+                                Socket.SendWS( "compose_gang|msg_success|Deuda pagada exitosamente. Tu banda ya puede seguir operando.");
+                                PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "edit");
+                                RoleplayManager.Shout(Client, $"*Ha pagado la deuda de su banda {groups[0].Name} salvándola de la bancarota*", 5);
                                 break;
                         }
 
@@ -2108,124 +1845,147 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Stats
                 case "stats":
                     {
-                        List<Group> Groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(Client.GetHabbo().Id);
-
-                        if (Groups == null || Groups.Count <= 0)
+                        var habbo = Client?.GetHabbo();
+                        if (habbo == null)
                             return;
 
-                        string html = "";
+                        List<Group> groups = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(habbo.Id);
+                        if (groups == null || groups.Count <= 0)
+                            return;
+
+                        var htmlBuilder = new StringBuilder();
 
                         #region HTML
-                        html += "<div class=\"flex mb-2 items-center justify-center\">";
-                        html += "<div id=\"Tool_Colours\" class=\"mr-3 colours-3DCMW_0\">";
-                        html += "<img src=\"" + RoleplayManager.HotelUrl + "/group-badge/badge/" + Groups[0].GetBadge() + "\" draggable=\"false\" ondragstart=\"return false;\">";
-                        html += "</div>";
-                        html += "<div id=\"Tool_Text\" class=\"text-3xl font-bold uppercase text-white border-b-4 border-dark-3\">";
-                        html += Groups[0].Name;
-                        html += "</div>";
-                        html += "</div>";
+                        htmlBuilder.Append("<div class=\"flex mb-2 items-center justify-center\">");
+                        htmlBuilder.Append("<div id=\"Tool_Colours\" class=\"mr-3 colours-3DCMW_0\">");
+                        htmlBuilder.Append($"<img src=\"{RoleplayManager.HotelUrl}/group-badge/badge/{groups[0].GetBadge()}\" draggable=\"false\" ondragstart=\"return false;\">");
+                        htmlBuilder.Append("</div>");
+                        htmlBuilder.Append("<div id=\"Tool_Text\" class=\"text-3xl font-bold uppercase text-white border-b-4 border-dark-3\">");
+                        htmlBuilder.Append(groups[0].Name);
+                        htmlBuilder.Append("</div>");
+                        htmlBuilder.Append("</div>");
 
-                        if (Groups[0].BankRuptcy)
+                        if (groups[0].BankRuptcy)
                         {
-                            html += "<div class=\"heading\" style=\"background-color:red\">¡Tu banda est&aacute; en banca rota!</div>";
-                            html += "<div class=\"-m-1 flex flex-wrap justify-around\">";
-                            html += "Tu banda no puede seguir gozando de beneficios económicos estando en banca rota. Puedes pagar la deuda para salvarla o bien, eliminarla.";
-                            html += "<button id =\"GA_Save\" data-action=\"SaveGang\" class=\"dark-button\" style=\"width: 99%;\">Salvar banda ($ " + String.Format("{0:N0}", (RoleplayManager.GangsPrice / 4)) + ")</button>";
-                            html += "</div><br>";
+                            htmlBuilder.Append("<div class=\"heading\" style=\"background-color:red\">¡Tu banda est&aacute; en banca rota!</div>");
+                            htmlBuilder.Append("<div class=\"-m-1 flex flex-wrap justify-around\">");
+                            htmlBuilder.Append("Tu banda no puede seguir gozando de beneficios económicos estando en banca rota. Puedes pagar la deuda para salvarla o bien, eliminarla.");
+                            htmlBuilder.Append($"<button id =\"GA_Save\" data-action=\"SaveGang\" class=\"dark-button\" style=\"width: 99%;\">Salvar banda ($ {string.Format("{0:N0}", (RoleplayManager.GangsPrice / 4))})</button>");
+                            htmlBuilder.Append("</div><br>");
                         }
 
-                        List<GroupMember> Administrators = Groups[0].Members.Values.Where(x => x.IsAdmin).OrderBy(x => x.UserId).ToList();
+                        List<GroupMember> administrators = groups[0].Members.Values
+                            .Where(x => x.IsAdmin)
+                            .OrderBy(x => x.UserId)
+                            .ToList();
 
-                        string Founder = "Desconocido";
-                        if (Administrators.Count > 0)
+                        string founder = "Desconocido";
+                        if (administrators.Count > 0)
                         {
-                            Founder = PolarEnvironment.GetGame().GetClientManager().GetNameById(Convert.ToInt32(Administrators[0].UserId));// <= Busca en diccionario, Si es Off, hace SELECT directo.
+                            founder = PolarEnvironment.GetGame().GetClientManager().GetNameById(Convert.ToInt32(administrators[0].UserId)) ?? "Desconocido";
                         }
-                        html += "<div class=\"heading\">Estad&iacute;sticas</div>";
-                        html += "<div class=\"-m-1 flex flex-wrap justify-around\">";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">L&iacute;der</div>";
-                        html += "<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">"+ Founder + "</div>";
-                        html += "</div>";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Fundado el</div>";
-                        html += "<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">"+ PolarEnvironment.UnixTimeStampToDateTime(Groups[0].CreateTime).ToString("dd MMMM\\, yyyy")+"</div>";
-                        html += "</div>";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Riqueza</div>";
-                        html += "<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">$ "+String.Format("{0:N0}", Groups[0].Balance)+"</div>";
-                        html += "</div>";
-                        int NewTurfsCount = 0;
-                        List<Turf> TF = PolarEnvironment.GetGame().GetGangTurfsManager().getTurfsbyGang(Groups[0].Id);
-                        if (TF != null && TF.Count > 0)
-                            NewTurfsCount = TF.Count;
 
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Barrios en posesi&oacute;n</div>";
-                        html += "<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">" + String.Format("{0:N0}", NewTurfsCount) + "</div>";
-                        html += "</div>";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Asesinatos</div>";
-                        html += "<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">" + String.Format("{0:N0}", Groups[0].GangKills) + "</div>";
-                        html += "</div>";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Asesinatos a polic&iacute;as</div>";
-                        html += "<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">" + String.Format("{0:N0}", Groups[0].GangCopKills) + "</div>";
-                        html += "</div>";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Muertes</div>";
-                        html += "<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">" + String.Format("{0:N0}", Groups[0].GangDeaths) + "</div>";
-                        html += "</div>";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Barrios capturados</div>";
-                        html += "<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">" + String.Format("{0:N0}", Groups[0].GangTurfsTaken) + "</div>";
-                        html += "</div>";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Barrios defendidos</div>";
-                        html += "<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">" + String.Format("{0:N0}", Groups[0].GangTurfsDefended) + "</div>";
-                        html += "</div>";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Medicamentos producidos</div>";
-                        html += "<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">" + String.Format("{0:N0}", Groups[0].MediPacks) + "</div>";
-                        html += "</div>";
-                        html += "</div>";
+                        htmlBuilder.Append("<div class=\"heading\">Estad&iacute;sticas</div>");
+                        htmlBuilder.Append("<div class=\"-m-1 flex flex-wrap justify-around\">");
 
-                        html += "<br><div class=\"heading\">Historial de Actividades</div>";
-                        html += "<div class=\"-m-1 flex flex-wrap justify-around\" style=\"margin-bottom: 5px;height: 252px;max-height: 252px;overflow: auto;\">";
+                        // Líder
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">L&iacute;der</div>");
+                        htmlBuilder.Append($"<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{founder}</div>");
+                        htmlBuilder.Append("</div>");
 
-                        List<GroupLogs> Logs = Groups[0].getAllLogs();
-                        //Logs.Reverse();
-                        if (Logs != null && Logs.Count > 0)
+                        // Fundado el
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Fundado el</div>");
+                        htmlBuilder.Append($"<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{PolarEnvironment.UnixTimeStampToDateTime(groups[0].CreateTime).ToString("dd MMMM\\, yyyy")}</div>");
+                        htmlBuilder.Append("</div>");
+
+                        // Riqueza
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Riqueza</div>");
+                        htmlBuilder.Append($"<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">$ {string.Format("{0:N0}", groups[0].Balance)}</div>");
+                        htmlBuilder.Append("</div>");
+
+                        // Barrios en posesión
+                        int newTurfsCount = 0;
+                        List<Turf> tf = PolarEnvironment.GetGame().GetGangTurfsManager().getTurfsbyGang(groups[0].Id);
+                        if (tf != null)
+                            newTurfsCount = tf.Count;
+
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Barrios en posesi&oacute;n</div>");
+                        htmlBuilder.Append($"<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{string.Format("{0:N0}", newTurfsCount)}</div>");
+                        htmlBuilder.Append("</div>");
+
+                        // Asesinatos
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Asesinatos</div>");
+                        htmlBuilder.Append($"<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{string.Format("{0:N0}", groups[0].GangKills)}</div>");
+                        htmlBuilder.Append("</div>");
+
+                        // Asesinatos a policías
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Asesinatos a polic&iacute;as</div>");
+                        htmlBuilder.Append($"<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{string.Format("{0:N0}", groups[0].GangCopKills)}</div>");
+                        htmlBuilder.Append("</div>");
+
+                        // Muertes
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Muertes</div>");
+                        htmlBuilder.Append($"<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{string.Format("{0:N0}", groups[0].GangDeaths)}</div>");
+                        htmlBuilder.Append("</div>");
+
+                        // Barrios capturados
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Barrios capturados</div>");
+                        htmlBuilder.Append($"<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{string.Format("{0:N0}", groups[0].GangTurfsTaken)}</div>");
+                        htmlBuilder.Append("</div>");
+
+                        // Barrios defendidos
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Barrios defendidos</div>");
+                        htmlBuilder.Append($"<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{string.Format("{0:N0}", groups[0].GangTurfsDefended)}</div>");
+                        htmlBuilder.Append("</div>");
+
+                        // Medicamentos producidos
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Medicamentos producidos</div>");
+                        htmlBuilder.Append($"<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{string.Format("{0:N0}", groups[0].MediPacks)}</div>");
+                        htmlBuilder.Append("</div>");
+
+                        htmlBuilder.Append("</div>");
+
+                        htmlBuilder.Append("<br><div class=\"heading\">Historial de Actividades</div>");
+                        htmlBuilder.Append("<div class=\"-m-1 flex flex-wrap justify-around\" style=\"margin-bottom: 5px;height: 252px;max-height: 252px;overflow: auto;\">");
+
+                        List<GroupLogs> logs = groups[0].getAllLogs();
+                        if (logs != null && logs.Count > 0)
                         {
-                            html += "<table id=\"financelist\">";
+                            htmlBuilder.Append("<table id=\"financelist\">");
 
-                            foreach (var B in Logs)
+                            foreach (var log in logs)
                             {
-                                Habbo hbo = PolarEnvironment.GetHabboById(B.UserId);
+                                Habbo hbo = PolarEnvironment.GetHabboById(log.UserId);
                                 if (hbo == null)
                                     continue;
 
-                                html += "<tr>";
-                                html += "<td>";
-                                html += B.Action + " (" + B.TimeStamp.ToString("dd\\/MM\\/yyyy") + ")";
-                                html += "</td>";
-                                html += "</tr>";
-                                html += "<tr>";
-                                html += "</tr>";
+                                htmlBuilder.Append("<tr>");
+                                htmlBuilder.Append("<td>");
+                                htmlBuilder.Append($"{log.Action} ({log.TimeStamp.ToString("dd\\/MM\\/yyyy")})");
+                                htmlBuilder.Append("</td>");
+                                htmlBuilder.Append("</tr>");
+                                htmlBuilder.Append("<tr>");
+                                htmlBuilder.Append("</tr>");
                             }
 
-                            html += "</table>";
+                            htmlBuilder.Append("</table>");
                         }
 
-                        html += "</div>";
-                        html += "</div>";
-
-                        html += "</div>";
+                        htmlBuilder.Append("</div>");
+                        htmlBuilder.Append("</div>");
                         #endregion
 
-                        string SendData = "";
-                        SendData += html;
-                        Socket.Send("compose_gang|stats|" + SendData);
+                        Socket.SendWS( $"compose_gang|stats|{htmlBuilder.ToString()}");
                     }
                     break;
                 #endregion
@@ -2233,37 +1993,42 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Search Gang
                 case "search":
                     {
-                        string[] ReceivedData = Data.Split(',');
-                        string Search = ReceivedData[1];
+                        string[] receivedData = Data.Split(',');
+                        if (receivedData.Length < 2)
+                            return;
 
-                        if (Search.Length <= 0 || String.IsNullOrEmpty(Search))
+                        string search = receivedData[1];
+
+                        if (search.Length <= 0 || string.IsNullOrEmpty(search))
                         {
                             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "open");
                             return;
                         }
 
-                        string html = "";
-                        int Counter = 0;
+                        var htmlBuilder = new StringBuilder();
+                        int counter = 0;
 
-                        foreach (Group group in PolarEnvironment.GetGame().GetGroupManager().GangsG.Where(x => x.Name.ToLower() == Search.ToLower()).ToList())
+                        foreach (Group group in PolarEnvironment.GetGame().GetGroupManager().GangsG.Where(x => x.Name.ToLower().Contains(search.ToLower())).ToList())
                         {
                             if (group.GType != 3)
                                 continue;
 
-                            Counter++;
-                            html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45.5%;\">";
-                            html += "<div class=\"mr-2\">";
-                            html += "<p>" + group.Name + "</p>";
-                            html += "<p>" + group.GetAllMembersDict.Count() + " miembro(s)</p>";
-                            html += "</div>";
-                            html += "<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto data-gang\" data-balloon=\"Ver info\" data-balloon-pos=\"left\" data-gang=\"" + group.Id + "\"><img src=\"" + RoleplayManager.HotelUrl + "/group-badge/badge/" + group.GetBadge() + "\" draggable=\"false\" ondragstart=\"return false;\" style=\"cursor: pointer;\"></div>";
-                            html += "</div>";
+                            counter++;
+                            htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45.5%;\">");
+                            htmlBuilder.Append("<div class=\"mr-2\">");
+                            htmlBuilder.Append($"<p>{group.Name}</p>");
+                            htmlBuilder.Append($"<p>{group.GetAllMembersDict.Count()} miembro(s)</p>");
+                            htmlBuilder.Append("</div>");
+                            htmlBuilder.Append($"<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto data-gang\" data-balloon=\"Ver info\" data-balloon-pos=\"left\" data-gang=\"{group.Id}\">");
+                            htmlBuilder.Append($"<img src=\"{RoleplayManager.HotelUrl}/group-badge/badge/{group.GetBadge()}\" draggable=\"false\" ondragstart=\"return false;\" style=\"cursor: pointer;\">");
+                            htmlBuilder.Append("</div>");
+                            htmlBuilder.Append("</div>");
                         }
 
-                        if (Counter <= 0)
-                            html = "<center><b style='color:red'>No se encontraron resultados para \""+Search+"\"</b></center>";
+                        if (counter <= 0)
+                            htmlBuilder.Append($"<center><b style='color:red'>No se encontraron resultados para \"{search}\"</b></center>");
 
-                        Socket.Send("compose_gang|gang_list|" + html + "|");
+                        Socket.SendWS( $"compose_gang|gang_list|{htmlBuilder.ToString()}|");
                     }
                     break;
                 #endregion
@@ -2271,65 +2036,58 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region View
                 case "view":
                     {
-                        string[] ReceivedData = Data.Split(',');
-                        int GetGangId = 0;
-
-                        if (!int.TryParse(ReceivedData[1], out GetGangId))
+                        string[] receivedData = Data.Split(',');
+                        if (receivedData.Length < 2)
                             return;
 
-                        Group thegroup = GroupManager.GetGang(GetGangId);
+                        if (!int.TryParse(receivedData[1], out int getGangId))
+                            return;
 
-                        string html = "";
+                        Group theGroup = GroupManager.GetGang(getGangId);
+                        if (theGroup == null)
+                            return;
+
+                        var htmlBuilder = new StringBuilder();
 
                         #region HTML
-                        html += "<div>";
-                        html += "<div class=\"-m-2\">";
+                        htmlBuilder.Append("<div>");
+                        htmlBuilder.Append("<div class=\"-m-2\">");
 
-                        var AllRanks = thegroup.Ranks.OrderBy(o => o.Value.RankId).ToList();
-                        AllRanks.Reverse();
-                        foreach (var Ranks in AllRanks)
+                        var allRanks = theGroup.Ranks.OrderByDescending(o => o.Value.RankId).ToList();
+
+                        foreach (var rank in allRanks)
                         {
-                            //<!-- Rank box -->
-                            html += "<div class=\"m-2\">";
-                            //<!-- Rank Header -->
-                            html += "<div class=\"heading relative group\">";
-                            html += "<div>" + Ranks.Value.Name + "</div>";
-                            html += "</div>";
+                            htmlBuilder.Append("<div class=\"m-2\">");
+                            htmlBuilder.Append("<div class=\"heading relative group\">");
+                            htmlBuilder.Append($"<div>{rank.Value.Name}</div>");
+                            htmlBuilder.Append("</div>");
 
-                            // < !-- User box -->
-                            html += "<div class=\"flex flex-wrap -m-1 justify-center\">";
+                            htmlBuilder.Append("<div class=\"flex flex-wrap -m-1 justify-center\">");
 
-                            foreach (var Members in thegroup.GetAllMembersDict)
+                            foreach (var member in theGroup.GetAllMembersDict.Where(m => m.Value.UserRank == rank.Value.RankId))
                             {
-                                if (Members.Value.UserRank == Ranks.Value.RankId)
-                                {
-                                    string Name = PolarEnvironment.GetGame().GetClientManager().GetNameById(Convert.ToInt32(Members.Value.UserId));// <= Busca en diccionario, Si es Off, hace SELECT directo.
-                                    string Look = PolarEnvironment.GetGame().GetClientManager().GetLookById(Convert.ToInt32(Members.Value.UserId));// <= Busca en diccionario, Si es Off, hace SELECT directo.
+                                string name = PolarEnvironment.GetGame().GetClientManager().GetNameById(Convert.ToInt32(member.Value.UserId)) ?? "Desconocido";
+                                string look = PolarEnvironment.GetGame().GetClientManager().GetLookById(Convert.ToInt32(member.Value.UserId)) ?? "";
 
-                                    //<!-- User info -->
-                                    html += "<div class=\"bg-dark-4 rounded m-1 group cursor-pointer-r\">";
-                                    html += "<div class=\"m-px relative\">";
-                                    html += "<div class=\"overflow-hidden bg-light-05 rounded-t\" style=\"height: 55px;\">";
-                                    html += "<center><div class=\"figure-H_RWF_0\" style=\"background-image: url(&quot;" + RoleplayManager.AVATARIMG + "" + Look + "&quot;); width: 64px; height: 110px; margin-top: -20px;\"></div></center>";
-                                    html += "</div>";
-                                    html += "</div>";
-                                    html += "<div class=\"text-center py-1\">" + Name + "</div>";
-                                    html += "</div>";
-                                }
+                                htmlBuilder.Append("<div class=\"bg-dark-4 rounded m-1 group cursor-pointer-r\">");
+                                htmlBuilder.Append("<div class=\"m-px relative\">");
+                                htmlBuilder.Append("<div class=\"overflow-hidden bg-light-05 rounded-t\" style=\"height: 55px;\">");
+                                htmlBuilder.Append($"<center><div class=\"figure-H_RWF_0\" style=\"background-image: url(&quot;{RoleplayManager.AVATARIMG}{look}&quot;); width: 64px; height: 110px; margin-top: -20px;\"></div></center>");
+                                htmlBuilder.Append("</div>");
+                                htmlBuilder.Append("</div>");
+                                htmlBuilder.Append($"<div class=\"text-center py-1\">{name}</div>");
+                                htmlBuilder.Append("</div>");
                             }
 
-                            html += "</div>";
-                            // < !-- End User box -->
-
-                            html += "</div>";
+                            htmlBuilder.Append("</div>");
+                            htmlBuilder.Append("</div>");
                         }
-                        html += "</div>";
-                        html += "</div>";
+
+                        htmlBuilder.Append("</div>");
+                        htmlBuilder.Append("</div>");
                         #endregion
 
-                        string SendData = "";
-                        SendData += html;
-                        Socket.Send("compose_gang|view|" + SendData + "|" + GetGangId);
+                        Socket.SendWS( $"compose_gang|view|{htmlBuilder.ToString()}|{getGangId}");
                     }
                     break;
                 #endregion
@@ -2337,118 +2095,141 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region View Stats
                 case "view_stats":
                     {
-                        string[] ReceivedData = Data.Split(',');
-                        int GetGangId = 0;
-
-                        if (!int.TryParse(ReceivedData[1], out GetGangId))
+                        string[] receivedData = Data.Split(',');
+                        if (receivedData.Length < 2)
                             return;
 
-                        Group thegroup = GroupManager.GetGang(GetGangId);
+                        if (!int.TryParse(receivedData[1], out int getGangId))
+                            return;
 
-                        string html = "";
+                        Group theGroup = GroupManager.GetGang(getGangId);
+                        if (theGroup == null)
+                            return;
+
+                        var htmlBuilder = new StringBuilder();
 
                         #region HTML
-                        html += "<div class=\"flex mb-2 items-center justify-center\">";
-                        html += "<div id=\"Tool_Colours\" class=\"mr-3 colours-3DCMW_0\">";
-                        html += "<img src=\"" + RoleplayManager.HotelUrl + "/group-badge/badge/" + thegroup.GetBadge() + "\" draggable=\"false\" ondragstart=\"return false;\">";
-                        html += "</div>";
-                        html += "<div id=\"Tool_Text\" class=\"text-3xl font-bold uppercase text-white border-b-4 border-dark-3\">";
-                        html += thegroup.Name;
-                        html += "</div>";
-                        html += "</div>";
-                        string Founder = "Desconocido";
-                        List<GroupMember> Administrators = thegroup.Members.Values.Where(x => x.IsAdmin).OrderBy(x => x.UserId).ToList();
+                        htmlBuilder.Append("<div class=\"flex mb-2 items-center justify-center\">");
+                        htmlBuilder.Append("<div id=\"Tool_Colours\" class=\"mr-3 colours-3DCMW_0\">");
+                        htmlBuilder.Append($"<img src=\"{RoleplayManager.HotelUrl}/group-badge/badge/{theGroup.GetBadge()}\" draggable=\"false\" ondragstart=\"return false;\">");
+                        htmlBuilder.Append("</div>");
+                        htmlBuilder.Append("<div id=\"Tool_Text\" class=\"text-3xl font-bold uppercase text-white border-b-4 border-dark-3\">");
+                        htmlBuilder.Append(theGroup.Name);
+                        htmlBuilder.Append("</div>");
+                        htmlBuilder.Append("</div>");
 
-                        if (Administrators.Count > 0)
+                        string founder = "Desconocido";
+                        List<GroupMember> administrators = theGroup.Members.Values
+                            .Where(x => x.IsAdmin)
+                            .OrderBy(x => x.UserId)
+                            .ToList();
+
+                        if (administrators.Count > 0)
                         {
-                            Founder = PolarEnvironment.GetGame().GetClientManager().GetNameById(Convert.ToInt32(Administrators[0].UserId));// <= Busca en diccionario, Si es Off, hace SELECT directo.
+                            founder = PolarEnvironment.GetGame().GetClientManager().GetNameById(Convert.ToInt32(administrators[0].UserId)) ?? "Desconocido";
                         }
-                        html += "<div class=\"heading\">Estad&iacute;sticas</div>";
-                        html += "<div class=\"-m-1 flex flex-wrap justify-around\">";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">L&iacute;der</div>";
-                        html += "<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">" + Founder + "</div>";
-                        html += "</div>";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Fundado el</div>";
-                        html += "<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">" + PolarEnvironment.UnixTimeStampToDateTime(thegroup.CreateTime).ToString("dd MMMM\\, yyyy") + "</div>";
-                        html += "</div>";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Riqueza</div>";
-                        html += "<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">$ " + String.Format("{0:N0}", thegroup.Balance) + "</div>";
-                        html += "</div>";
-                        int NewTurfsCount = 0;
-                        List<Turf> TF = PolarEnvironment.GetGame().GetGangTurfsManager().getTurfsbyGang(thegroup.Id);
-                        if (TF != null && TF.Count > 0)
-                            NewTurfsCount = TF.Count;
 
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Barrios en posesi&oacute;n</div>";
-                        html += "<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">" + String.Format("{0:N0}", NewTurfsCount) + "</div>";
-                        html += "</div>";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Asesinatos</div>";
-                        html += "<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">" + String.Format("{0:N0}", thegroup.GangKills) + "</div>";
-                        html += "</div>";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Asesinatos a polic&iacute;as</div>";
-                        html += "<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">" + String.Format("{0:N0}", thegroup.GangCopKills) + "</div>";
-                        html += "</div>";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Muertes</div>";
-                        html += "<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">" + String.Format("{0:N0}", thegroup.GangDeaths) + "</div>";
-                        html += "</div>";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Barrios capturados</div>";
-                        html += "<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">" + String.Format("{0:N0}", thegroup.GangTurfsTaken) + "</div>";
-                        html += "</div>";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Barrios defendidos</div>";
-                        html += "<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">" + String.Format("{0:N0}", thegroup.GangTurfsDefended) + "</div>";
-                        html += "</div>";
-                        html += "<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">";
-                        html += "<div class=\"mr-2\">Medicamentos producidos</div>";
-                        html += "<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">" + String.Format("{0:N0}", thegroup.MediPacks) + "</div>";
-                        html += "</div>";
-                        html += "</div>";
+                        htmlBuilder.Append("<div class=\"heading\">Estad&iacute;sticas</div>");
+                        htmlBuilder.Append("<div class=\"-m-1 flex flex-wrap justify-around\">");
 
+                        // Líder
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">L&iacute;der</div>");
+                        htmlBuilder.Append($"<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{founder}</div>");
+                        htmlBuilder.Append("</div>");
 
-                        html += "<br><div class=\"heading\">Historial de Actividades</div>";
-                        html += "<div class=\"-m-1 flex flex-wrap justify-around\" style=\"margin-bottom: 5px;height: 252px;max-height: 252px;overflow: auto;\">";
+                        // Fundado el
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Fundado el</div>");
+                        htmlBuilder.Append($"<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{PolarEnvironment.UnixTimeStampToDateTime(theGroup.CreateTime).ToString("dd MMMM\\, yyyy")}</div>");
+                        htmlBuilder.Append("</div>");
 
-                        List<GroupLogs> Logs = thegroup.getAllLogs();
-                        //Logs.Reverse();
-                        if (Logs != null && Logs.Count > 0)
+                        // Riqueza
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Riqueza</div>");
+                        htmlBuilder.Append($"<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">$ {string.Format("{0:N0}", theGroup.Balance)}</div>");
+                        htmlBuilder.Append("</div>");
+
+                        // Barrios en posesión
+                        int newTurfsCount = 0;
+                        List<Turf> tf = PolarEnvironment.GetGame().GetGangTurfsManager().getTurfsbyGang(theGroup.Id);
+                        if (tf != null)
+                            newTurfsCount = tf.Count;
+
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Barrios en posesi&oacute;n</div>");
+                        htmlBuilder.Append($"<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{string.Format("{0:N0}", newTurfsCount)}</div>");
+                        htmlBuilder.Append("</div>");
+
+                        // Asesinatos
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Asesinatos</div>");
+                        htmlBuilder.Append($"<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{string.Format("{0:N0}", theGroup.GangKills)}</div>");
+                        htmlBuilder.Append("</div>");
+
+                        // Asesinatos a policías
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Asesinatos a polic&iacute;as</div>");
+                        htmlBuilder.Append($"<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{string.Format("{0:N0}", theGroup.GangCopKills)}</div>");
+                        htmlBuilder.Append("</div>");
+
+                        // Muertes
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Muertes</div>");
+                        htmlBuilder.Append($"<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{string.Format("{0:N0}", theGroup.GangDeaths)}</div>");
+                        htmlBuilder.Append("</div>");
+
+                        // Barrios capturados
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Barrios capturados</div>");
+                        htmlBuilder.Append($"<div class=\"bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{string.Format("{0:N0}", theGroup.GangTurfsTaken)}</div>");
+                        htmlBuilder.Append("</div>");
+
+                        // Barrios defendidos
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Barrios defendidos</div>");
+                        htmlBuilder.Append($"<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{string.Format("{0:N0}", theGroup.GangTurfsDefended)}</div>");
+                        htmlBuilder.Append("</div>");
+
+                        // Medicamentos producidos
+                        htmlBuilder.Append("<div class=\"flex bg-dark-1 m-1 rounded-lg p-1 pl-2 items-center\" style=\"width: 45%;\">");
+                        htmlBuilder.Append("<div class=\"mr-2\">Medicamentos producidos</div>");
+                        htmlBuilder.Append($"<div class=\"Shifts bg-dark-2 px-2 py-1 rounded-lg ml-auto\">{string.Format("{0:N0}", theGroup.MediPacks)}</div>");
+                        htmlBuilder.Append("</div>");
+
+                        htmlBuilder.Append("</div>");
+
+                        htmlBuilder.Append("<br><div class=\"heading\">Historial de Actividades</div>");
+                        htmlBuilder.Append("<div class=\"-m-1 flex flex-wrap justify-around\" style=\"margin-bottom: 5px;height: 252px;max-height: 252px;overflow: auto;\">");
+
+                        List<GroupLogs> logs = theGroup.getAllLogs();
+                        if (logs != null && logs.Count > 0)
                         {
-                            html += "<table id=\"financelist\">";
+                            htmlBuilder.Append("<table id=\"financelist\">");
 
-                            foreach (var B in Logs)
+                            foreach (var log in logs)
                             {
-                                Habbo hbo = PolarEnvironment.GetHabboById(B.UserId);
+                                Habbo hbo = PolarEnvironment.GetHabboById(log.UserId);
                                 if (hbo == null)
                                     continue;
 
-                                html += "<tr>";
-                                html += "<td>";
-                                html += B.Action + " (" + B.TimeStamp.ToString("dd\\/MM\\/yyyy") + ")";
-                                html += "</td>";
-                                html += "</tr>";
-                                html += "<tr>";
-                                html += "</tr>";
+                                htmlBuilder.Append("<tr>");
+                                htmlBuilder.Append("<td>");
+                                htmlBuilder.Append($"{log.Action} ({log.TimeStamp.ToString("dd\\/MM\\/yyyy")})");
+                                htmlBuilder.Append("</td>");
+                                htmlBuilder.Append("</tr>");
+                                htmlBuilder.Append("<tr>");
+                                htmlBuilder.Append("</tr>");
                             }
 
-                            html += "</table>";
+                            htmlBuilder.Append("</table>");
                         }
 
-                        html += "</div>";
-                        html += "</div>";
-
-                        html += "</div>";
+                        htmlBuilder.Append("</div>");
+                        htmlBuilder.Append("</div>");
                         #endregion
 
-                        string SendData = "";
-                        SendData += html;
-                        Socket.Send("compose_gang|view_stats|" + SendData + "|" + GetGangId);
+                        Socket.SendWS( $"compose_gang|view_stats|{htmlBuilder.ToString()}|{getGangId}");
                     }
                     break;
                 #endregion
@@ -2456,80 +2237,77 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Bank Capturing Window
                 case "bank_cap_w":
                     {
-                        string[] ReceivedData = Data.Split(',');
-
-                        int RoomId = 0;
-                        if (!int.TryParse(ReceivedData[1], out RoomId))
+                        string[] receivedData = Data.Split(',');
+                        if (receivedData.Length < 4)
                             return;
 
-                        if (!RoleplayManager.GenerateRoom(RoomId, out Room Room))
+                        if (!int.TryParse(receivedData[1], out int roomId) ||
+                            !int.TryParse(receivedData[2], out int userAttackId))
                             return;
 
-                        int UserAtackId = 0;
-                        if (!int.TryParse(ReceivedData[2], out UserAtackId))
+                        if (!RoleplayManager.GenerateRoom(roomId, out Room room))
                             return;
 
-                        string TurfName = ReceivedData[3];
+                        string turfName = receivedData[3];
+                        GameClient targetSession = PolarEnvironment.GetGame().GetClientManager().GetClientByUserID(userAttackId);
 
-                        GameClient TargetSession = PolarEnvironment.GetGame().GetClientManager().GetClientByUserID(UserAtackId);
-                        if (TargetSession == null)
+                        if (targetSession == null)
                         {
                             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "bank_cap_off");
-                            Room.BankCapturing = false;
+                            room.BankCapturing = false;
                             return;
                         }
 
                         #region Info
-                        string Info = "";
-                        Info += "<div class=\"mt-2\"> Robando por <span class=\"font-bold pointer-events-auto cursor-pointer hover:underline\">"+ TargetSession.GetHabbo().Username +" </span>";
-                        Info += "</div>";
+                        var infoBuilder = new StringBuilder();
+                        infoBuilder.Append("<div class=\"mt-2\"> Robando por <span class=\"font-bold pointer-events-auto cursor-pointer hover:underline\">");
+                        infoBuilder.Append(targetSession.GetHabbo()?.Username ?? "Desconocido");
+                        infoBuilder.Append(" </span></div>");
                         #endregion
 
-                        int Per = 0;
-                        
-                        Per = ((RoleplayManager.BankCapTime - TargetSession.GetRoleplay().LoadingTimeLeft) * 100) / RoleplayManager.BankCapTime;
+                        int per = 0;
 
-                        if (Per >= 100)
+                        if (RoleplayManager.BankCapTime > 0)
                         {
-                            Per = 100;
-                            Room.BankCapturing = false;
+                            per = ((RoleplayManager.BankCapTime - targetSession.GetRoleplay().LoadingTimeLeft) * 100) / RoleplayManager.BankCapTime;
                         }
-                        else if (!TargetSession.GetRoleplay().BankCapturing)
+
+                        if (per >= 100)
+                        {
+                            per = 100;
+                            room.BankCapturing = false;
+                        }
+                        else if (!targetSession.GetRoleplay().BankCapturing)
                         {
                             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "bank_cap_off");
-                            Room.BankCapturing = false;
+                            room.BankCapturing = false;
                             return;
                         }
 
-                        string SendData = "";
-                        SendData += TurfName + "|";
-                        SendData += Info + "|";
-                        SendData += "Robando " + Per + "%|";
-                        SendData += Per + "|";
-                        Socket.Send("compose_gang|capturing|" + SendData);
+                        string sendData = $"{turfName}|{infoBuilder.ToString()}|Robando {per}%|{per}|";
+                        Socket.SendWS( $"compose_gang|capturing|{sendData}");
 
-                        List<RoomUser> UsersToReturn = Room.GetRoomUserManager().GetRoomUsers().ToList();
-                        if (Per >= 100)
+                        if (per >= 100)
                         {
                             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "bank_cap_off");
-                            Room.BankCapturing = false;
-                            foreach (RoomUser User in UsersToReturn)
+                            room.BankCapturing = false;
+
+                            foreach (RoomUser user in room.GetRoomUserManager().GetRoomUsers().ToList())
                             {
-                                if (User == null || User.GetClient() == null)
+                                if (user?.GetClient() == null)
                                     continue;
-
-                                User.GetClient().GetRoleplay().TimerManager.ActiveTimers["bankrob"].EndTimer();
+                                //user.GetClient().GetRoleplay().bankRobTimer.EndTimer();
+                                //user.GetClient().GetRoleplay().TimerManager.ActiveTimers["bankrob"]?.EndTimer();
                             }
-
                         }
                     }
                     break;
                 #endregion
 
-                #region bank Capturing Off
+                #region Bank Capturing Off
                 case "bank_cap_off":
                     {
-                        Socket.Send("compose_gang|capturing_off");
+                        Socket.SendWS( "compose_gang|capturing_off");
                     }
                     break;
                 #endregion
@@ -2537,83 +2315,77 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Turf Capturing Window
                 case "turf_cap_w":
                     {
-                        string[] ReceivedData = Data.Split(',');
-
-                        int RoomId = 0;
-                        if (!int.TryParse(ReceivedData[1], out RoomId))
+                        string[] receivedData = Data.Split(',');
+                        if (receivedData.Length < 4)
                             return;
 
-                        if (!RoleplayManager.GenerateRoom(RoomId, out Room Room))
+                        if (!int.TryParse(receivedData[1], out int roomId) ||
+                            !int.TryParse(receivedData[2], out int userAttackId))
                             return;
 
-                        int UserAtackId = 0;
-                        if (!int.TryParse(ReceivedData[2], out UserAtackId))
+                        if (!RoleplayManager.GenerateRoom(roomId, out Room room))
                             return;
 
-                        string TurfName = ReceivedData[3];
-
-                        List<Group> GangAtack = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(UserAtackId);
-                        if (GangAtack == null || GangAtack.Count <= 0)
+                        string turfName = receivedData[3];
+                        List<Group> gangAttack = PolarEnvironment.GetGame().GetGroupManager().GetGangsForUser(userAttackId);
+                        if (gangAttack == null || gangAttack.Count <= 0)
                             return;
 
-                        string GangAtackedName = "nadie";
-
-                        if (Room.Group != null)
-                            GangAtackedName = Room.Group.Name;
+                        string gangAttackedName = room?.Group?.Name ?? "nadie";
 
                         #region Info
-                        string Info = "";
-                        Info += "<div> Controlado por <span class=\"font-bold pointer-events-auto cursor-pointer hover:underline\">" + GangAtackedName + "</span><br>";
-                        Info += "</div>";
-                        Info += "<div class=\"mt-2\"> Atacado por <span class=\"font-bold pointer-events-auto cursor-pointer hover:underline\">" + GangAtack[0].Name + "</span>";
-                        Info += "</div>";
+                        var infoBuilder = new StringBuilder();
+                        infoBuilder.Append("<div> Controlado por <span class=\"font-bold pointer-events-auto cursor-pointer hover:underline\">");
+                        infoBuilder.Append(gangAttackedName);
+                        infoBuilder.Append("</span><br></div>");
+                        infoBuilder.Append("<div class=\"mt-2\"> Atacado por <span class=\"font-bold pointer-events-auto cursor-pointer hover:underline\">");
+                        infoBuilder.Append(gangAttack[0].Name);
+                        infoBuilder.Append("</span></div>");
                         #endregion
 
-                        int Per = 0;
-                        GameClient TargetSession = PolarEnvironment.GetGame().GetClientManager().GetClientByUserID(UserAtackId);
-                        if (TargetSession == null)
+                        int per = 0;
+                        GameClient targetSession = PolarEnvironment.GetGame().GetClientManager().GetClientByUserID(userAttackId);
+
+                        if (targetSession == null)
                         {
                             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "turf_cap_off");
-                            Room.TurfCapturing = false;
+                            room.TurfCapturing = false;
                             return;
                         }
 
-                        Per = ((RoleplayManager.TurfCapTime - TargetSession.GetRoleplay().LoadingTimeLeft) * 100) / RoleplayManager.TurfCapTime;
-
-                        if (Per >= 100)
+                        if (RoleplayManager.TurfCapTime > 0)
                         {
-                            Per = 100;
-                            Room.TurfCapturing = false;
+                            per = ((RoleplayManager.TurfCapTime - targetSession.GetRoleplay().LoadingTimeLeft) * 100) / RoleplayManager.TurfCapTime;
                         }
-                        else if (!TargetSession.GetRoleplay().TurfCapturing)
+
+                        if (per >= 100)
+                        {
+                            per = 100;
+                            room.TurfCapturing = false;
+                        }
+                        else if (!targetSession.GetRoleplay().TurfCapturing)
                         {
                             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "turf_cap_off");
-                            Room.TurfCapturing = false;
+                            room.TurfCapturing = false;
                             return;
                         }
 
-                        string SendData = "";
-                        SendData += TurfName + "|";
-                        SendData += Info + "|";
-                        SendData += "Capturando " + Per + "%|";
-                        SendData += Per + "|";
-                        Socket.Send("compose_gang|capturing|" + SendData);
+                        string sendData = $"{turfName}|{infoBuilder.ToString()}|Capturando {per}%|{per}|";
+                        Socket.SendWS( $"compose_gang|capturing|{sendData}");
 
-                        List<RoomUser> UsersToReturn = Room.GetRoomUserManager().GetRoomUsers().ToList();
-
-                        if (Per >= 100)
+                        if (per >= 100)
                         {
                             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(Client, "event_gang", "turf_cap_off");
-                            Room.TurfCapturing = false;
-                            foreach (RoomUser User in UsersToReturn)
+                            room.TurfCapturing = false;
+
+                            foreach (RoomUser user in room.GetRoomUserManager().GetRoomUsers().ToList())
                             {
-                                if (User == null || User.GetClient() == null)
+                                if (user?.GetClient() == null)
                                     continue;
 
-                                User.GetClient().GetRoleplay().TurfCapturing = false;
-                                User.GetClient().GetRoleplay().CapturingTurf = null;
+                                user.GetClient().GetRoleplay().TurfCapturing = false;
+                                user.GetClient().GetRoleplay().CapturingTurf = null;
                             }
-                            
                         }
                     }
                     break;
@@ -2622,11 +2394,19 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Turf Capturing Off
                 case "turf_cap_off":
                     {
-                        Socket.Send("compose_gang|capturing_off");
+                        Socket.SendWS( "compose_gang|capturing_off");
                     }
                     break;
                     #endregion
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

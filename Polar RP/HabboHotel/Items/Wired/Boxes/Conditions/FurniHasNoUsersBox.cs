@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -20,6 +20,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
         public string StringData { get; set; }
         public bool BoolData { get; set; }
         public string ItemsData { get; set; }
+
         public FurniHasNoUsersBox(Room instance, Item item)
         {
             this.Instance = instance;
@@ -50,14 +51,17 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
             {
                 if (item == null || !Instance.GetRoomItemHandler().GetFloor.Contains(item))
                     continue;
+
                 var hasUsers = false;
                 foreach (ThreeDCoord tile in item.GetAffectedTiles2.Values)
                 {
                     if (Instance.GetGameMap().SquareHasUsers(tile.X, tile.Y))
                         hasUsers = true;
                 }
+
                 if (Instance.GetGameMap().SquareHasUsers(item.GetX, item.GetY))
                     hasUsers = true;
+
                 if (hasUsers)
                     return false;
             }

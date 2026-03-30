@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Drawing;
@@ -87,9 +87,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                 return false;
 
             if (User.IsWalking)
-            {
                 User.ClearMovement(true);
-            }
 
             User.BotData.ForcedMovement = true;
             User.BotData.TargetCoordinate = new Point(Item.GetX, Item.GetY);

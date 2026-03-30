@@ -14,7 +14,7 @@ namespace Polar.Communication.Packets.Incoming.Catalog
         public void Parse(HabboHotel.GameClients.GameClient Session, ClientPacket Packet)
         {
             string mode = Packet.PopString();
-            Session.SendMessage(new CatalogIndexComposer(Session, PolarEnvironment.GetGame().GetCatalog().GetPages()));
+            //Session.SendMessage(new CatalogIndexComposer(Session, PolarEnvironment.GetGame().GetCatalog().GetPages()));
         }
     }
 }

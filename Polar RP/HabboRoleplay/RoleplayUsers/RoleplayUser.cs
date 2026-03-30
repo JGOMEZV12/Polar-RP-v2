@@ -21,6 +21,7 @@ using Polar.HabboRoleplay.Bots;
 using Polar.HabboRoleplay.ProductOwned;
 using Polar.HabboHotel.Rooms;
 using Fleck;
+using Polar.Communication.Packets.Outgoing.Inventory.Weapons;
 using Polar.HabboHotel.Polls;
 using Polar.HabboRoleplay.Farming;
 using Polar.HabboRoleplay.Web.Outgoing.Statistics;
@@ -33,6 +34,7 @@ using Polar.HabboRoleplay.PhoneAppOwned;
 using Polar.HabboRoleplay.PhonesApps;
 using Polar.HabboRoleplay.Houses;
 using Polar.HabboRoleplay.Wizards;
+using ConnectionManager;
 
 namespace Polar.HabboRoleplay.RoleplayUsers
 {
@@ -52,6 +54,7 @@ namespace Polar.HabboRoleplay.RoleplayUsers
         GameClient Client;
 
         // Basic Info
+        private bool roomEntryHandled;
         private uint mId;
         private int mLevel;
         private int mLevelEXP;
@@ -84,7 +87,7 @@ namespace Polar.HabboRoleplay.RoleplayUsers
         private int mAnimo;
         private int mHygiene;
         private int mPoop;
-
+        public int EquippedArmorIndex { get; set; } = -1; // -1 = ninguno equipado
         #region Mecánico
         private int mMecLvl;
         private int mMecXP;
@@ -104,6 +107,8 @@ namespace Polar.HabboRoleplay.RoleplayUsers
         private int mBasuXP;
         #endregion
 
+        private int mHuntPoints;
+        private int mHuntSkins;
         // God
         /*public bool FirstTickBool = false;
         public int GodModeTicks = 0;
@@ -246,6 +251,7 @@ namespace Polar.HabboRoleplay.RoleplayUsers
         private int mCarType;
         private int mCarFuel;
         private int mCarMaxFuel;
+
         // ARMERO
         public int ArmPiecesTo = 0;
         public int ArmUserTo = 0;
@@ -356,6 +362,7 @@ namespace Polar.HabboRoleplay.RoleplayUsers
 
         // Outfits
         public string OriginalOutfit = null;
+        public string OriginalMotto = null;
         public ClothingItem Clothing = null;
         public bool PurchasingClothing = false;
 
@@ -500,7 +507,7 @@ namespace Polar.HabboRoleplay.RoleplayUsers
         // Internet
         public List<string> InternetHisto = null;
         public string InternetCurPage = "";
-        public IWebSocketConnection WebSocketConnection
+        public ConnectionInformation WebSocketConnection
         {
             get
             {
@@ -616,6 +623,9 @@ namespace Polar.HabboRoleplay.RoleplayUsers
                 UpdateInteractingUserDialogues();
             }
         }
+
+        public bool RoomEntryHandled { get; set; } = false;
+        
         public int Hunger
         {
             get { return mHunger; }
@@ -826,18 +836,18 @@ namespace Polar.HabboRoleplay.RoleplayUsers
         public int Weed
         {
             get { return mWeed; }
-            set { mWeed = value; }
+            set { mWeed = value; Client.SendMessage(new WeaponsComposer(Client)); }
         }
         public int Cocaine
         {
             get { return mCocaine; }
-            set { mCocaine = value; }
+            set { mCocaine = value; Client.SendMessage(new WeaponsComposer(Client));}
         }
 
         public int Heroina
         {
             get { return mHeroina; }
-            set { mHeroina = value; }
+            set { mHeroina = value; Client.SendMessage(new WeaponsComposer(Client)); }
         }
         public int Weedmateria
         {
@@ -847,7 +857,7 @@ namespace Polar.HabboRoleplay.RoleplayUsers
         public int Caramelos
         {
             get { return mCaramelos; }
-            set { mCaramelos = value; }
+            set { mCaramelos = value; Client.SendMessage(new WeaponsComposer(Client)); }
         }
 
         public int ArmLvl
@@ -1190,6 +1200,10 @@ namespace Polar.HabboRoleplay.RoleplayUsers
             this.mBasuLvl = Convert.ToInt32(user["BasuLvl"]);
             this.mBasuXP = Convert.ToInt32(user["BasuXP"]);
 
+            // Caza
+            this.mHuntPoints = Convert.ToInt32(user["hunt_points"]);
+            this.mHuntSkins = Convert.ToInt32(user["hunt_skins"]);
+
             // Armero
             this.mArmLvl = Convert.ToInt32(user["ArmLvl"]);
             this.mArmXP = Convert.ToInt32(user["ArmXP"]);
@@ -1343,7 +1357,7 @@ namespace Polar.HabboRoleplay.RoleplayUsers
 
                             if (BaseWeapon != null)
                             {
-                                Weapon Weapon = new Weapon(id, basename, name, BaseWeapon.FiringText, BaseWeapon.EquipText, BaseWeapon.UnEquipText, BaseWeapon.ReloadText, BaseWeapon.Energy, effectid <= 0 ? BaseWeapon.EffectID : effectid, BaseWeapon.HandItem, range, mindam, maxdam, BaseWeapon.ClipSize, BaseWeapon.ReloadTime, BaseWeapon.Cost, BaseWeapon.CostFine, BaseWeapon.Stock, BaseWeapon.LevelRequirement, canuse, totalbullets, wlife, BaseWeapon.isVip, baulcar);
+                                Weapon Weapon = new Weapon(id, basename, name, BaseWeapon.FiringText, BaseWeapon.EquipText, BaseWeapon.UnEquipText, BaseWeapon.ReloadText, BaseWeapon.Energy, effectid <= 0 ? BaseWeapon.EffectID : effectid, BaseWeapon.HandItem, range, mindam, maxdam, BaseWeapon.ClipSize, BaseWeapon.ReloadTime, BaseWeapon.Cost, BaseWeapon.CostFine, BaseWeapon.Stock, BaseWeapon.LevelRequirement, canuse, totalbullets, wlife, BaseWeapon.isVip, baulcar, BaseWeapon.Category);
 
                                 if (Weapon != null)
                                     Weapons.TryAdd(basename, Weapon);
@@ -1945,6 +1959,17 @@ namespace Polar.HabboRoleplay.RoleplayUsers
                 { "action", "newnotifyuser" },
                 { "chatmessage", Message }
              }));
+        }
+
+        public int HuntPoints
+        {
+            get { return mHuntPoints; }
+            set { mHuntPoints = value; }
+        }
+        public int HuntSkins
+        {
+            get { return mHuntSkins; }
+            set { mHuntSkins = value; }
         }
         public int BasuLvl
         {

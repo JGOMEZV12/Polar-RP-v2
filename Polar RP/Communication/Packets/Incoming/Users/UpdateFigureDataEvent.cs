@@ -123,6 +123,7 @@ namespace Polar.Communication.Packets.Incoming.Users
             }
 
             // Actualizar apariencia
+            Session.GetRoleplay().OriginalOutfit = Look;
             Session.GetHabbo().Look = Look;
             Session.GetHabbo().Gender = Gender.ToLower();
             Session.SendMessage(new AvatarAspectUpdateComposer(Look, Gender));
@@ -150,6 +151,8 @@ namespace Polar.Communication.Packets.Incoming.Users
                 Session.GetHabbo().Credits -= 250;
                 Session.GetHabbo().UpdateCreditsBalance();
                 RoleplayManager.Shout(Session, "*¡Ha comprado nuevo atuendo!*", 5);
+                Session.GetRoleplay().ClearWebSocketDialogue();
+                Session.GetRoleplay().RefreshStatDialogue();
             }
 
             // Actualizar tutorial

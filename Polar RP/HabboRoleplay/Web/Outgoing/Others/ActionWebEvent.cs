@@ -1,10 +1,10 @@
-﻿using System;
+using ConnectionManager;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Fleck;
 using Polar.Core;
 using Polar.HabboHotel.GameClients;
 
@@ -22,7 +22,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.Others
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Session, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Session, string Data, ConnectionInformation Socket)
         {
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Session, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
                 return;

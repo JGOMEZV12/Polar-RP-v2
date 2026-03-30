@@ -1,123 +1,192 @@
-﻿using System;
+﻿using Polar.Communication.Packets.Outgoing.Rooms.Chat;
 using Polar.HabboHotel.GameClients;
-using Polar.HabboHotel.Groups;
+using Polar.HabboHotel.Items;
+using Polar.HabboHotel.Pathfinding;
+using Polar.HabboHotel.Rooms;
+using Polar.HabboHotel.Rooms.Pathfinding;
+using Polar.HabboRoleplay.Bots;
+using Polar.HabboRoleplay.Bots.Types;
+using Polar.HabboRoleplay.Food;
 using Polar.HabboRoleplay.Misc;
 using Polar.HabboRoleplay.RoleplayUsers;
-using Polar.HabboRoleplay.Bots;
-using Polar.HabboHotel.Items;
-using Polar.HabboRoleplay.Food;
-using System.Linq;
+using System;
 using System.Drawing;
-using Polar.HabboHotel.Pathfinding;
-using Polar.HabboHotel.Rooms.Pathfinding;
 
 namespace Polar.HabboRoleplay.Timers.Types
 {
-    /// <summary>
-    /// Serving timer
-    /// </summary>
     public class ServingTimer : BotRoleplayTimer
     {
-        public ServingTimer(string Type, RoleplayBot CachedBot, int Time, bool Forever, object[] Params) 
+        private const int GraceTicks   = 6;
+        private const int MaxWaitTicks = 25;
+
+        private int  _graceTicks = 0;
+        private int  _waitTicks  = 0;
+        private bool _served     = false;
+
+        // FIX: flag que FoodServerBot.OnTimerTick() lee para procesar la cola
+        // en el siguiente tick, FUERA del Execute() de este timer.
+        public bool ServeCompleted { get; private set; } = false;
+
+        public ServingTimer(string Type, RoleplayBot CachedBot, int Time, bool Forever, object[] Params)
             : base(Type, CachedBot, Time, Forever, Params)
         {
             TimeCount = 0;
         }
- 
-        /// <summary>
-        /// Begins serving food/drink process
-        /// </summary>
+
         public override void Execute()
         {
             try
             {
+                if (_served) return;
+
                 if (base.CachedBot == null || base.CachedBot.DRoomUser == null || base.CachedBot.DRoom == null)
+                { Abort(null); return; }
+
+                GameClient Client     = (GameClient)Params[0];
+                Food.Food  Food       = (Food.Food) Params[1];
+                Point      ServePoint = (Point)     Params[2];
+                Point      UserPoint  = (Point)     Params[3];
+                string     RealName   = (string)    Params[4];
+
+                if (Client == null || Client.LoggingOut ||
+                    Client.GetRoleplay() == null || Client.GetRoomUser() == null)
+                { Abort(null); return; }
+
+                if (!NeedsFilling(Client))
+                { Abort(null); return; }
+
+                // Período de gracia — el bot necesita ticks para empezar a caminar
+                if (_graceTicks < GraceTicks)
+                { _graceTicks++; return; }
+
+                // Usuario se movió de su sitio
+                if (Client.GetRoomUser().Coordinate != UserPoint)
                 {
-                    base.EndTimer();
+                    Abort(Client, "¡Te has movido de tu sitio! Pide de nuevo cuando estés sentado.");
                     return;
                 }
 
-                GameClient Client = (GameClient)Params[0];
-                Food.Food Food = (Food.Food)Params[1];
-                Point ServePoint = (Point)Params[2];
-                Point UserPoint = (Point)Params[3];
-                string RealName = (string)Params[4];
-
-                bool StatCheck = false;
-                if (base.CachedBot.DRoomUser.GetBotRoleplay().AIType == RoleplayBotAIType.DRINKSERVER)
+                // Bot aún no llegó — reintentar MoveTo cada 4 ticks
+                if (base.CachedBot.DRoomUser.Coordinate != ServePoint)
                 {
-                    if (Client.GetRoleplay().CurEnergy < Client.GetRoleplay().MaxEnergy)
-                    if (Client.GetRoleplay().CurAlcohol < Client.GetRoleplay().MaxAlcohol)
-                            StatCheck = true;
-                }
-                else
-                {
-                    if (Client.GetRoleplay().Hunger > 0)
-                        StatCheck = true;
+                    _waitTicks++;
+                    if (_waitTicks % 4 == 0)
+                        base.CachedBot.DRoomUser.MoveTo(ServePoint);
+                    if (_waitTicks >= MaxWaitTicks)
+                        Abort(Client, "Lo siento " + Client.GetHabbo().Username + ", no logré llegar. ¡Inténtalo de nuevo!");
+                    return;
                 }
 
-                if (Client != null && Client.GetRoomUser() != null && Client.GetRoleplay() != null && !Client.LoggingOut && StatCheck)
-                {
-                    if (Client.GetRoomUser().Coordinate != UserPoint)
-                    {
-                        base.CachedBot.DRoomUser.GetBotRoleplay().WalkingToItem = false;
-                        InitiateGoHome();
-                        base.EndTimer();
-                    }
+                // ── Bot llegó → servir ────────────────────────────────────────
+                _served = true;
 
-                    if (base.CachedBot.DRoomUser.Coordinate != ServePoint)
-                        return;
+                int rot = Rotation.Calculate(
+                    base.CachedBot.DRoomUser.Coordinate.X,
+                    base.CachedBot.DRoomUser.Coordinate.Y,
+                    Client.GetRoomUser().Coordinate.X,
+                    Client.GetRoomUser().Coordinate.Y);
 
-                    int Rot = Rotation.Calculate(Client.GetRoomUser().Coordinate.X, Client.GetRoomUser().Coordinate.Y, base.CachedBot.DRoomUser.Coordinate.X, base.CachedBot.DRoomUser.Coordinate.Y);
-                    base.CachedBot.DRoomUser.SetRot(Rot, false);
-                    base.CachedBot.DRoomUser.Chat("Aqui tienes " + Client.GetHabbo().Username + " Espero que disfrutes de tu " + RealName + ".", true);
+                base.CachedBot.DRoomUser.SetRot(rot, false);
+                base.CachedBot.DRoomUser.Chat(
+                    "Aquí tienes " + Client.GetHabbo().Username +
+                    ", espero que disfrutes de tu " + RealName + ".", true);
 
-                    BeginPlacingFoodFurni(Food, Client, UserPoint);
-                    InitiateGoHome();
-                }
+                BeginPlacingFoodFurni(Food, Client);
 
-                base.CachedBot.DRoomUser.GetBotRoleplay().WalkingToItem = false;
-                InitiateGoHome();
+                Client.GetRoomUser().OnChat(Client.GetRoomUser().LastBubble, "¡Gracias! ", false, string.Empty);
+
+                GoHome();
+                // Liberar flag ANTES de volver a casa para que el siguiente pedido
+                // pueda empezar limpiamente desde OnTimerTick.
+                if (base.CachedBot?.DRoomUser != null)
+                    base.CachedBot.DRoomUser.GetBotRoleplay().WalkingToItem = false;
+
+                
+
+                // FIX: marcar completado y dejar que OnTimerTick procese la cola
+                // en el PRÓXIMO tick, cuando este Execute ya terminó del todo.
+                ServeCompleted = true;
                 base.EndTimer();
             }
-            catch
+            catch (Exception ex)
             {
+                Polar.Core.Logging.LogException(ex.ToString());
+                if (base.CachedBot?.DRoomUser != null)
+                    base.CachedBot.DRoomUser.GetBotRoleplay().WalkingToItem = false;
+                GoHome();
+                ServeCompleted = true;
                 base.EndTimer();
             }
         }
 
-        public void BeginPlacingFoodFurni(Food.Food Food, GameClient Client, Point UserPoint)
+        // ─── Helpers ──────────────────────────────────────────────────────────
+
+        private bool NeedsFilling(GameClient Client)
         {
-            if (Client == null)
-                return;
+            var rp = Client.GetRoleplay();
+            if (base.CachedBot.DRoomUser.GetBotRoleplay().AIType == RoleplayBotAIType.DRINKSERVER)
+                return rp.CurEnergy < rp.MaxEnergy || rp.CurAlcohol < rp.MaxAlcohol;
+            return rp.Hunger > 0;
+        }
 
-            if (Client.GetRoomUser() == null)
-                return;
+        public void BeginPlacingFoodFurni(Food.Food Food, GameClient Client)
+        {
+            if (Client?.GetRoomUser() == null || base.CachedBot.DRoom == null) return;
 
-            if (base.CachedBot.DRoom == null)
-                return;
-
-            double MaxHeight = 0.0;
-
-            Item ItemInFront;
-            if (base.CachedBot.DRoom.GetGameMap().GetHighestItemForSquare(Client.GetRoomUser().SquareInFront, out ItemInFront))
+            double maxHeight = 0.0;
+            if (base.CachedBot.DRoom.GetGameMap()
+                    .GetHighestItemForSquare(Client.GetRoomUser().SquareInFront, out Item itemInFront))
             {
-                if (ItemInFront != null)
-                    MaxHeight = ItemInFront.TotalHeight;
+                if (itemInFront != null)
+                    maxHeight = itemInFront.TotalHeight;
             }
+
             base.CachedBot.DRoomUser.SetRot(Client.GetRoomUser().RotBody, false);
-            RoleplayManager.PlaceItemToRoom(Client, Food.ItemId, 0, Client.GetRoomUser().SquareInFront.X, Client.GetRoomUser().SquareInFront.Y, MaxHeight, Client.GetRoomUser().RotBody, false, base.CachedBot.DRoom.Id, false, Food.ExtraData);
+            RoleplayManager.PlaceItemToRoom(
+                Client, Food.ItemId, 0,
+                Client.GetRoomUser().SquareInFront.X,
+                Client.GetRoomUser().SquareInFront.Y,
+                maxHeight,
+                Client.GetRoomUser().RotBody,
+                false, base.CachedBot.DRoom.Id, false, Food.ExtraData, true);
         }
 
-        public void InitiateGoHome()
+        public void GoHome()
         {
-            if (!base.CachedBot.DRoomUser.GetBotRoleplayAI().OnDuty)
-                return;
+            try
+            {
+                if (base.CachedBot?.DRoomUser == null) return;
+                if (!base.CachedBot.DRoomUser.GetBotRoleplayAI().OnDuty) return;
 
-            var Point = new Point(base.CachedBot.DRoomUser.GetBotRoleplay().oX, base.CachedBot.DRoomUser.GetBotRoleplay().oY);
+                var home = new Point(
+                    base.CachedBot.DRoomUser.GetBotRoleplay().oX,
+                    base.CachedBot.DRoomUser.GetBotRoleplay().oY);
 
-            if (base.CachedBot.DRoomUser.Coordinate != Point)
-                base.CachedBot.DRoomUser.MoveTo(Point);
+                if (base.CachedBot.DRoomUser.Coordinate != home)
+                    base.CachedBot.DRoomUser.MoveTo(home);
+            }
+            catch { }
+        }
+
+        private void Whisper(GameClient Client, string Message)
+        {
+            if (base.CachedBot?.DRoomUser == null) return;
+            Client.SendMessage(new WhisperComposer(base.CachedBot.DRoomUser.VirtualId, Message, 0, 2));
+        }
+
+        private void Abort(GameClient Client, string Message = null)
+        {
+            if (Client != null && Message != null)
+                Whisper(Client, Message);
+
+            if (base.CachedBot?.DRoomUser != null)
+                base.CachedBot.DRoomUser.GetBotRoleplay().WalkingToItem = false;
+
+            GoHome();
+
+            // FIX: igual que en el path normal — dejar que OnTimerTick procese la cola
+            ServeCompleted = true;
+            base.EndTimer();
         }
     }
 }

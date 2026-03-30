@@ -1,42 +1,12 @@
-﻿using System;
+using ConnectionManager;
+using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using Fleck;
 using Polar.HabboHotel.Items;
 using Polar.HabboHotel.GameClients;
-using Polar.HabboHotel.Rooms;
-using System.IO;
-using Polar.HabboRoleplay.Misc;
-using Polar.Communication.Packets.Incoming.Groups;
-using Polar.Communication.Packets.Outgoing;
-using Polar.Communication.Packets.Incoming;
-using Polar.Communication.Packets.Outgoing.Groups;
-using Polar.Communication.Packets.Outgoing.Catalog;
-using Polar.Communication.Packets.Outgoing.Messenger;
-using System.Collections.Generic;
-using Polar.HabboHotel.Groups;
-using Polar.HabboHotel.Cache;
-using Polar.Communication.Packets.Outgoing.Rooms.Permissions;
-using Polar.Database.Interfaces;
-using System.Text.RegularExpressions;
-using Polar.Communication.Packets.Outgoing.Rooms.Notifications;
-using Polar.HabboRoleplay.Vehicles;
-using Polar.HabboRoleplay.PhoneChat;
-using System.Data;
-using Polar.HabboHotel.Users.Messenger;
-using Polar.Utilities;
-using Polar.HabboHotel.Quests;
-using Polar.Communication.Packets.Outgoing.Users;
-using Polar.HabboRoleplay.Phones;
-using Polar.HabboRoleplay.PhoneOwned;
-using Polar.HabboRoleplay.PhoneAppOwned;
-using Polar.HabboRoleplay.PhonesApps;
-using System.Web;
-using Polar.Communication.Packets.Incoming.Inventory.Purse;
-using Polar.HabboRoleplay.API;
-using Polar.HabboRoleplay.PlayInternet;
+using Polar.Net;
 
 namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
 {
@@ -51,7 +21,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -64,7 +34,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Open
                 case "open":
                     {
-                        Socket.Send("compose_purge|open|");
+                        Socket.SendWS( "compose_purge|open|");
                     }
                     break;
                 #endregion
@@ -73,7 +43,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Close
                 case "close":
                     {
-                        Socket.Send("compose_purge|close|");
+                        Socket.SendWS( "compose_purge|close|");
                     }
                     break;
                 #endregion
@@ -82,7 +52,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 case "timer":
                     {
                         string[] ReceivedData = Data.Split(',');
-                        Socket.Send("compose_purge|timer|" + ReceivedData[1]);
+                        Socket.SendWS( "compose_purge|timer|" + ReceivedData[1]);
                     }
                     break;
                 #endregion
@@ -90,11 +60,19 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #region Timer Off
                 case "timer_off":
                     {
-                        Socket.Send("compose_purge|timer_off|");
+                        Socket.SendWS( "compose_purge|timer_off|");
                     }
                     break;
                 #endregion
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

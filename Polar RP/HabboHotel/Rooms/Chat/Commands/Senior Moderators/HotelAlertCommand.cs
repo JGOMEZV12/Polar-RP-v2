@@ -34,7 +34,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Moderators.Seniors
 
             string Message = CommandManager.MergeParams(Params, 1);
 
-           PolarEnvironment.GetGame().GetClientManager().SendMessage(new BroadcastMessageAlertComposer(Message + "\r\n" + "Comunicado de: " + Session.GetHabbo().Username + "\r\n"  + "CEO, de " + PolarEnvironment.GetConfig().data["hotel.name"]));
+           PolarEnvironment.GetGame().GetClientManager().SendMessage(new BroadcastMessageAlertComposer(Message + "\r\n\n" + "Comunicado de: " + Session.GetHabbo().Username + "\r\n\n" + "CEO, de " + PolarEnvironment.GetConfig().data["hotel.name"]));
         }
     }
 }

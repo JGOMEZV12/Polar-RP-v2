@@ -151,6 +151,7 @@
         public const int TalentLevelUpMessageComposer = 638; // PRODUCTION-201611291003-338511768
         public const int BuildersClubMembershipMessageComposer = 1452; // PRODUCTION-201611291003-338511768
         public const int PetTrainingPanelMessageComposer = 1164; // PRODUCTION-201611291003-338511768
+        public const int PetLevelUpMessageComposer = 2824; // PRODUCTION-201611291003-338511768
         public const int QuestCompletedMessageComposer = 949; // PRODUCTION-201611291003-338511768
         public const int QuestionParserMessageComposer = 2665; // PRODUCTION-201611291003-338511768
         public const int UserRightsMessageComposer = 411; // PRODUCTION-201611291003-338511768
@@ -353,5 +354,8 @@
         public const int FurniMaticRewardsComposer = 3164; // PRODUCTION-201611291003-338511768
         public const int ReloadRecyclerComposer = 3433; // PRODUCTION-201611291003-338511768
         public const int RecyclerStateComposer = 468; // PRODUCTION-201611291003-338511768
+
+        // RP Inventory
+        public const int RPItemList = 5300;
     }
 }

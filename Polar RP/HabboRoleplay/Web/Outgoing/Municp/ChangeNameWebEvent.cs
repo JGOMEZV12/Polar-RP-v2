@@ -1,10 +1,5 @@
-﻿using System;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Fleck;
-
+using ConnectionManager;
+using Polar.Net;
 using Polar.HabboHotel.GameClients;
 using System.IO;
 using Polar.HabboHotel.Roleplay.Web;
@@ -33,7 +28,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -50,7 +45,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
 
                         string SendData = (Client.GetRoleplay().ChangeNameCount <= 0) ? "Cambiar nombre (GRATIS)" : "Cambiar nombre ("+RoleplayManager.ChangeNameCost+" RB)";
 
-                        Socket.Send("compose_changename|open|" + SendData);
+                        Socket.SendWS( "compose_changename|open|" + SendData);
                     }
                     break;
                 #endregion
@@ -59,7 +54,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
                 case "close":
                     {
                         Client.GetRoleplay().ViewChangeName = false;
-                        Socket.Send("compose_changename|close");
+                        Socket.SendWS( "compose_changename|close");
                     }
                     break;
                 #endregion
@@ -91,19 +86,19 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
 
                         if(string.IsNullOrEmpty(NewName) || NewName.Length < 3 || NewName.Length > 18)
                         {
-                            Socket.Send("compose_changename|chnamemsg|Tu nuevo nombre debe tener entre 3 y 18 caracteres.");
+                            Socket.SendWS( "compose_changename|chnamemsg|Tu nuevo nombre debe tener entre 3 y 18 caracteres.");
                             return;
                         }
 
                         if(!Regex.IsMatch(NewName, @"^[a-zA-Z0-9]+$"))
                         {
-                            Socket.Send("compose_changename|chnamemsg|Tu nuevo nombre no puede contener caracteres especiales ni espacios.");
+                            Socket.SendWS( "compose_changename|chnamemsg|Tu nuevo nombre no puede contener caracteres especiales ni espacios.");
                             return;
                         }
 
                         if(Client.GetHabbo().Username == NewName)
                         {
-                            Socket.Send("compose_changename|chnamemsg|Tu nuevo nombre no puede ser igual al actual.");
+                            Socket.SendWS( "compose_changename|chnamemsg|Tu nuevo nombre no puede ser igual al actual.");
                             return;
                         }
 
@@ -117,7 +112,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
 
                         if(InUse)
                         {
-                            Socket.Send("compose_changename|chnamemsg|¡Ese nombre ya está en uso!");
+                            Socket.SendWS( "compose_changename|chnamemsg|¡Ese nombre ya está en uso!");
                             return;
                         }
 
@@ -125,7 +120,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
                         {
                             if(Client.GetHabbo().Diamonds < RoleplayManager.ChangeNameCost)
                             {
-                                Socket.Send("compose_changename|chnamemsg|No cuentas con los rubies suficientes.");
+                                Socket.SendWS( "compose_changename|chnamemsg|No cuentas con los rubies suficientes.");
                                 return;
                             }
                         }
@@ -133,7 +128,7 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
 
                         #region Execute
                         RoleplayManager.Shout(Client, "*Ha solicitado un cambio de nombre a '" + NewName + "'*", 5);
-                        Socket.Send("compose_changename|chnamemsg_green|Solicitando cambio de nombre. Por favor espera...");
+                        Socket.SendWS( "compose_changename|chnamemsg_green|Solicitando cambio de nombre. Por favor espera...");
 
                         // Reformateamos nombre a primera letra mayúscula
                         string OldName = Client.GetHabbo().Username;
@@ -211,5 +206,13 @@ namespace Polar.HabboRoleplay.Web.Outgoing.Statistics
                 #endregion
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

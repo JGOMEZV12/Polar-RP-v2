@@ -48,7 +48,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.SpecialRights
                         continue;
 
                     User.SendNameColourPacket();
-                    Room.SendMessage(new ChatComposer(User.VirtualId, Message, 0, User.LastBubble));
+                    Room.SendMessage(new ChatComposer(User.VirtualId, Message, 0, User.LastBubble, string.Empty));
                     User.SendNamePacket();
                 }
             }

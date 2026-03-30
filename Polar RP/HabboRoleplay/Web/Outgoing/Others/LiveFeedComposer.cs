@@ -1,10 +1,5 @@
-﻿using System;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Fleck;
-
+using ConnectionManager;
+using Polar.Net;
 using Polar.HabboHotel.GameClients;
 using System.IO;
 using Polar.HabboHotel.Cache;
@@ -25,7 +20,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.General
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
                 return;
@@ -41,7 +36,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.General
                 if (String.IsNullOrEmpty(CachedDataString))
                     return;
 
-                Socket.Send("compose_wstest|" + CachedDataString);
+                Socket.SendWS( "compose_wstest|" + CachedDataString);
             }
             else
             {
@@ -55,7 +50,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.General
                     if (String.IsNullOrEmpty(CachedDatString2))
                         return;
 
-                    Socket.Send("compose_wstest|" + GetUserComponent.ReturnUserStatistics(CachedClient));
+                    Socket.SendWS( "compose_wstest|" + GetUserComponent.ReturnUserStatistics(CachedClient));
                 }
             }
             */
@@ -77,7 +72,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.General
                             SendData += User2 + "|";
                             SendData += ActionText + "|";
 
-                            Socket.Send("compose_combatlog|alert|" + SendData);
+                            Socket.SendWS( "compose_combatlog|alert|" + SendData);
                         }
                     }
                 break;
@@ -179,12 +174,20 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.General
                                 break;
                         }
 
-                        Socket.Send("compose_live|sound|" + Sound);
+                        Socket.SendWS( "compose_live|sound|" + Sound);
                     }
                 break;
                 default:
                     break;
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

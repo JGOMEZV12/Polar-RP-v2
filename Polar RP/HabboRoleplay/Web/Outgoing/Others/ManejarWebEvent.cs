@@ -1,10 +1,6 @@
-﻿using System;
-using System.Linq;
-using System.Text;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using ConnectionManager;
+using Polar.Net;
 using Newtonsoft.Json;
-using Fleck;
 using Polar.Core;
 using Polar.HabboHotel.GameClients;
 using System.IO;
@@ -28,7 +24,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.Others
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -69,7 +65,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.Others
                         string jSon = "";
                         string CarType = RoleplayManager.GetCarName(Client);
                         if (Client.GetRoleplay().CarType == 0)
-                                 Socket.Send("compose_autos|none|[]");
+                                 Socket.SendWS( "compose_autos|none|[]");
 
                             jSon = JsonConvert.SerializeObject(new Dictionary<object, object>()
                                  {
@@ -79,9 +75,9 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.Others
                                     { "fuel", Client.GetRoleplay().CarFuel }
                                  });
                             
-                            //Socket.Send("{\"compose_buscado\":\"open\",\"username\":" + PolarEnvironment.GetHabboById(Convert.ToInt32(Wanted.UserId)).Username + ", \"look\":" + PolarEnvironment.GetHabboById(Convert.ToInt32(Wanted.UserId)).Look + ",\"stars\":" + WantedStar + ",\"last_seen\":" + Wanted.LastSeenRoom + "}");
+                            //Socket.SendWS( "{\"compose_buscado\":\"open\",\"username\":" + PolarEnvironment.GetHabboById(Convert.ToInt32(Wanted.UserId)).Username + ", \"look\":" + PolarEnvironment.GetHabboById(Convert.ToInt32(Wanted.UserId)).Look + ",\"stars\":" + WantedStar + ",\"last_seen\":" + Wanted.LastSeenRoom + "}");
                         //Logging.WriteLine("compose_autos:[" + jSon +"]");
-                        Socket.Send("compose_autos|[" + jSon + "]");
+                        Socket.SendWS( "compose_autos|[" + jSon + "]");
                     }
                     break;
                 #endregion
@@ -167,10 +163,10 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.Others
                         Client.Shout("*Se monta en su " + CarType + " y lo enciende*", 4);
                         Client.GetRoleplay().CooldownManager.CreateCooldown("carro", 1000, 90);
 
-                        //Socket.Send("{\"compose_buscado\":\"open\",\"username\":" + PolarEnvironment.GetHabboById(Convert.ToInt32(Wanted.UserId)).Username + ", \"look\":" + PolarEnvironment.GetHabboById(Convert.ToInt32(Wanted.UserId)).Look + ",\"stars\":" + WantedStar + ",\"last_seen\":" + Wanted.LastSeenRoom + "}");
+                        //Socket.SendWS( "{\"compose_buscado\":\"open\",\"username\":" + PolarEnvironment.GetHabboById(Convert.ToInt32(Wanted.UserId)).Username + ", \"look\":" + PolarEnvironment.GetHabboById(Convert.ToInt32(Wanted.UserId)).Look + ",\"stars\":" + WantedStar + ",\"last_seen\":" + Wanted.LastSeenRoom + "}");
                        // Logging.WriteLine("compose_autos:[" + jSon +"]");
                        
-                        Socket.Send("compose_autos|[" + jSon + "]");
+                        Socket.SendWS( "compose_autos|[" + jSon + "]");
                     }
                     break;
                 #endregion
@@ -342,5 +338,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Incoming.Others
             }
             return;
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -19,6 +19,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
         public string StringData { get; set; }
         public bool BoolData { get; set; }
         public string ItemsData { get; set; }
+
         public FurniHasNoFurniBox(Room instance, Item item)
         {
             this.Instance = instance;

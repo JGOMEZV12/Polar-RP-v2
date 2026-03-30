@@ -46,7 +46,9 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Interactions.Basic
 
             RoomUser RoomUser = Session.GetRoomUser();
             RoomUser TargetUser = Room.GetRoomUserManager().GetRoomUserByHabbo(TargetClient.GetHabbo().Username);
-            if (TargetUser == null)
+
+            // ✅ Fix: validar ambos RoomUsers juntos
+            if (RoomUser == null || TargetUser == null)
             {
                 Session.SendWhisper("Se ha producido un error al encontrar a ese usuario, tal vez no estén en línea o en esta sala.", 1);
                 return;

@@ -202,13 +202,13 @@ namespace Polar.HabboRoleplay.Timers.Types
                     if ((Client.GetRoleplay().CurHealth - Damage) <= 0)
                     {
                         Client.GetRoleplay().CurHealth = 0;
-                        RoleplayBot.Chat("*Lanza golpe a " + Client.GetHabbo().Username + ", y le da duro*", true, 6);
+                        RoleplayBot.Chat("*" + (RoleplayBot.GetBotRoleplay().IsPet ? "Ataca" : "Lanza golpe") + " a " + Client.GetHabbo().Username + ", y le da duro*", true, 6);
                         Died = true;
                     }
                     else
                     {
                         Client.GetRoleplay().CurHealth -= Damage;
-                        RoleplayBot.Chat("*Le tira un golpea a " + Client.GetHabbo().Username + ", y le quita " + Damage + "*", true, 6);
+                        RoleplayBot.Chat("*" + (RoleplayBot.GetBotRoleplay().IsPet ? "Ataca" : "Le tira un golpe") + " a " + Client.GetHabbo().Username + " y le quita " + Damage + "*", true, 6);
                     }
 
                     RoleplayBot.GetBotRoleplay().CooldownManager.CreateCooldown("fist", 1000, RoleplayBot.GetBotRoleplay().AttackInterval);

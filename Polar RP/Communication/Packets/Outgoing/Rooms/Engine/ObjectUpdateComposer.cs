@@ -31,7 +31,7 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
             packet.WriteInteger(Item.GetX);
             packet.WriteInteger(Item.GetY);
             packet.WriteInteger(Item.Rotation);
-            packet.WriteString(String.Format("{0:0.00}", Item.GetZ));
+            packet.WriteString(Item.GetZ.ToString());
             packet.WriteString(String.Empty);
 
             if (Item.LimitedNo > 0)

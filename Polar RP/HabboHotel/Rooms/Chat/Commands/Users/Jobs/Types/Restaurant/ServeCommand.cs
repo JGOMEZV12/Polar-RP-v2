@@ -44,12 +44,19 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Restaurant
 
             if (Params.Length == 1)
             {
-                Session.SendWhisper("Por favor escriba: serve (item) Sólo puede servir los siguientes elementos: " + FoodManager.GetServableItems(Session) + "!", 1);
+                Session.SendWhisper("Por favor escriba :servir (item) Sólo puede servir los siguientes elementos: " + FoodManager.GetServableItems(Session) + "!", 1);
+                return;
+            }
+
+            // ── Subcomando: menu ─────────────────────────────────────────────
+            if (Params[1].ToLower() == "menu")
+            {
+                ShowFoodMenu(Session);
                 return;
             }
 
             string FoodName = Params[1].ToString();
-            Food Food = FoodManager.GetFoodAndDrink(FoodName);
+            Food Food = FoodManager.GetFoodTwo(FoodName);
 
             if (!Session.GetRoleplay().IsWorking)
             {
@@ -92,27 +99,6 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Restaurant
                 Session.SendWhisper("¡Encuentra una buena mesa para servir!", 1);
                 return;
             }
-
-            if (Food.Type == "food" && !GroupManager.HasJobCommand(Session, "food"))
-            {
-                Session.SendWhisper("¡Lo siento! Sólo puede servir: " + FoodManager.GetServableItems(Session) + "!", 1);
-                return;
-            }
-
-            if (Food.Type == "drink" && !GroupManager.HasJobCommand(Session, "drinks"))
-            {
-                Session.SendWhisper("¡Lo siento! Sólo puede servir: " + FoodManager.GetServableItems(Session) + "!", 1);
-                return;
-            }
-
-            /*if (!Food.Servable)
-            {
-                if (Food.Type == "drink")
-                    Session.SendWhisper("¡Lo siento! Sólo puede servir: " + FoodManager.GetServableItems(Session) + "!", 1);
-                else
-                    Session.SendWhisper("¡Lo siento! Sólo puedes servir: " + FoodManager.GetServableItems(Session) + "!", 1);
-                return;
-            }*/
             #endregion
 
             #region Execute
@@ -127,6 +113,48 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Restaurant
             Session.Shout(Food.ServeText, 4);
             RoleplayManager.PlaceItemToRoom(Session, Food.ItemId, 0, User.SquareInFront.X, User.SquareInFront.Y, MaxHeight, User.RotBody, false, Room.Id, false, Food.ExtraData, true);
             #endregion
+        }
+
+        // ─── Helpers ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Muestra una notificación con todos los alimentos y bebidas registrados en la DB.
+        /// Uso: :servir menu
+        /// </summary>
+        private void ShowFoodMenu(GameClients.GameClient Session)
+        {
+            var foods = new List<Food>();
+            var drinks = new List<Food>();
+
+            foreach (var item in FoodManager.FoodList.Values)
+            {
+                if (item.Type.ToLower() == "drink")
+                    drinks.Add(item);
+                else
+                    foods.Add(item);
+            }
+
+            var sb = new StringBuilder();
+            sb.Append("---------- Menú del Restaurante ----------\n\n");
+
+            sb.Append("🍽 Comidas (" + foods.Count + "):\n");
+            if (foods.Count > 0)
+                sb.Append("  " + string.Join(", ", foods.Select(f => f.Name)) + "\n");
+            else
+                sb.Append("  (ninguna)\n");
+
+            sb.Append("\n");
+
+            sb.Append("🥤 Bebidas (" + drinks.Count + "):\n");
+            if (drinks.Count > 0)
+                sb.Append("  " + string.Join(", ", drinks.Select(d => d.Name)) + "\n");
+            else
+                sb.Append("  (ninguna)\n");
+
+            sb.Append("\n");
+            sb.Append("Usa :servir (nombre) para servir un ítem.");
+
+            Session.SendNotification(sb.ToString());
         }
     }
 }

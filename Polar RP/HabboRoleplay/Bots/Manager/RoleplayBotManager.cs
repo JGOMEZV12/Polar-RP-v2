@@ -304,7 +304,8 @@ namespace Polar.HabboRoleplay.Bots.Manager
 
                     #region Generate Roleplay Bot's data, timers
 
-                    BotsRoomUserInstance.BotData = new RoomBot(DeployingBot.Id, DeployingBot.SpawnId, DeployingBot.AITypeString, "stand", DeployingBot.Name, "Motto", DeployingBot.Figure, DeployingBot.X, DeployingBot.Y, DeployingBot.Z, DeployingBot.SpawnRot, DeployingBot.X, DeployingBot.Y, DeployingBot.X, DeployingBot.Y, ref BotsSpeech, DeployingBot.Gender, 0, 0, false, 0, false, 0);
+                    BotsRoomUserInstance.BotData = new RoomBot(DeployingBot.Id, DeployingBot.SpawnId, DeployingBot.AITypeString, "stand", DeployingBot.Name, DeployingBot.Motto, DeployingBot.Figure, DeployingBot.X, DeployingBot.Y, DeployingBot.Z, DeployingBot.SpawnRot, DeployingBot.X, DeployingBot.Y, DeployingBot.X, DeployingBot.Y, ref BotsSpeech, DeployingBot.Gender, 0, 0, false, 0, false, 0);
+                    BotsRoomUserInstance.BotData.VirtualId = BotsRoomUserInstance.VirtualId;
                     BotsRoomUserInstance.RPBotAI = RoleplayBotManager.GetRoleplayBotAI(DeployingBot.AIType, BotsRoomUserInstance.VirtualId);
                     BotsRoomUserInstance.BotAI = BotsRoomUserInstance.BotData.GenerateBotAI(BotsRoomUserInstance.VirtualId);
 
@@ -628,8 +629,14 @@ namespace Polar.HabboRoleplay.Bots.Manager
                 RoleplayBotManager.SaveDeployedBotsData(RoleplayBot);
             #endregion
 
+            int BotId = RoleplayBot.GetBotRoleplay().Id;
+            RoleplayBotManager.DeployedRoleplayBots.TryRemove(BotId, out RoleplayBot);
 
-            RoleplayBotManager.DeployedRoleplayBots.TryRemove(RoleplayBot.GetBotRoleplay().Id, out RoleplayBot);
+            if (BotId < 0)
+            {
+                RoleplayBot Junk;
+                RoleplayBotManager.CachedRoleplayBots.TryRemove(BotId, out Junk);
+            }
             Room.GetRoomUserManager().RemoveBot(RoleplayBot.VirtualId, false);
             RoleplayBot.GetBotRoleplay().Invisible = true;
 
@@ -641,16 +648,15 @@ namespace Polar.HabboRoleplay.Bots.Manager
         {
             try
             {
-                foreach (RoomUser RoleplayBot in RoleplayBotManager.DeployedRoleplayBots.Values)
+                foreach (RoomUser RoleplayBot in RoleplayBotManager.DeployedRoleplayBots.Values.ToList())
                 {
                     if (RoleplayBot == null) continue;
                     if (RoleplayBot.GetRoom() == null) continue;
 
-                    if (RoleplayBot.GetRoom() == Room)
+                    if (RoleplayBot.GetRoom().Id == Room.Id)
                         RoleplayBotManager.EjectDeployedBot(RoleplayBot, RoleplayBot.GetRoom());
-
-                    return true;
                 }
+                return true;
             }
             catch (Exception ex)
             {

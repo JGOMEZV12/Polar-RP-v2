@@ -1,71 +1,70 @@
 ﻿using System;
-using System.Linq;
-using System.Text;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Polar.Database.Interfaces;
 using Polar.HabboHotel.Rooms;
 
-
 namespace Polar.HabboHotel.Rooms.Instance
 {
     public class FilterComponent
     {
-        private Room _instance = null;
+        private Room _instance;
 
-        public FilterComponent(Room Instance)
+        public FilterComponent(Room instance)
         {
-            if (Instance == null)
-                return;
-
-            this._instance = Instance;
+            // FIX: lanzar excepción en lugar de dejar el objeto en estado inválido
+            this._instance = instance ?? throw new ArgumentNullException(nameof(instance));
         }
 
-        public bool AddFilter(string Word)
+        public bool AddFilter(string word)
         {
-            if (this._instance.WordFilterList.Contains(Word))
+            // FIX: WordFilterList es HashSet → Contains es O(1)
+            if (this._instance.WordFilterList.Contains(word))
                 return false;
 
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
                 dbClient.SetQuery("INSERT INTO `room_filter` (`room_id`,`word`) VALUES(@rid,@word);");
                 dbClient.AddParameter("rid", this._instance.Id);
-                dbClient.AddParameter("word", Word);
+                dbClient.AddParameter("word", word);
                 dbClient.RunQuery();
             }
 
-            this._instance.WordFilterList.Add(Word);
+            this._instance.WordFilterList.Add(word);
             return true;
         }
 
-        public bool RemoveFilter(string Word)
+        public bool RemoveFilter(string word)
         {
-            if (!this._instance.WordFilterList.Contains(Word))
+            // FIX: HashSet.Remove devuelve bool directamente — sin Contains previo
+            if (!this._instance.WordFilterList.Remove(word))
                 return false;
 
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
                 dbClient.SetQuery("DELETE FROM `room_filter` WHERE `room_id` = @rid AND `word` = @word;");
                 dbClient.AddParameter("rid", this._instance.Id);
-                dbClient.AddParameter("word", Word);
+                dbClient.AddParameter("word", word);
                 dbClient.RunQuery();
             }
 
-            this._instance.WordFilterList.Remove(Word);
             return true;
         }
 
-        public string CheckMessage(string Message)
+        public string CheckMessage(string message)
         {
-            foreach (string Filter in this._instance.WordFilterList)
+            // FIX: ToLower() una sola vez fuera del loop (antes: N llamadas por mensaje)
+            string messageLower = message.ToLower();
+
+            foreach (string filter in this._instance.WordFilterList)
             {
-                if (Message.ToLower().Contains(Filter) || Message == Filter)
-                    Message = Regex.Replace(Message, Filter, "Bobba", RegexOptions.IgnoreCase);
-                else
-                    continue;
+                // FIX: eliminado "|| message == Filter" redundante (subconjunto del Contains)
+                // FIX: eliminado "else continue" que no hacía nada
+                if (messageLower.Contains(filter))
+                    message = Regex.Replace(message, filter, "Bobba", RegexOptions.IgnoreCase);
             }
 
-            return Message.TrimEnd(' ');
+            return message.TrimEnd(' ');
         }
 
         public void Cleanup()

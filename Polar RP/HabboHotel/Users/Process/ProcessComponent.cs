@@ -1,156 +1,145 @@
-﻿using System;
-using System.Linq;
-using System.Text;
+using System;
 using System.Threading;
-using System.Collections.Generic;
-
 using log4net;
-
-using Polar.Communication.Packets.Outgoing.Inventory.Furni;
-using Polar.Communication.Packets.Outgoing.Catalog;
-using Polar.HabboHotel.Items;
 using Polar.Communication.Packets.Outgoing.Handshake;
 using Polar.Database.Interfaces;
 
 namespace Polar.HabboHotel.Users.Process
 {
-    sealed class ProcessComponent
+    internal sealed class ProcessComponent
     {
         private static readonly ILog log = LogManager.GetLogger("Polar.HabboHotel.Users.Process.ProcessComponent");
+        private static readonly int IntervalMs = 1000;
 
-        private Habbo _player = null;
-        private Timer _timer = null;
-        private bool _timerRunning = false;
-        private bool _timerLagging = false;
-        private bool _disabled = false;
-        private AutoResetEvent _resetEvent = new AutoResetEvent(true);
-        private static int _runtimeInSec = 1;
+        private Habbo _player;
+        private Timer _timer;
+        private bool _timerRunning;
+        private bool _timerLagging;
+        private bool _disabled;
+        private readonly AutoResetEvent _resetEvent = new AutoResetEvent(true);
 
-        public bool Init(Habbo Player)
+        public bool Init(Habbo player)
         {
-            if (Player == null)
-                return false;
-            else if (this._player != null)
+            if (player == null || _player != null)
                 return false;
 
-            this._player = Player;
-            this._timer = new Timer(new TimerCallback(Run), null, _runtimeInSec * 1000, _runtimeInSec * 1000);
+            _player = player;
+            _timer = new Timer(Run, null, IntervalMs, IntervalMs);
             return true;
         }
 
-        /// <summary>
-        /// Called for each time the timer ticks.
-        /// </summary>
-        /// <param name="State"></param>
-        public void Run(object State)
+        public void Run(object state)
         {
+            if (_disabled) return;
+
+            // Captura local: evita que Dispose() anule _player mientras ejecutamos
+            Habbo player = _player;
+            if (player == null) return;
+
+            if (_timerRunning)
+            {
+                _timerLagging = true;
+                log.Warn($"<Player {player.Id}> Server can't keep up, Player timer is lagging behind.");
+                return;
+            }
+
+            _timerRunning = true; // debe activarse ANTES del try
+            _resetEvent.Reset();
+
             try
             {
-                if (this._disabled)
-                    return;
+                TickMuteCounters(player);
+                TickConsoleSpam(player);
 
-                if (this._timerRunning)
-                {
-                    this._timerLagging = true;
-                    log.Warn("<Player " + this._player.Id + "> Server can't keep up, Player timer is lagging behind.");
-                    return;
-                }
+                player.TimeAFK += 1;
 
-                this._resetEvent.Reset();
+                TickDailyRespect(player);
+                ResetScriptWarnings(player);
 
-                // BEGIN CODE
+                var client = player.GetClient();
+                if (client != null)
+                    PolarEnvironment.GetGame().GetAchievementManager()
+                        .ProgressAchievement(client, "ACH_AllTimeHotelPresence", 1);
 
-                #region Muted Checks
-                if (this._player.TimeMuted > 0.0)
-                    this._player.TimeMuted -= 1.0;
-                if (this._player.GetClient() != null && this._player.GetClient().GetRoleplay() != null && this._player.GetClient().GetRoleplay().VIPBanned > 0)
-                    this._player.GetClient().GetRoleplay().VIPBanned--;
-                #endregion
-
-                #region Console Checks
-                if (this._player.MessengerSpamTime > 0)
-                    this._player.MessengerSpamTime -= 60.0;
-                if (this._player.MessengerSpamTime <= 0)
-                    this._player.MessengerSpamCount = 0;
-                #endregion
-
-                this._player.TimeAFK += 1;
-
-                #region Respect checking
-                if (this._player.GetStats().RespectsTimestamp != DateTime.Today.ToString("MM/dd"))
-                {
-                    this._player.GetStats().RespectsTimestamp = DateTime.Today.ToString("MM/dd");
-                    using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-                    {
-                        dbClient.RunQuery("UPDATE `user_stats` SET `dailyRespectPoints` = '3', `respectsTimestamp` = '" + DateTime.Today.ToString("MM/dd") + "' WHERE `id` = '" + this._player.Id + "' LIMIT 1");
-                    }
-
-                    this._player.GetStats().DailyRespectPoints = 3;
-                    this._player.GetStats().DailyPetRespectPoints = 3;
-
-                    if (this._player.GetClient() != null)
-                    {
-                        this._player.GetClient().SendMessage(new UserObjectComposer(this._player));
-                    }
-                }
-                #endregion
-
-                #region Reset Scripting Warnings
-                if (this._player.GiftPurchasingWarnings < 15)
-                    this._player.GiftPurchasingWarnings = 0;
-
-                if (this._player.MottoUpdateWarnings < 15)
-                    this._player.MottoUpdateWarnings = 0;
-
-                if (this._player.ClothingUpdateWarnings < 15)
-                    this._player.ClothingUpdateWarnings = 0;
-                #endregion
-
-
-                if (this._player.GetClient() != null)
-                    PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(this._player.GetClient(), "ACH_AllTimeHotelPresence", 1);
-
-                this._player.Effects().CheckEffectExpiry(this._player);
-
-                // END CODE
-
-                // Reset the values
-                this._timerRunning = false;
-                this._timerLagging = false;
-
-                this._resetEvent.Set();
+                player.Effects()?.CheckEffectExpiry(player);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                log.Error($"<Player {player.Id}> Exception in ProcessComponent.Run: {ex}");
+            }
+            finally
+            {
+                _timerRunning = false;
+                _timerLagging = false;
+                _resetEvent.Set();
+            }
         }
 
-        /// <summary>
-        /// Stops the timer and disposes everything.
-        /// </summary>
+        // ─── Private tick helpers ────────────────────────────────────────────────
+
+        private void TickMuteCounters(Habbo player)
+        {
+            if (player.TimeMuted > 0.0)
+                player.TimeMuted -= 1.0;
+
+            var rp = player.GetClient()?.GetRoleplay();
+            if (rp != null && rp.VIPBanned > 0)
+                rp.VIPBanned--;
+        }
+
+        private void TickConsoleSpam(Habbo player)
+        {
+            if (player.MessengerSpamTime > 0)
+                player.MessengerSpamTime -= 60.0;
+
+            if (player.MessengerSpamTime <= 0)
+                player.MessengerSpamCount = 0;
+        }
+
+        private void TickDailyRespect(Habbo player)
+        {
+            string today = DateTime.Today.ToString("MM/dd");
+            if (player.GetStats().RespectsTimestamp == today)
+                return;
+
+            player.GetStats().RespectsTimestamp = today;
+            player.GetStats().DailyRespectPoints = 3;
+            player.GetStats().DailyPetRespectPoints = 3;
+
+            using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+            {
+                dbClient.RunQuery(
+                    $"UPDATE `user_stats` SET `dailyRespectPoints` = '3', `respectsTimestamp` = '{today}' " +
+                    $"WHERE `id` = '{player.Id}' LIMIT 1");
+            }
+
+            player.GetClient()?.SendMessage(new UserObjectComposer(player));
+        }
+
+        private void ResetScriptWarnings(Habbo player)
+        {
+            if (player.GiftPurchasingWarnings < 15) player.GiftPurchasingWarnings = 0;
+            if (player.MottoUpdateWarnings < 15) player.MottoUpdateWarnings = 0;
+            if (player.ClothingUpdateWarnings < 15) player.ClothingUpdateWarnings = 0;
+        }
+
         public void Dispose()
         {
-            // Wait until any processing is complete first.
-            try
-            {
-                this._resetEvent.WaitOne(TimeSpan.FromMinutes(5.0));
-            }
-            catch { } // give up
+            _disabled = true;
 
-            // Set the timer to disabled
-            this._disabled = true;
-
-            // Dispose the timer to disable it.
-            try
-            {
-                if (this._timer != null)
-                    this._timer.Dispose();
-            }
+            // Detener el timer primero para que no dispare más ticks
+            try { _timer?.Change(Timeout.Infinite, Timeout.Infinite); }
             catch { }
 
-            // Remove reference to the timer.
-            this._timer = null;
+            // Esperar a que termine cualquier tick en curso
+            try { _resetEvent.WaitOne(TimeSpan.FromMinutes(5.0)); }
+            catch { /* give up waiting */ }
 
-            // Null the player so we don't reference it here anymore
-            this._player = null;
+            try { _timer?.Dispose(); }
+            catch { }
+
+            _timer = null;
+            _player = null;
         }
     }
 }

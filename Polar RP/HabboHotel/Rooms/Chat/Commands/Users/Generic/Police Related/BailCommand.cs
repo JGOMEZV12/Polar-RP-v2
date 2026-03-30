@@ -94,17 +94,17 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Police
                 return;
             }
 
-            if (!GroupManager.GetJob(Session.GetRoleplay().JobId).Name.Contains("Justicia"))
+            /*if (!GroupManager.GetJob(Session.GetRoleplay().JobId).Name.Contains("Justicia"))
             {
                 Session.SendWhisper("¡No perteneces al Ministerio de juticia!.", 1);
                 return;
-            }
+            }*/
 
-            if (!GroupManager.HasJobCommand(Session, "fianza"))
+            /*if (!GroupManager.HasJobCommand(Session, "fianza"))
             {
                 Session.SendWhisper("¡Tienes que ser abogado o juez para poder permitir la fianza!", 1);
                 return;
-            }
+            }*/
 
             #endregion
 
@@ -120,7 +120,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Police
 
                     TargetClient.GetRoleplay().IsJailed = false;
                     TargetClient.GetRoleplay().JailedTimeLeft = 0;
-                    return;
+                   
                 }
                 else
                 {

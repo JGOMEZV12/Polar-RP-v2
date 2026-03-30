@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using Polar.Communication.Packets.Incoming;
@@ -12,14 +12,10 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
     {
         private int _delay;
         public Room Instance { get; set; }
-
         public Item Item { get; set; }
         public WiredBoxType Type => WiredBoxType.EffectMatchPosition;
-
         public ConcurrentDictionary<int, Item> SetItems { get; set; }
-
         public string StringData { get; set; }
-
         public bool BoolData { get; set; }
 
         public int Delay
@@ -33,7 +29,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
         }
 
         public int TickCount { get; set; }
-
         private bool _requested;
         public string ItemsData { get; set; }
 
@@ -78,7 +73,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
                 TickCount = Delay;
                 _requested = true;
             }
-
             return true;
         }
 
@@ -89,7 +83,11 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
 
             foreach (Item item in SetItems.Values.ToList())
             {
-                if (Instance.GetRoomItemHandler().GetFloor == null && !Instance.GetRoomItemHandler().GetFloor.Contains(item))
+                // FIX: Condición invertida corregida: && -> || para evitar NullReferenceException
+                if (Instance.GetRoomItemHandler().GetFloor == null || !Instance.GetRoomItemHandler().GetFloor.Contains(item))
+                    continue;
+
+                if (string.IsNullOrEmpty(ItemsData))
                     continue;
 
                 foreach (string I in ItemsData.Split(';'))
@@ -117,7 +115,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
 
                     try
                     {
-                        if (int.Parse(StringData.Split(';')[0]) == 1) //State
+                        if (int.Parse(StringData.Split(';')[0]) == 1)
                         {
                             if (part.Count() >= 4)
                                 SetState(ii, part[4]);
@@ -132,7 +130,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
 
                     try
                     {
-                        if (int.Parse(StringData.Split(';')[1]) == 1) //Direction
+                        if (int.Parse(StringData.Split(';')[1]) == 1)
                             SetRotation(ii, Convert.ToInt32(part[3]));
                     }
                     catch (Exception e)
@@ -142,7 +140,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
 
                     try
                     {
-                        if (int.Parse(StringData.Split(';')[2]) == 1) //Position
+                        if (int.Parse(StringData.Split(';')[2]) == 1)
                             SetPosition(ii, Convert.ToInt32(part[0]), Convert.ToInt32(part[1]), Convert.ToDouble(part[2]));
                     }
                     catch (Exception e)
@@ -180,9 +178,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
         private void SetPosition(Item item, int coordX, int coordY, double coordZ)
         {
             Instance.SendMessage(new SlideObjectBundleComposer(item.GetX, item.GetY, item.GetZ, coordX, coordY, coordZ, 0, 0, item.Id));
-
             Instance.GetRoomItemHandler().SetFloorItem(item, coordX, coordY, coordZ);
-            //Instance.GetGameMap().GenerateMaps();
         }
     }
 }

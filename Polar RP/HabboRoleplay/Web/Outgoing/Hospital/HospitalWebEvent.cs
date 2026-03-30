@@ -1,10 +1,10 @@
+using ConnectionManager;
 ﻿using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using Fleck;
-using Polar.HabboHotel.Items;
+using Polar.Net;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Rooms;
 using System.IO;
@@ -55,7 +55,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
         /// <param name="Client"></param>
         /// <param name="Data"></param>
         /// <param name="Socket"></param>
-        public void Execute(GameClient Client, string Data, IWebSocketConnection Socket)
+        public void Execute(GameClient Client, string Data, ConnectionInformation Socket)
         {
 
             if (!PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Client, true) || !PolarEnvironment.GetGame().GetWebEventManager().SocketReady(Socket))
@@ -138,7 +138,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         #endregion
 
                         Client.GetRoleplay().ViewHospBotiq = true;
-                        Socket.Send("compose_hospital|open_botiq|");
+                        Socket.SendWS( "compose_hospital|open_botiq|");
                     }
                     break;
                 #endregion
@@ -147,7 +147,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 case "close_botiq":
                     {
                         Client.GetRoleplay().ViewHospBotiq = false;
-                        Socket.Send("compose_hospital|close_botiq|");
+                        Socket.SendWS( "compose_hospital|close_botiq|");
                     }
                     break;
                 #endregion
@@ -284,7 +284,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         Client.SendWhisper("Tomas " + Client.GetRoleplay().BotiquinName + " del botiquín.", 1);
 
                         Client.GetRoleplay().ViewHospBotiq = false;
-                        Socket.Send("compose_hospital|use_botiq|");
+                        Socket.SendWS( "compose_hospital|use_botiq|");
 
                         Client.GetRoleplay().CooldownManager.CreateCooldown("botiq", 1000, 3);
                         #endregion
@@ -931,7 +931,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                         }
                         #endregion
 
-                        #region Comodin Conditions
+                        /*#region Comodin Conditions
                         Item BTile = null;
                         BTile = Room.GetRoomItemHandler().GetFloor.FirstOrDefault(x => x.GetBaseItem().ItemName.ToLower() == "comodin_carro" && x.Coordinate == Client.GetRoomUser().Coordinate);
                         if (BTile == null)
@@ -939,7 +939,7 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                             Client.SendWhisper("Debes acercarte a la entrada del Hospital para salvar al Herido.", 1);
                             return;
                         }
-                        #endregion
+                        #endregion*/
 
                         #region Execute
                         Point ClientPos = new Point(RoomUser.X, RoomUser.Y);
@@ -1019,5 +1019,13 @@ namespace Polar.HabboHotel.Roleplay.Web.Outgoing.Misc
                 #endregion
             }
         }
+
+        // ── Helper: envía texto como frame WebSocket usando ConnectionInformation
+        private static void SendWS(ConnectionInformation socket, string message)
+        {
+            if (socket == null || string.IsNullOrEmpty(message)) return;
+            socket.SendData(System.Text.Encoding.UTF8.GetBytes(message));
+        }
+
     }
 }

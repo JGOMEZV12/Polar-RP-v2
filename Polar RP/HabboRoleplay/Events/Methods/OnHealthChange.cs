@@ -1,10 +1,13 @@
-﻿using System;
+﻿using Polar.Communication.Packets.Outgoing.Inventory.Weapons;
+using Polar.Communication.Packets.Outgoing.Rooms.Engine;
+using Polar.HabboHotel.GameClients;
+using Polar.HabboHotel.Quests;
+using Polar.HabboHotel.Rooms;
+using Polar.HabboRoleplay.Misc;
+using Polar.HabboRoleplay.RPRoom;
+using System;
 using System.Linq;
 using System.Threading;
-using Polar.HabboHotel.GameClients;
-using Polar.HabboRoleplay.Misc;
-using Polar.Communication.Packets.Outgoing.Rooms.Notifications;
-using Polar.HabboHotel.Quests;
 
 namespace Polar.HabboRoleplay.Events.Methods
 {
@@ -78,6 +81,7 @@ namespace Polar.HabboRoleplay.Events.Methods
             }
 
             var User = Client.GetRoomUser();
+
             #region Lays User Down
             if (!User.Statusses.ContainsKey("lay"))
             {
@@ -129,44 +133,57 @@ namespace Polar.HabboRoleplay.Events.Methods
 
                 if (Client.GetRoomUser().CurrentEffect == Client.GetRoleplay().EquippedWeapon.EffectID)
                     Client.GetRoomUser().ApplyEffect(0);
+
                 Client.GetRoleplay().EquippedWeapon = null;
+
+                Client.SendMessage(new WeaponsComposer(Client));
             }
             PolarEnvironment.GetGame().GetQuestManager().ProgressUserQuest(Client, QuestType.DEATH);
-            int OriginalTime = RoleplayManager.DeathTime;
-            string MyCity = Client.GetHabbo().CurrentRoom.City;
 
-            HabboRoleplay.RPRoom.RPRoom Data;
-            int HospitalRID = PolarEnvironment.GetGame().GetRPRoomManager().TryToGetHospital(MyCity, out Data);
-            Client.GetHabbo().HomeRoom = HospitalRID;
+            Room Room = RoleplayManager.GenerateRoom(Client.GetRoomUser().RoomId);
+            string MyCity = Room.City;
 
-            if (HospitalRID > 0)
+            Polar.HabboRoleplay.RPRoom.RPRoom Data;
+            int ToHosp = PolarEnvironment.GetGame().GetRPRoomManager().TryToGetHospital(MyCity, out Data);
+
+            if (ToHosp > 0)
             {
-                if (Client != null && Client.GetHabbo() != null)
+                Room Room2 = RoleplayManager.GenerateRoom(ToHosp);
+                if (Room2 != null)
                 {
-                    if (Client.GetHabbo().CurrentRoomId == HospitalRID)
-                    {
-                        RoleplayManager.GetLookAndMotto(Client);
-                        RoleplayManager.SpawnBeds(Client, "hosptl_bed");
-                        Client.GetRoleplay().UpdateTimerDialogue("Haz-Muerto", "add", Client.GetRoleplay().DeadTimeLeft, OriginalTime);
-                        Client.SendMessage(new RoomBubbleNotificationComposer("dead_ht", "¡Usted murió! Actualmente estás siendo transportado al hospital.", ""));
-                        Client.GetRoomUser().ApplyEffect(914);
-                    }
+                    Client.GetRoleplay().IsDead = true;
+                    Client.GetRoleplay().DeadTimeLeft = RoleplayManager.DeathTime;
+
+                    Client.GetHabbo().HomeRoom = ToHosp;
+
+                    /*
+                    if (base.Client.GetHabbo().CurrentRoomId != ToHosp)
+                        RoleplayManager.SendUserTimer(Client, ToHosp, "", "death");
                     else
-                    {
-                        Client.GetRoleplay().UpdateTimerDialogue("Haz-Muerto", "add", Client.GetRoleplay().DeadTimeLeft, OriginalTime);
-                        Client.SendMessage(new RoomBubbleNotificationComposer("dead_ht", "¡Usted murió! Actualmente estás siendo transportado al hospital.", ""));
-                        Client.GetRoomUser().ApplyEffect(914);
-                        /*Task.Run(async delegate
-                        {
-                            await Task.Delay(1000);
-                            */
-                            RoleplayManager.GetLookAndMotto(Client);
-                            RoleplayManager.SpawnBeds(Client, "hosptl_bed");
-                            RoleplayManager.SendUserOld2(Client, HospitalRID);
-                        //});
-                    }
+                        Client.GetPlay().TimerManager.CreateTimer("death", 1000, true);
+                    */
+                    RoleplayManager.GetLookAndMotto(Client);
+                    RoleplayManager.SpawnBeds(Client, "hosptl_bed");
+                    RoleplayManager.SendUserTimer(Client, ToHosp, "", "death");
+                }
+                else
+                {
+                    Client.SendNotification("[Error][102] -> Lamentablemente ha habido un error. No se encontró ningún Hospital disponible en esta ciudad. Comunícaselo a un Administrador. ¡Gracias!");
+                    Client.GetRoleplay().CurHealth = Client.GetRoleplay().MaxHealth;
+                    Client.GetRoleplay().RefreshStatDialogue();
+                    Client.GetRoomUser().Frozen = false;
+                    Client.SendWhisper("Se te ha revivido a causa que no hay ningún hospital en esta Ciudad");
                 }
             }
+            else
+            {
+                Client.SendNotification("[Error][103] -> Lamentablemente ha habido un error. No se encontró ningún Hospital disponible en esta ciudad. Comunícaselo a un Administrador. ¡Gracias!");
+                Client.GetRoleplay().CurHealth = Client.GetRoleplay().MaxHealth;
+                Client.GetRoleplay().RefreshStatDialogue();
+                Client.GetRoomUser().Frozen = false;
+                Client.SendWhisper("Se te ha revivido a causa que no hay ningún hospital en esta Ciudad");
+            }
+           
 
         }
 

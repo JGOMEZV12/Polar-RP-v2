@@ -5,26 +5,30 @@ using Polar.Core;
 using Polar.HabboHotel.Camera;
 using Polar.HabboHotel.GameClients;
 using System;
+using System.Threading.Tasks;
 using Polar.Communication.Packets.Outgoing.HabboCamera;
 
 namespace Polar.Communication.Packets.Incoming.HabboCamera
 {
     class SetRoomThumbnailEvent : IPacketEvent
     {
-        public void Parse(GameClient Session, ClientPacket Packet)
+        // ✅ FIX: Parse ahora es async para no bloquear el hilo mientras espera el servidor de cámara.
+        public async void Parse(GameClient Session, ClientPacket Packet)
         {
             if (Session?.GetHabbo() == null || !Session.GetHabbo().InRoom)
                 return;
 
-            int count = Packet.PopInt();
+            // ✅ FIX: CurrentRoom puede ser null — verificar antes de usarlo.
+            if (Session.GetHabbo().CurrentRoom == null)
+                return;
 
+            int count = Packet.PopInt();
             byte[] data = Packet.ReadBytes(count);
 
             try
             {
                 string base64 = Convert.ToBase64String(data);
 
-                //Check if is an PNG valid image
                 if (!base64.Substring(0, 5).ToUpper().Equals("IVBOR"))
                 {
                     Logging.WriteLine("Someone tried take a picture with an invalid mime type! (Username: " + Session.GetHabbo().Username + ")");
@@ -32,16 +36,24 @@ namespace Polar.Communication.Packets.Incoming.HabboCamera
                     return;
                 }
 
-                string result = CameraHelper.request("thumbnail", Session.GetHabbo().Id, Session.GetHabbo().CurrentRoom.Id, base64);
+                // ✅ FIX: Llamada async — ya no bloquea el hilo del handler.
+                string result = await CameraHelper.RequestAsync("thumbnail", Session.GetHabbo().Id, Session.GetHabbo().CurrentRoom.Id, base64);
 
-                JSONCamera jsonCamera = JsonConvert.DeserializeObject<JSONCamera>(result);
-                if (!jsonCamera.status)
+                // ✅ FIX: Validar respuesta antes de deserializar para evitar excepción con HTML de error.
+                if (string.IsNullOrWhiteSpace(result))
                 {
-                    Session.SendNotification("It happened some error while trying save this thumbnail! Try again!");
+                    Session.SendNotification("It happened some error while trying to save this thumbnail! Try again!");
+                    Session.SendMessage(new SendRoomThumbnailAlertComposer());
                     return;
                 }
 
-                //Logging.WriteLine("New photo camera: " + jsonCamera.preview);
+                JSONCamera jsonCamera = JsonConvert.DeserializeObject<JSONCamera>(result);
+                if (jsonCamera == null || !jsonCamera.status)
+                {
+                    Session.SendNotification("It happened some error while trying to save this thumbnail! Try again!");
+                    Session.SendMessage(new SendRoomThumbnailAlertComposer());
+                    return;
+                }
 
                 Session.SendMessage(new SendRoomThumbnailAlertComposer());
             }

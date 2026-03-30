@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -12,20 +12,11 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
     internal class FurniMatchStateAndPositionBox : IWiredItem
     {
         public Room Instance { get; set; }
-
         public Item Item { get; set; }
-
-        public WiredBoxType Type
-        {
-            get { return WiredBoxType.ConditionMatchStateAndPosition; }
-        }
-
+        public WiredBoxType Type { get { return WiredBoxType.ConditionMatchStateAndPosition; } }
         public ConcurrentDictionary<int, Item> SetItems { get; set; }
-
         public string StringData { get; set; }
-
         public bool BoolData { get; set; }
-
         public string ItemsData { get; set; }
 
         public FurniMatchStateAndPositionBox(Room Instance, Item Item)
@@ -62,7 +53,11 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
             if (Params.Length == 0)
                 return false;
 
-            if (String.IsNullOrEmpty(this.StringData) || this.StringData == "0;0;0" || this.SetItems.Count == 0)
+            if (string.IsNullOrEmpty(this.StringData) || this.StringData == "0;0;0" || this.SetItems.Count == 0)
+                return false;
+
+            // FIX: Null-check de ItemsData antes de Split
+            if (string.IsNullOrEmpty(this.ItemsData))
                 return false;
 
             foreach (Item Item in this.SetItems.Values.ToList())
@@ -73,9 +68,9 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
                 if (!Instance.GetRoomItemHandler().GetFloor.Contains(Item))
                     continue;
 
-                foreach (String I in this.ItemsData.Split(';'))
+                foreach (string I in this.ItemsData.Split(';'))
                 {
-                    if (String.IsNullOrEmpty(I))
+                    if (string.IsNullOrEmpty(I))
                         continue;
 
                     Item II = Instance.GetRoomItemHandler().GetItem(Convert.ToInt32(I.Split(':')[0]));
@@ -85,7 +80,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
                     string[] partsString = I.Split(':');
                     string[] part = partsString[1].Split(',');
 
-                    if (int.Parse(this.StringData.Split(';')[0]) == 1) //State
+                    if (int.Parse(this.StringData.Split(';')[0]) == 1) // State
                     {
                         try
                         {
@@ -95,7 +90,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
                         catch { }
                     }
 
-                    if (int.Parse(this.StringData.Split(';')[1]) == 1) //Direction
+                    if (int.Parse(this.StringData.Split(';')[1]) == 1) // Direction
                     {
                         try
                         {
@@ -105,7 +100,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
                         catch { }
                     }
 
-                    if (int.Parse(this.StringData.Split(';')[2]) == 1) //Position
+                    if (int.Parse(this.StringData.Split(';')[2]) == 1) // Position
                     {
                         try
                         {
@@ -115,7 +110,6 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
                         }
                         catch { }
                     }
-
                 }
             }
             return true;

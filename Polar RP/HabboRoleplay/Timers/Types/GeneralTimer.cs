@@ -21,7 +21,6 @@ namespace Polar.HabboRoleplay.Timers.Types
             : base(Type, Client, Time, Forever, Params)
         {
             // Convert to milliseconds
-
             TimeLeft = base.Client.GetRoleplay().LoadingTimeLeft * 1000;
         }
  
@@ -32,14 +31,34 @@ namespace Polar.HabboRoleplay.Timers.Types
         {
             try
             {
-                if (base.Client == null || base.Client.GetHabbo() == null || base.Client.GetRoleplay() == null || base.Client.GetRoleplay().IsDead || base.Client.GetRoleplay().IsJailed || base.Client.GetRoomUser() == null || base.Client.GetRoomUser().IsWalking || base.Client.GetRoleplay().BreakGeneralTimer)
+                // ✅ FIX #1: La condición guard verificaba base.Client == null pero luego dentro del bloque
+                //   accedía a base.Client.GetRoleplay().TogglingPSV sin re-verificar.
+                //   Si Client==null o GetRoleplay()==null, esa línea interna explota con NullReferenceException.
+                //   Solución: guardar el estado que necesitamos ANTES de entrar al bloque, usando null-conditional.
+                bool shouldBreak = base.Client == null
+                    || base.Client.GetHabbo() == null
+                    || base.Client.GetRoleplay() == null
+                    || base.Client.GetRoleplay().IsDead
+                    || base.Client.GetRoleplay().IsJailed
+                    || base.Client.GetRoomUser() == null
+                    || base.Client.GetRoleplay().BreakGeneralTimer;
+
+                if (shouldBreak)
                 {
+                    // Ahora es seguro acceder — sabemos que Client y GetRoleplay() no son null
+                    // solo si llegamos aquí por IsDead/IsJailed/BreakGeneralTimer/GetRoomUser==null.
+                    // Si Client o GetRoleplay() eran null, no tocamos nada más y solo terminamos el timer.
+                    if (base.Client == null || base.Client.GetRoleplay() == null)
+                    {
+                        base.EndTimer();
+                        return;
+                    }
+
                     if (!base.Client.GetRoleplay().TogglingPSV)
                         RoleplayManager.Shout(base.Client, "*Ha dejado de realizar la acción en la que estaba*", 5);
-                    base.EndTimer();
 
+                    base.EndTimer();
                     base.Client.GetRoleplay().BreakGeneralTimer = false;
-                    //base.Client.GetRoleplay().LoadingTimeLeft = 0;
 
                     #region Retornamos Variables de Timers
 
@@ -79,7 +98,6 @@ namespace Polar.HabboRoleplay.Timers.Types
                                 continue;
 
                             PolarEnvironment.GetGame().GetWebEventManager().ExecuteWebEvent(User.GetClient(), "event_gang", "bank_cap_off");
-                            //User.GetClient().GetRoleplay().TimerManager.ActiveTimers["bankrob"].EndTimer();
                         }
 
                         base.Client.SendWhisper("Oops! Has dejado de robar.");
@@ -96,35 +114,13 @@ namespace Polar.HabboRoleplay.Timers.Types
                         base.Client.GetRoleplay().Learning = false;
                     }
                     #endregion
-                    /*
-                    #region ProcessCocaina
-                    if (base.Client.GetRoleplay().ProcessCocaine == true)
-                    {
-                        base.Client.GetRoleplay().ProcessCocaine = false;
-                    }
-                    #endregion
 
-                    #region ProcessWeed
-                    if (base.Client.GetRoleplay().ProcessWeed == true)
-                    {
-                        base.Client.GetRoleplay().Learning = false;
-                    }
-                    #endregion
-
-                    #region ProcessHeroine
-                    if (base.Client.GetRoleplay().ProcessHeroine == true)
-                    {
-                        base.Client.GetRoleplay().ProcessCocaine = false;
-                    }
-                    #endregion
-                    */
                     #region Toggling PSV Mode
                     if (base.Client.GetRoleplay().TogglingPSV)
                     {
                         base.Client.GetRoleplay().TogglingPSV = false;
                         base.Client.GetRoleplay().SpecialCooldowns.TryUpdate("psvmode", 0, base.Client.GetRoleplay().SpecialCooldowns["psvmode"]);
                     }
-                        
                     #endregion
 
                     #endregion
@@ -175,7 +171,6 @@ namespace Polar.HabboRoleplay.Timers.Types
                         if (base.Client.GetRoleplay().ProcessWeed)
                             base.Client.SendWhisper("¡Casi termina la fabricación de la Marihuana!", 1);
 
-
                         TimeCount = 0;
                     }
                     else if (TimeLeft == 5000)
@@ -186,7 +181,6 @@ namespace Polar.HabboRoleplay.Timers.Types
                             base.Client.SendWhisper("Los Cargadores están terminando de bajar la última carga y cerrando tu compuerta.", 1);
                         if (base.Client.GetRoleplay().IsMecLoading)
                             RoleplayManager.Shout(base.Client, "*Hace las últimas pruebas al vehículo comprobando que todo funcione correctamente*", 5);
-
                     }
                     return;
                 }
@@ -210,7 +204,7 @@ namespace Polar.HabboRoleplay.Timers.Types
                     if (VO != null && VO.Count > 0)
                     {
                         VO[0].Fuel += Cant;
-                        RoleplayManager.UpdateVehicleStat(VO[0].Id, "fuel", VO[0].Fuel);// Actualizamos en DB
+                        RoleplayManager.UpdateVehicleStat(VO[0].Id, "fuel", VO[0].Fuel);
                         base.Client.GetRoleplay().CarFuel = VO[0].Fuel;
                     }
 
@@ -236,7 +230,7 @@ namespace Polar.HabboRoleplay.Timers.Types
                         else
                         {
                             VO[0].CamCargId = base.Client.GetRoleplay().CamCargId;
-                            VO[0].CamState = 1; // Cargado
+                            VO[0].CamState = 1;
                             VO[0].CamOwnId = base.Client.GetHabbo().Id;
                             base.Client.SendWhisper("¡Camión Cargado! Ahora dirígete a " + Room.Name + " y usa ':depositarcarga'", 1);
                             base.Client.GetRoleplay().IsCamLoading = false;
@@ -246,38 +240,38 @@ namespace Polar.HabboRoleplay.Timers.Types
                     }
                 }
 
-                 if (base.Client.GetRoleplay().IsCamUnLoading)
-                 {
-                     List<VehiclesOwned> VO = PolarEnvironment.GetGame().GetVehiclesOwnedManager().getVehiclesOwnedList(base.Client.GetRoleplay().DrivingCarId);
-                     if (VO != null && VO.Count > 0)
-                     {
-                         if (!RoleplayManager.GenerateRoom(Client.GetRoomUser().RoomId, out Room Room))
-                             return;
-                         string MyCity = Room.City;
+                if (base.Client.GetRoleplay().IsCamUnLoading)
+                {
+                    List<VehiclesOwned> VO = PolarEnvironment.GetGame().GetVehiclesOwnedManager().getVehiclesOwnedList(base.Client.GetRoleplay().DrivingCarId);
+                    if (VO != null && VO.Count > 0)
+                    {
+                        if (!RoleplayManager.GenerateRoom(Client.GetRoomUser().RoomId, out Room Room))
+                            return;
+                        string MyCity = Room.City;
 
-                         HabboRoleplay.RPRoom.RPRoom Data;
-                         int Camioneros = PolarEnvironment.GetGame().GetRPRoomManager().TryToGetCamioneros(MyCity, out Data);
-                         if (Camioneros < 1)
-                         {
-                             base.Client.SendWhisper("Al parecer no se encontró la Zona de Camioneros en la Ciudad. ((Contacta con un administrador))");
-                             base.Client.GetRoleplay().IsCamUnLoading = false;
-                             base.Client.GetRoleplay().LoadingTimeLeft = 0;
-                             base.EndTimer();
-                         }
-                         else
-                         {
-                             base.Client.SendWhisper("¡Carga entregada! Ahora regresa tu camión y usa ':entregarcamion' para recibir tu pago.", 1);
-                             VO[0].CamDest = Camioneros;//ID de la base de Camiones 
-                             VO[0].CamState = 2; // Desargado
-                             base.Client.GetRoleplay().IsCamUnLoading = false;
+                        HabboRoleplay.RPRoom.RPRoom Data;
+                        int Camioneros = PolarEnvironment.GetGame().GetRPRoomManager().TryToGetCamioneros(MyCity, out Data);
+                        if (Camioneros < 1)
+                        {
+                            base.Client.SendWhisper("Al parecer no se encontró la Zona de Camioneros en la Ciudad. ((Contacta con un administrador))");
+                            base.Client.GetRoleplay().IsCamUnLoading = false;
+                            base.Client.GetRoleplay().LoadingTimeLeft = 0;
+                            base.EndTimer();
+                        }
+                        else
+                        {
+                            base.Client.SendWhisper("¡Carga entregada! Ahora regresa tu camión y usa ':entregarcamion' para recibir tu pago.", 1);
+                            VO[0].CamDest = Camioneros;
+                            VO[0].CamState = 2;
+                            base.Client.GetRoleplay().IsCamUnLoading = false;
 
-                             if (!RoleplayManager.GenerateRoom(Camioneros, out Room DestRoom))
-                                 return;
+                            if (!RoleplayManager.GenerateRoom(Camioneros, out Room DestRoom))
+                                return;
 
-                             PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(base.Client, "compose_camionero|showinfo|entregar|Ninguno|" + base.Client.GetHabbo().Username + "|" + DestRoom.Name);
-                         }
-                     }
-                 }
+                            PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(base.Client, "compose_camionero|showinfo|entregar|Ninguno|" + base.Client.GetHabbo().Username + "|" + DestRoom.Name);
+                        }
+                    }
+                }
                 #endregion
 
                 #region Mecánico
@@ -301,11 +295,9 @@ namespace Polar.HabboRoleplay.Timers.Types
                             VO[0].State = base.Client.GetRoleplay().MecNewState;
                             VO[0].CarLife = 100;
 
-                            // Cobro $
                             Cliente.GetHabbo().Credits -= Price;
                             Cliente.GetHabbo().UpdateCreditsBalance();
                             base.Client.GetHabbo().Credits += Price;
-                            //base.Client.GetRoleplay().MoneyEarned += Price;
                             base.Client.GetHabbo().UpdateCreditsBalance();
                         }
                         else
@@ -352,16 +344,16 @@ namespace Polar.HabboRoleplay.Timers.Types
                         return;
                     }
 
-                    Random rnd = new Random();
-                    int maxrob = (company.Balance < 30000) ? (company.Balance / 2) : 30000;
-                    int money = rnd.Next(5000, maxrob);
-
                     if (company.Balance <= 50000)
                     {
                         base.Client.SendWhisper("Oops! La boveda actualmente no cuenta con fondos minimos para el robo.");
                         base.EndTimer();
                         return;
                     }
+
+                    Random rnd = new Random();
+                    int maxrob = (company.Balance < 30000) ? (company.Balance / 2) : 30000;
+                    int money = rnd.Next(5000, maxrob);
 
                     company.Balance -= money;
 
@@ -378,11 +370,12 @@ namespace Polar.HabboRoleplay.Timers.Types
 
                     #region Bank Company Balance
                     RoleplayManager.TakeMoneyFromCompany(9, money);
-                    #endregion Bank Company Balance
+                    #endregion
 
                     base.Client.SendWhisper("Dinero restante de boveda: $" + company.Balance + "!");
                     base.Client.GetRoleplay().Robbery = false;
                     base.Client.GetRoleplay().BankCapturing = false;
+                    base.Client.GetRoomUser().GetRoom().BankCapturing = false;
                 }
                 #endregion
 
@@ -399,7 +392,6 @@ namespace Polar.HabboRoleplay.Timers.Types
                 #region ProcessCocaina
                 if (base.Client.GetRoleplay().ProcessCocaine)
                 {
-
                     var random = new CryptoRandom();
                     int totalCraftingItems = CraftingManager.CraftableItems.Count;
                     int chance = random.Next(1, 5);
@@ -416,8 +408,12 @@ namespace Polar.HabboRoleplay.Timers.Types
                         base.Client.SendWhisper("*¡Ve a tu casa y guárdala en el baúl! [TODO ESTO ES ILEGAL]*", 1);
                         base.Client.GetRoleplay().RefreshStatDialogue();
                     }
-                    base.Client.GetRoleplay().HRidItem.ExtraData = "0";
-                    base.Client.GetRoleplay().HRidItem.UpdateState(false, true);
+                    // FIX #5: Null check en HRidItem antes de acceder a sus propiedades
+                    if (base.Client.GetRoleplay().HRidItem != null)
+                    {
+                        base.Client.GetRoleplay().HRidItem.ExtraData = "0";
+                        base.Client.GetRoleplay().HRidItem.UpdateState(false, true);
+                    }
                     base.Client.GetRoomUser().CanWalk = true;
                     base.Client.GetRoleplay().ProcessCocaine = false;
                 }
@@ -426,7 +422,6 @@ namespace Polar.HabboRoleplay.Timers.Types
                 #region ProcessHeroina
                 if (base.Client.GetRoleplay().ProcessHeroine)
                 {
-                    // Restablecer efecto después de la fabricación
                     if (base.Client.GetRoomUser().CurrentEffect != 546 && base.Client.GetRoleplay().EquippedWeapon == null)
                         base.Client.GetRoomUser().ApplyEffect(0);
 
@@ -438,21 +433,20 @@ namespace Polar.HabboRoleplay.Timers.Types
                     if (secondChance < 4 && chance > totalCraftingItems)
                         chance = random.Next(1, totalCraftingItems + 1);
 
-                    #region Recompensa: Heroína
-                    // Si el jugador tiene una buena suerte, se le otorga heroína
                     if (chance > 1 && chance <= 6)
                     {
                         int amount = random.Next(10, 15);
-
                         base.Client.GetRoleplay().Heroina += amount;
                         base.Client.Shout("*¡Felicidades fabricaste! " + amount + "cc de Heroína*", 7);
                         base.Client.SendWhisper("*¡Ve a tu casa y guárdala en el baúl! [TODO ESTO ES ILEGAL]*", 1);
                         base.Client.GetRoleplay().RefreshStatDialogue();
                     }
-                    #endregion
 
-                    base.Client.GetRoleplay().HRidItem.ExtraData = "0";
-                    base.Client.GetRoleplay().HRidItem.UpdateState(false, true);
+                    if (base.Client.GetRoleplay().HRidItem != null)
+                    {
+                        base.Client.GetRoleplay().HRidItem.ExtraData = "0";
+                        base.Client.GetRoleplay().HRidItem.UpdateState(false, true);
+                    }
                     base.Client.GetRoomUser().CanWalk = true;
                     base.Client.GetRoleplay().ProcessHeroine = false;
                 }
@@ -464,6 +458,8 @@ namespace Polar.HabboRoleplay.Timers.Types
                     if (base.Client.GetRoomUser().CurrentEffect != 595 && base.Client.GetRoleplay().EquippedWeapon == null)
                         base.Client.GetRoomUser().ApplyEffect(0);
 
+                    // ✅ FIX #2: Se usaba "Random.Next" (tipo System.Random como nombre de clase/campo estático)
+                    //   en lugar de la instancia local "random". Reemplazado con instancia local correcta.
                     var random = new CryptoRandom();
                     int totalCraftingItems = CraftingManager.CraftableItems.Count;
                     int chance = random.Next(1, 5);
@@ -472,23 +468,19 @@ namespace Polar.HabboRoleplay.Timers.Types
                     if (secondChance < 4 && chance > totalCraftingItems)
                         chance = random.Next(1, totalCraftingItems + 1);
 
-                    #region Weed
-                    else if (chance > 1 && chance <= 6)
+                    // ✅ FIX #3: "else if" huérfano sin "if" previo en el mismo bloque.
+                    //   La estructura correcta es if/else if/else, igual que ProcessCocaine y ProcessHeroine.
+                    if (chance > 1 && chance <= 6)
                     {
-                        int Amount = Random.Next(1, 10);
-
+                        int Amount = random.Next(1, 10);
                         base.Client.GetRoleplay().Weedmateria += Amount;
                         base.Client.Shout("*¡Felicidades cosechaste! " + Amount + " semillas de marihuana *", 6);
                         base.Client.SendWhisper("*¡utiliza la mesa para preparar los porros! [TODO ESTO ES ILEGAL]*", 1);
                     }
-                    #endregion
-
-                    #region No Reward
                     else
                     {
                         base.Client.SendWhisper("*¡Esta planta no tiene semillas que ofrecer! intentalo más tarde*", 1);
                     }
-                    #endregion
 
                     base.Client.GetRoleplay().HRidItem.ExtraData = "0";
                     base.Client.GetRoleplay().HRidItem.UpdateState(false, true);

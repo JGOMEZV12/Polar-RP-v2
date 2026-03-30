@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Polar.Utilities;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Rooms;
@@ -14,7 +14,7 @@ namespace Polar.HabboHotel.Items.Interactor
     internal class InteractorCocaina : IFurniInteractor
     {
         private const int InversionCosto = 15000;
-        private const int TiempoFabricacion = 2;  // en minutos
+        private const int TiempoFabricacion = 2;
         private const int EfectoCocaina = 546;
         private const string SacoAlcaloideItemName = "xmas_sackdru";
         private const string ExtraDataEnProgreso = "1";
@@ -27,10 +27,7 @@ namespace Polar.HabboHotel.Items.Interactor
         public void OnTrigger(GameClient session, Item item, int request, bool hasRights)
         {
             if (session?.GetHabbo() == null || session?.GetRoleplay() == null)
-            {
-                session?.SendWhisper("Error: sesión inválida", 6);
                 return;
-            }
 
             if (!session.GetHabbo().CurrentRoom.TurfEnabled)
             {
@@ -41,7 +38,7 @@ namespace Polar.HabboHotel.Items.Interactor
             Room room = session.GetHabbo()?.CurrentRoom;
             Turf turf = room != null ? PolarEnvironment.GetGame().GetGangTurfsManager()?.getTurfbyRoom(session.GetHabbo().CurrentRoomId) : null;
             Group gang = session.GetRoleplay()?.GangId != null ? GroupManager.GetGang(session.GetRoleplay().GangId) : null;
-            Item? bTile = room?.GetRoomItemHandler()?.GetFloor.FirstOrDefault(x => x.GetBaseItem().ItemName.Equals(SacoAlcaloideItemName, StringComparison.OrdinalIgnoreCase) && x.Coordinate == session.GetRoomUser()?.SquareInFront);
+            Item bTile = room?.GetRoomItemHandler()?.GetFloor.FirstOrDefault(x => x.GetBaseItem().ItemName.Equals(SacoAlcaloideItemName, StringComparison.OrdinalIgnoreCase) && x.Coordinate == session.GetRoomUser()?.SquareInFront);
 
             if (turf == null)
             {
@@ -49,7 +46,7 @@ namespace Polar.HabboHotel.Items.Interactor
                 return;
             }
 
-            RoomUser? user = item.GetRoom()?.GetRoomUserManager()?.GetRoomUserByHabbo(session.GetHabbo().Id);
+            RoomUser user = item.GetRoom()?.GetRoomUserManager()?.GetRoomUserByHabbo(session.GetHabbo().Id);
             if (user == null)
             {
                 session.SendWhisper("¡No se pudo encontrar al usuario en la sala!", 6);
@@ -92,14 +89,9 @@ namespace Polar.HabboHotel.Items.Interactor
                 item.ExtraData = ExtraDataDisponible;
 
             if (item.ExtraData == ExtraDataDisponible)
-            {
                 ProcesarFabricacion(session, user, item);
-            }
             else
-            {
                 session.SendWhisper("¡ESPERE POR FAVOR...!", 6);
-            }
-
         }
 
         private void ProcesarFabricacion(GameClient session, RoomUser user, Item item)
@@ -109,31 +101,24 @@ namespace Polar.HabboHotel.Items.Interactor
             user.ClearMovement(true);
             user.SetRot(Rotation.Calculate(user.Coordinate.X, user.Coordinate.Y, item.GetX, item.GetY), false);
 
+            // FIX: Eliminada la validación redundante — ya se validó en OnTrigger
+            item.ExtraData = ExtraDataEnProgreso;
+            item.UpdateState(false, true);
+            item.RequestUpdate(1000 * minutos, true);
 
-                    // Validar estado inicial
-                    if (user == null || session?.GetHabbo() == null || session?.GetRoleplay().IsDead == true || item == null)
-                        return;
+            session.Shout("* Comienza a fabricar el clorhidrato de cocaína [-15.000$ Inversión]*", 6);
+            session.SendWhisper("Por favor, espera 2 minutos, no te podrás mover.", 1);
+            session.GetHabbo().Credits -= InversionCosto;
+            session.GetHabbo().UpdateCreditsBalance();
 
-                    // Cambiar el estado del item a "en progreso"
-                    item.ExtraData = ExtraDataEnProgreso;
-                    item.UpdateState(false, true);
-                    item.RequestUpdate(1000 * minutos, true);
+            user.CanWalk = false;
 
-                    session.Shout("* Comienza a fabricar el clorhidrato de cocaína [-15.000$ Inversión]*", 6);
-                    session.SendWhisper("Por favor, espera 2 minutos, no te podrás mover.", 1);
-                    session.GetHabbo().Credits -= InversionCosto;
-                    session.GetHabbo().UpdateCreditsBalance();
-
-                    user.CanWalk = false;
-
-                    session.GetRoleplay().HRidCoordinate = session.GetRoomUser().SquareInFront;
-                    session.GetRoleplay().HRidProcess = session.GetHabbo().CurrentRoom;
-                    session.GetRoleplay().HRidItem = item;
-                    session.GetRoleplay().ProcessCocaine = true;
-                    session.GetRoleplay().LoadingTimeLeft = RoleplayManager.ProcessCocaineTime;
-                    session.GetRoleplay().TimerManager.CreateTimer("general", 1000, true);
-
-
+            session.GetRoleplay().HRidCoordinate = session.GetRoomUser().SquareInFront;
+            session.GetRoleplay().HRidProcess = session.GetHabbo().CurrentRoom;
+            session.GetRoleplay().HRidItem = item;
+            session.GetRoleplay().ProcessCocaine = true;
+            session.GetRoleplay().LoadingTimeLeft = RoleplayManager.ProcessCocaineTime;
+            session.GetRoleplay().TimerManager.CreateTimer("general", 1000, true);
         }
 
         public void OnWiredTrigger(Item item) { }

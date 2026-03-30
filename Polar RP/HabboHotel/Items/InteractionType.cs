@@ -257,6 +257,8 @@ namespace Polar.HabboHotel.Items
                     return InteractionType.ROLLER;
                 case "fbgate":
                     return InteractionType.FOOTBALL_GATE;
+                case "pet0":
+                    return InteractionType.pet0;
                 case "pet1":
                     return InteractionType.pet1;
                 case "pet2":

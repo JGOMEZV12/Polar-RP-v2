@@ -41,8 +41,6 @@ namespace Polar.HabboHotel.Rooms.AI.Types
         public override void OnSelfEnterRoom()
         {
             Point nextCoord = GetRoom().GetGameMap().GetRandomWalkableSquare();
-            //int randomX = PolarEnvironment.GetRandomNumber(0, GetRoom().Model.MapSizeX);
-            //int randomY = PolarEnvironment.GetRandomNumber(0, GetRoom().Model.MapSizeY);
             if (GetRoomUser() != null)
                 GetRoomUser().MoveTo(nextCoord.X, nextCoord.Y);
         }
@@ -50,7 +48,6 @@ namespace Polar.HabboHotel.Rooms.AI.Types
         public override void OnSelfLeaveRoom(bool Kicked)
         {
         }
-
 
         public override void OnUserEnterRoom(RoomUser User)
         {
@@ -83,7 +80,6 @@ namespace Polar.HabboHotel.Rooms.AI.Types
             if (Pet == null)
                 return;
 
-
             #region Speech
 
             if (SpeechTimer <= 0)
@@ -93,16 +89,13 @@ namespace Polar.HabboHotel.Rooms.AI.Types
 
                 if (Pet != null)
                 {
-                    var RandomSpeech = new CryptoRandom();
                     RemovePetStatus();
 
                     string[] Speech = PolarEnvironment.GetGame().GetChatManager().GetPetLocale().GetValue("speech.pet" + Pet.PetData.Type);
                     string rSpeech = Speech[RandomNumber.GenerateRandom(0, Speech.Length - 1)];
 
                     if (rSpeech.Length != 3)
-                    {
                         Pet.Chat(rSpeech, false);
-                    }
                     else
                         Pet.Statusses.Add(rSpeech, TextHandling.GetString(Pet.Z));
                 }
@@ -125,9 +118,7 @@ namespace Polar.HabboHotel.Rooms.AI.Types
                     ActionTimer = RandomNumber.GenerateRandom(15, 40 + GetRoomUser().PetData.VirtualId);
                     if (!GetRoomUser().RidingHorse)
                     {
-                        // Remove Status
                         RemovePetStatus();
-
                         Point nextCoord = GetRoom().GetGameMap().GetRandomWalkableSquare();
                         if (GetRoomUser().CanWalk)
                             GetRoomUser().MoveTo(nextCoord.X, nextCoord.Y);
@@ -149,11 +140,9 @@ namespace Polar.HabboHotel.Rooms.AI.Types
 
             if (EnergyTimer <= 0)
             {
-                RemovePetStatus(); // Remove Status
-
-                Pet.PetData.PetEnergy(true); // Add Energy
-
-                EnergyTimer = RandomNumber.GenerateRandom(30, 120); // 2 Min Max
+                RemovePetStatus();
+                Pet.PetData.PetEnergy(true);
+                EnergyTimer = RandomNumber.GenerateRandom(30, 120);
             }
             else
             {
@@ -167,11 +156,15 @@ namespace Polar.HabboHotel.Rooms.AI.Types
 
         public override void OnUserSay(RoomUser User, string Message)
         {
+            // FIX: null checks al inicio para evitar NullReferenceException
             if (User == null)
                 return;
 
             RoomUser Pet = GetRoomUser();
             if (Pet == null)
+                return;
+
+            if (Pet.PetData == null)
                 return;
 
             if (Pet.PetData.DbState != PetDatabaseUpdateState.NeedsInsert)
@@ -183,221 +176,528 @@ namespace Polar.HabboHotel.Rooms.AI.Types
                 return;
             }
 
-            //if (!Pet.Statusses.ContainsKey("gst thr"))
-            //    Pet.Statusses.Add("gst, TextHandling.GetString(Pet.Z));
-
-            if ((Message.ToLower().StartsWith(Pet.PetData.Name.ToLower() + " ") && User.GetClient().GetHabbo().Username.ToLower() == Pet.PetData.OwnerName.ToLower()) || (Message.ToLower().StartsWith(Pet.PetData.Name.ToLower() + " ") && PolarEnvironment.GetGame().GetChatManager().GetPetCommands().TryInvoke(Message.Substring(Pet.PetData.Name.ToLower().Length + 1)) == 8))
+            if ((Message.ToLower().StartsWith(Pet.PetData.Name.ToLower() + " ") && User.GetClient().GetHabbo().Username.ToLower() == Pet.PetData.OwnerName.ToLower()) ||
+                (Message.ToLower().StartsWith(Pet.PetData.Name.ToLower() + " ") && PolarEnvironment.GetGame().GetChatManager().GetPetCommands().TryInvoke(Message.Substring(Pet.PetData.Name.ToLower().Length + 1)) == 8))
             {
                 string Command = Message.Substring(Pet.PetData.Name.ToLower().Length + 1);
 
-                int r = RandomNumber.GenerateRandom(1, 8); // Made Random
+                int r = RandomNumber.GenerateRandom(1, 8);
                 if (Pet.PetData.Energy > 10 && r < 6 || Pet.PetData.Level > 15 || PolarEnvironment.GetGame().GetChatManager().GetPetCommands().TryInvoke(Command) == 8)
                 {
-                    RemovePetStatus(); // Remove Status
+                    RemovePetStatus();
 
                     switch (PolarEnvironment.GetGame().GetChatManager().GetPetCommands().TryInvoke(Command))
                     {
-                        // TODO - Level you can use the commands at...
-
-
-
-                        #region free
-
-                        case 1:
+                        #region free (0)
+                        case 0:
                             RemovePetStatus();
-
-                            //int randomX = PolarEnvironment.GetRandomNumber(0, GetRoom().Model.MapSizeX);
-                            //int randomY = PolarEnvironment.GetRandomNumber(0, GetRoom().Model.MapSizeY);
                             Point nextCoord = GetRoom().GetGameMap().GetRandomWalkableSquare();
                             Pet.MoveTo(nextCoord.X, nextCoord.Y);
-
-                            Pet.PetData.AddExperience(10); // Give XP
-
+                            Pet.PetData.AddExperience(10);
                             break;
-
                         #endregion
 
-                        #region here
-
-                        case 2:
-
+                        #region sit (1)
+                        case 1:
                             RemovePetStatus();
-
-                            int NewX = User.X;
-                            int NewY = User.Y;
-
-                            ActionTimer = 30; // Reset ActionTimer
-
-                            #region Rotation
-
-                            if (User.RotBody == 4)
-                            {
-                                NewY = User.Y + 1;
-                            }
-                            else if (User.RotBody == 0)
-                            {
-                                NewY = User.Y - 1;
-                            }
-                            else if (User.RotBody == 6)
-                            {
-                                NewX = User.X - 1;
-                            }
-                            else if (User.RotBody == 2)
-                            {
-                                NewX = User.X + 1;
-                            }
-                            else if (User.RotBody == 3)
-                            {
-                                NewX = User.X + 1;
-                                NewY = User.Y + 1;
-                            }
-                            else if (User.RotBody == 1)
-                            {
-                                NewX = User.X + 1;
-                                NewY = User.Y - 1;
-                            }
-                            else if (User.RotBody == 7)
-                            {
-                                NewX = User.X - 1;
-                                NewY = User.Y - 1;
-                            }
-                            else if (User.RotBody == 5)
-                            {
-                                NewX = User.X - 1;
-                                NewY = User.Y + 1;
-                            }
-
-                            #endregion
-
-                            Pet.PetData.AddExperience(10); // Give XP
-
-                            Pet.MoveTo(NewX, NewY);
-                            break;
-
-                        #endregion
-
-                        #region sit
-
-                        case 3:
-                            // Remove Status
-                            RemovePetStatus();
-
-                            Pet.PetData.AddExperience(10); // Give XP
-
-                            // Add Status
+                            Pet.PetData.AddExperience(10);
                             Pet.Statusses.Add("sit", TextHandling.GetString(Pet.Z));
                             Pet.UpdateNeeded = true;
-
                             ActionTimer = 25;
                             EnergyTimer = 10;
                             break;
-
                         #endregion
 
-                        #region lay
-
-                        case 4:
-                            // Remove Status
+                        #region down (2)
+                        case 2:
                             RemovePetStatus();
-
-                            // Add Status
                             Pet.Statusses.Add("lay", TextHandling.GetString(Pet.Z));
                             Pet.UpdateNeeded = true;
-
-                            Pet.PetData.AddExperience(10); // Give XP
-
+                            Pet.PetData.AddExperience(10);
                             ActionTimer = 30;
                             EnergyTimer = 5;
                             break;
-
                         #endregion
 
-                        #region dead
-
-                        case 5:
-                            // Remove Status
+                        #region here (3)
+                        case 3:
                             RemovePetStatus();
+                            int NewX = User.X;
+                            int NewY = User.Y;
+                            ActionTimer = 30;
+                            if (User.RotBody == 4) NewY = User.Y + 1;
+                            else if (User.RotBody == 0) NewY = User.Y - 1;
+                            else if (User.RotBody == 6) NewX = User.X - 1;
+                            else if (User.RotBody == 2) NewX = User.X + 1;
+                            else if (User.RotBody == 3) { NewX = User.X + 1; NewY = User.Y + 1; }
+                            else if (User.RotBody == 1) { NewX = User.X + 1; NewY = User.Y - 1; }
+                            else if (User.RotBody == 7) { NewX = User.X - 1; NewY = User.Y - 1; }
+                            else if (User.RotBody == 5) { NewX = User.X - 1; NewY = User.Y + 1; }
+                            Pet.PetData.AddExperience(10);
+                            Pet.MoveTo(NewX, NewY);
+                            break;
+                        #endregion
 
-                            // Add Status 
+                        #region beg (4)
+                        case 4:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("beg", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 20;
+                            EnergyTimer = 5;
+                            break;
+                        #endregion
+
+                        #region play dead (5)
+                        case 5:
+                            RemovePetStatus();
                             Pet.Statusses.Add("ded", TextHandling.GetString(Pet.Z));
                             Pet.UpdateNeeded = true;
-
-                            Pet.PetData.AddExperience(10); // Give XP
-
-                            // Don't move to speak for a set amount of time.
+                            Pet.PetData.AddExperience(10);
                             SpeechTimer = 45;
                             ActionTimer = 30;
-
                             break;
-
                         #endregion
 
-                        #region sleep
-
+                        #region stay (6)
                         case 6:
-                            // Remove Status
                             RemovePetStatus();
-
-                            Pet.Chat("ZzzZZZzzzzZzz", false);
-                            Pet.Statusses.Add("lay", TextHandling.GetString(Pet.Z));
                             Pet.UpdateNeeded = true;
-
-                            Pet.PetData.AddExperience(10); // Give XP
-
-                            // Don't move to speak for a set amount of time.
-                            EnergyTimer = 5;
-                            SpeechTimer = 30;
+                            Pet.PetData.AddExperience(10);
                             ActionTimer = 45;
+                            EnergyTimer = 3;
+                            SpeechTimer = 20;
                             break;
-
                         #endregion
 
-                        #region jump
-
+                        #region follow (7)
                         case 7:
-                            // Remove Status
                             RemovePetStatus();
+                            Pet.PetData.AddExperience(10);
+                            Pet.MoveTo(User.X, User.Y);
+                            ActionTimer = 10;
+                            break;
+                        #endregion
 
-                            // Add Status 
+                        #region stand (8)
+                        case 8:
+                            RemovePetStatus();
+                            Pet.PetData.AddExperience(10);
+                            Pet.UpdateNeeded = true;
+                            ActionTimer = 15;
+                            break;
+                        #endregion
+
+                        #region jump (9)
+                        case 9:
+                            RemovePetStatus();
                             Pet.Statusses.Add("jmp", TextHandling.GetString(Pet.Z));
                             Pet.UpdateNeeded = true;
-
-                            Pet.PetData.AddExperience(10); // Give XP
-
-                            // Don't move to speak for a set amount of time.
+                            Pet.PetData.AddExperience(10);
                             EnergyTimer = 5;
                             SpeechTimer = 10;
                             ActionTimer = 5;
                             break;
-
                         #endregion
 
-                        #region breed
-                        case 46:
+                        #region speak (10)
+                        case 10:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("spk", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            SpeechTimer = 5;
+                            ActionTimer = 10;
+                            break;
+                        #endregion
 
+                        #region play (11)
+                        case 11:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("pla", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 20;
+                            EnergyTimer = 8;
+                            break;
+                        #endregion
+
+                        #region silent (12)
+                        case 12:
+                            RemovePetStatus();
+                            Pet.Statusses.Remove("spk");
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            SpeechTimer = 60;
+                            ActionTimer = 10;
+                            break;
+                        #endregion
+
+                        #region nest (13)
+                        case 13:
+                            RemovePetStatus();
+                            Pet.Chat("ZzzZZZzzzzZzz", false);
+                            Pet.Statusses.Add("lay", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            EnergyTimer = 5;
+                            SpeechTimer = 30;
+                            ActionTimer = 45;
+                            break;
+                        #endregion
+
+                        #region drink (14)
+                        case 14:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("eat", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 15;
+                            EnergyTimer = 5;
+                            break;
+                        #endregion
+
+                        #region follow left (15)
+                        case 15:
+                            RemovePetStatus();
+                            Pet.RotBody = (Pet.RotBody - 1 < 0 ? 7 : Pet.RotBody - 1);
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(5);
+                            ActionTimer = 5;
+                            break;
+                        #endregion
+
+                        #region follow right (16)
+                        case 16:
+                            RemovePetStatus();
+                            Pet.RotBody = (Pet.RotBody + 1 > 7 ? 0 : Pet.RotBody + 1);
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(5);
+                            ActionTimer = 5;
+                            break;
+                        #endregion
+
+                        #region play football (17)
+                        case 17:
+                            RemovePetStatus();
+                            Pet.PetData.AddExperience(10);
+                            Pet.UpdateNeeded = true;
+                            ActionTimer = 20;
+                            EnergyTimer = 8;
+                            break;
+                        #endregion
+
+                        #region come here (18)
+                        case 18:
+                            RemovePetStatus();
+                            Pet.PetData.AddExperience(10);
+                            Pet.MoveTo(User.X, User.Y);
+                            ActionTimer = 10;
+                            break;
+                        #endregion
+
+                        #region bounce (19)
+                        case 19:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("jmp", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            EnergyTimer = 5;
+                            ActionTimer = 8;
+                            break;
+                        #endregion
+
+                        #region flat (20)
+                        case 20:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("flt", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 20;
+                            EnergyTimer = 5;
+                            break;
+                        #endregion
+
+                        #region dance (21)
+                        case 21:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("dan", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 20;
+                            EnergyTimer = 8;
+                            break;
+                        #endregion
+
+                        #region spin (22)
+                        case 22:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("spn", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 10;
+                            EnergyTimer = 5;
+                            break;
+                        #endregion
+
+                        #region switch tv (23)
+                        case 23:
+                            RemovePetStatus();
+                            Pet.PetData.AddExperience(10);
+                            Pet.UpdateNeeded = true;
+                            ActionTimer = 10;
+                            break;
+                        #endregion
+
+                        #region move forward (24)
+                        case 24:
+                            RemovePetStatus();
+                            Pet.PetData.AddExperience(10);
+                            Pet.MoveTo(User.X, User.Y);
+                            ActionTimer = 10;
+                            break;
+                        #endregion
+
+                        #region turn left (25)
+                        case 25:
+                            RemovePetStatus();
+                            Pet.RotBody = (Pet.RotBody - 1 < 0 ? 7 : Pet.RotBody - 1);
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(5);
+                            ActionTimer = 5;
+                            break;
+                        #endregion
+
+                        #region turn right (26)
+                        case 26:
+                            RemovePetStatus();
+                            Pet.RotBody = (Pet.RotBody + 1 > 7 ? 0 : Pet.RotBody + 1);
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(5);
+                            ActionTimer = 5;
+                            break;
+                        #endregion
+
+                        #region relax (27)
+                        case 27:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("rlx", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 30;
+                            EnergyTimer = 5;
+                            SpeechTimer = 15;
+                            break;
+                        #endregion
+
+                        #region croak (28)
+                        case 28:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("croak", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 10;
+                            SpeechTimer = 5;
+                            break;
+                        #endregion
+
+                        #region dip (29)
+                        case 29:
+                            RemovePetStatus();
+                            Pet.PetData.AddExperience(10);
+                            Pet.MoveTo(User.X, User.Y);
+                            ActionTimer = 15;
+                            break;
+                        #endregion
+
+                        #region wave (30)
+                        case 30:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("wav", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 10;
+                            break;
+                        #endregion
+
+                        #region mambo (31)
+                        case 31:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("dan", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 25;
+                            EnergyTimer = 8;
+                            break;
+                        #endregion
+
+                        #region high jump (32)
+                        case 32:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("jmp", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(15);
+                            EnergyTimer = 8;
+                            SpeechTimer = 10;
+                            ActionTimer = 10;
+                            break;
+                        #endregion
+
+                        #region chicken dance (33)
+                        case 33:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("dan", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 20;
+                            EnergyTimer = 8;
+                            break;
+                        #endregion
+
+                        #region triple jump (34)
+                        case 34:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("jmp", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(15);
+                            EnergyTimer = 8;
+                            SpeechTimer = 10;
+                            ActionTimer = 10;
+                            break;
+                        #endregion
+
+                        #region spread wings (35)
+                        case 35:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("wings", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 15;
+                            break;
+                        #endregion
+
+                        #region breathe fire (36)
+                        case 36:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("flame", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 10;
+                            break;
+                        #endregion
+
+                        #region hang (37)
+                        case 37:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("hang", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 20;
+                            EnergyTimer = 5;
+                            break;
+                        #endregion
+
+                        #region torch (38)
+                        case 38:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("eat", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 10;
+                            break;
+                        #endregion
+
+                        #region swing (40)
+                        case 40:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("swg", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 20;
+                            EnergyTimer = 8;
+                            break;
+                        #endregion
+
+                        #region roll (41)
+                        case 41:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("lay", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 15;
+                            EnergyTimer = 5;
+                            break;
+                        #endregion
+
+                        #region ring of fire (42)
+                        case 42:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("eat", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(20);
+                            ActionTimer = 15;
+                            EnergyTimer = 10;
+                            break;
+                        #endregion
+
+                        #region eat (43)
+                        case 43:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("eat", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 15;
+                            EnergyTimer = 5;
+                            break;
+                        #endregion
+
+                        #region wag tail (44)
+                        case 44:
+                            RemovePetStatus();
+                            Pet.Statusses.Add("wag", TextHandling.GetString(Pet.Z));
+                            Pet.UpdateNeeded = true;
+                            Pet.PetData.AddExperience(10);
+                            ActionTimer = 10;
+                            EnergyTimer = 5;
+                            break;
+                        #endregion
+
+                        #region count (45)
+                        case 45:
+                            RemovePetStatus();
+                            Pet.PetData.AddExperience(10);
+                            Pet.UpdateNeeded = true;
+                            ActionTimer = 15;
+                            SpeechTimer = 5;
+                            break;
+                        #endregion
+
+                        #region breed (46)
+                        case 46:
+                            // Breed logic handled externally via breeding nest interaction
                             break;
                         #endregion
 
                         default:
                             string[] Speech = PolarEnvironment.GetGame().GetChatManager().GetPetLocale().GetValue("pet.unknowncommand");
-
-                            Pet.Chat(Speech[RandomNumber.GenerateRandom(0, Speech.Length - 1)], false);
+                            if (Speech != null && Speech.Length > 0)
+                                Pet.Chat(Speech[RandomNumber.GenerateRandom(0, Speech.Length - 1)], false);
                             break;
                     }
-                    Pet.PetData.PetEnergy(false); // Remove Energy
+
+                    Pet.PetData.PetEnergy(false);
                 }
                 else
                 {
-                    RemovePetStatus(); // Remove Status
+                    RemovePetStatus();
 
                     if (Pet.PetData.Energy < 10)
                     {
-                        //GetRoomUser refers to the pet
-                        //User refers to Owner
+                        // FIX: UserRiding puede ser null si HorseID no corresponde a ningún usuario activo
+                        RoomUser UserRiding = GetRoom().GetRoomUserManager().GetRoomUserByVirtualId(Pet.HorseID);
 
-                        RoomUser UserRiding = GetRoom().GetRoomUserManager().GetRoomUserByVirtualId(Pet.HorseID); ;
-
-                        if (UserRiding.RidingHorse)
+                        if (UserRiding != null && UserRiding.RidingHorse)
                         {
                             Pet.Chat("Getof my sit", false);
                             UserRiding.RidingHorse = false;
@@ -406,10 +706,9 @@ namespace Polar.HabboHotel.Rooms.AI.Types
                             UserRiding.MoveTo(new Point(GetRoomUser().X + 1, GetRoomUser().Y + 1));
                         }
 
-                        string[] Speech = PolarEnvironment.GetGame().GetChatManager().GetPetLocale().GetValue("pet.tired");
-
-                        var RandomSpeech = new CryptoRandom();
-                        Pet.Chat(Speech[RandomNumber.GenerateRandom(0, Speech.Length - 1)], false);
+                        string[] TiredSpeech = PolarEnvironment.GetGame().GetChatManager().GetPetLocale().GetValue("pet.tired");
+                        if (TiredSpeech != null && TiredSpeech.Length > 0)
+                            Pet.Chat(TiredSpeech[RandomNumber.GenerateRandom(0, TiredSpeech.Length - 1)], false);
 
                         Pet.Statusses.Add("lay", TextHandling.GetString(Pet.Z));
                         Pet.UpdateNeeded = true;
@@ -420,16 +719,14 @@ namespace Polar.HabboHotel.Rooms.AI.Types
                     }
                     else
                     {
-                        string[] Speech = PolarEnvironment.GetGame().GetChatManager().GetPetLocale().GetValue("pet.lazy");
+                        string[] LazySpeech = PolarEnvironment.GetGame().GetChatManager().GetPetLocale().GetValue("pet.lazy");
+                        if (LazySpeech != null && LazySpeech.Length > 0)
+                            Pet.Chat(LazySpeech[RandomNumber.GenerateRandom(0, LazySpeech.Length - 1)], false);
 
-                        var RandomSpeech = new CryptoRandom();
-                        Pet.Chat(Speech[RandomNumber.GenerateRandom(0, Speech.Length - 1)], false);
-
-                        Pet.PetData.PetEnergy(false); // Remove Energy
+                        Pet.PetData.PetEnergy(false);
                     }
                 }
             }
-            //Pet = null;
         }
 
         #endregion

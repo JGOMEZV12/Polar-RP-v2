@@ -31,7 +31,7 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Criminal
 
         public string Description
         {
-            get { return "Roba el banco."; }
+            get { return "Dejar de robar el banco."; }
         }
 
         public NorobarBankCommand(bool stopRobCommand = false)
