@@ -61,7 +61,7 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
 
                     base.WriteInteger(RPBot.PetInstance.Type);//pet type.
                     base.WriteInteger(RPBot.OwnerId);//UserId of the owner.
-                    base.WriteString(RPBot.OwnerName);//Username of the owner.
+                    base.WriteString(RPBot.PetInstance.OwnerName);//Username of the owner.
                     base.WriteInteger(1);
                     base.WriteBoolean(false);//Has saddle.
                     base.WriteBoolean(false);//Is someone riding this horse?
