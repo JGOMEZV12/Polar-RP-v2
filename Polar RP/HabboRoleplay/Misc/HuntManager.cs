@@ -70,7 +70,7 @@ namespace Polar.HabboRoleplay.Misc
 
             RoleplayBot huntBot = new RoleplayBot(
                 botId, 1, name, "M", look, "[CAZA] Mascota Salvaje", 100, 100, 10, 1, room.Id, WalkableSquare.X, WalkableSquare.Y, 0, 0,
-                "pet", RoleplayBotAIType.PET, 5, 0, 0, 0, true, false, false, 0, "none", "none", true, 0, "1,5", 0, petData
+                "pet", RoleplayBotAIType.PET, 5, 3, 2, 0, true, false, false, 0, "none", "none", true, 0, "1,5", 0, petData
             );
 
             // Register it in CachedRoleplayBots so DeployBotByID works

@@ -67,21 +67,17 @@ namespace Polar.HabboRoleplay.Bots.PetBots
 
             if (this.GetBotRoleplay().Motto.Contains("[CAZA]"))
             {
-
-
                 if (!GetBotRoleplay().ActiveTimers.ContainsKey("attack"))
                 {
+                    GetBotRoleplay().UserAttacking = Client;
+                    GetBotRoleplay().ActiveTimers.TryAdd("attack", GetBotRoleplay().TimerManager.CreateTimer("attack", GetBotRoleplay(), 1000, true, Client.GetHabbo().Id));
 
-                    GetBotRoleplay().ActiveTimers.TryAdd("attack", GetBotRoleplay().TimerManager.CreateTimer("attack", GetBotRoleplay(), 10, true, Client.GetHabbo().Id));
-
-                    if (GetBotRoleplay().UserAttacking == null)
-                        GetRoomUser().Chat("¡Bastardo! te voy a agarrar " + Client.GetHabbo().Username + "!", true, 4);
+                    GetRoomUser().Chat("¡Bastardo! te voy a agarrar " + Client.GetHabbo().Username + "!", true, 4);
                 }
                 else
                 {
-
                     if (GetBotRoleplay().ActiveTimers["attack"] == null)
-                        GetBotRoleplay().ActiveTimers["attack"] = GetBotRoleplay().TimerManager.CreateTimer("attack", GetBotRoleplay(), 10, true, Client.GetHabbo().Id);
+                        GetBotRoleplay().ActiveTimers["attack"] = GetBotRoleplay().TimerManager.CreateTimer("attack", GetBotRoleplay(), 1000, true, Client.GetHabbo().Id);
 
                     GetRoomUser().Chat("*Gruñe agresivamente hacia " + Client.GetHabbo().Username + "*", true, 4);
                 }
