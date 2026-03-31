@@ -1,4 +1,4 @@
-﻿using Polar.Communication.Packets.Outgoing.Rooms.Engine;
+using Polar.Communication.Packets.Outgoing.Rooms.Engine;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Items;
 using Polar.HabboHotel.Quests;
@@ -37,8 +37,10 @@ namespace Polar.HabboRoleplay.Bots.PetBots
 
         public override void OnDeath(GameClient Client)
         {
-            if (this.GetBotRoleplay().IsPet)
+            if (this.GetBotRoleplay().Name.Contains("[CAZA]") || this.GetBotRoleplay().Name.Contains("MascotaSalvaje"))
             {
+                EndTimerSafe("attack");
+
                 CryptoRandom Random = new CryptoRandom();
                 int Puntos = Random.Next(1, 5);
                 int Pieles = Random.Next(1, 3);
@@ -61,13 +63,25 @@ namespace Polar.HabboRoleplay.Bots.PetBots
 
         public override void OnAttacked(GameClient Client)
         {
-            if (this.GetBotRoleplay().IsPet)
-            {
-                GetBotRoleplay().UserAttacking = Client;
 
-                if (!GetBotRoleplay().ActiveHandlers.ContainsKey(Handlers.ATTACK))
+            if (this.GetBotRoleplay().Name.Contains("[CAZA]") || this.GetBotRoleplay().Name.Contains("MascotaSalvaje"))
+            {
+
+
+                if (!GetBotRoleplay().ActiveTimers.ContainsKey("attack"))
                 {
-                    GetBotRoleplay().StartHandler(Handlers.ATTACK, out _, Client);
+
+                    GetBotRoleplay().ActiveTimers.TryAdd("attack", GetBotRoleplay().TimerManager.CreateTimer("attack", GetBotRoleplay(), 10, true, Client.GetHabbo().Id));
+
+                    if (GetBotRoleplay().UserAttacking == null)
+                        GetRoomUser().Chat("¡Bastardo! te voy a agarrar " + Client.GetHabbo().Username + "!", true, 4);
+                }
+                else
+                {
+
+                    if (GetBotRoleplay().ActiveTimers["attack"] == null)
+                        GetBotRoleplay().ActiveTimers["attack"] = GetBotRoleplay().TimerManager.CreateTimer("attack", GetBotRoleplay(), 10, true, Client.GetHabbo().Id);
+
                     GetRoomUser().Chat("*Gruñe agresivamente hacia " + Client.GetHabbo().Username + "*", true, 4);
                 }
             }
@@ -115,7 +129,7 @@ namespace Polar.HabboRoleplay.Bots.PetBots
             if (this.GetBotRoleplay().Dead || this.GetBotRoleplay().Attacking)
                 return;
 
-            if (this.GetBotRoleplay().IsPet)
+            if (this.GetBotRoleplay().Name.Contains("[CAZA]") || this.GetBotRoleplay().Name.Contains("MascotaSalvaje"))
             {
                 RoomUser target = FindNearbyTarget();
                 if (target != null && target.GetClient() != null)
