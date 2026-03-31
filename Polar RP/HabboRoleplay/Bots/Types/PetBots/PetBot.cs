@@ -47,10 +47,10 @@ namespace Polar.HabboRoleplay.Bots.PetBots
                 int Pieles = Random.Next(1, 3);
 
                 Client.GetRoleplay().HuntPoints += Puntos;
-                Client.GetRoleplay().HuntSkins += Pieles;
+                Client.GetRoleplay().AddHuntSkin(this.GetBotRoleplay().PetInstance.Type, Pieles);
 
                 RoleplayManager.Shout(Client, "*Ha cazado a " + this.GetBotRoleplay().Name + " y obtiene " + Puntos + " puntos y " + Pieles + " pieles*", 4);
-                Client.SendWhisper("Has ganado " + Puntos + " puntos de caza y " + Pieles + " pieles. Total: " + Client.GetRoleplay().HuntPoints + " puntos, " + Client.GetRoleplay().HuntSkins + " pieles.", 1);
+                Client.SendWhisper("Has ganado " + Puntos + " puntos de caza y " + Pieles + " pieles. Total: " + Client.GetRoleplay().HuntPoints + " puntos, " + Client.GetRoleplay().HuntSkins, 1);
 
                 // Desplegar de nuevo después de un tiempo o simplemente eliminarlo
                 RoleplayBotManager.EjectDeployedBot(this.GetRoomUser(), this.GetRoom());

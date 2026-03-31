@@ -29,22 +29,40 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Offers
 
         public async Task Execute(GameClient Session, Room Room, string[] Params)
         {
-            if (Session.GetRoleplay().HuntSkins <= 0)
+            if (string.IsNullOrEmpty(Session.GetRoleplay().HuntSkins))
             {
                 Session.SendWhisper("No tienes ninguna piel de caza para vender.", 1);
                 return;
             }
 
-            int Skins = Session.GetRoleplay().HuntSkins;
-            int PayPerSkin = 100; // Puedes ajustar el precio por piel aquí
-            int TotalPay = Skins * PayPerSkin;
+            string[] parts = Session.GetRoleplay().HuntSkins.Split('|');
+            int totalSkins = 0;
+            int totalPay = 0;
+            int payPerSkin = 100;
 
-            Session.GetRoleplay().HuntSkins = 0;
-            Session.GetHabbo().Credits += TotalPay;
+            foreach (string part in parts)
+            {
+                if (string.IsNullOrEmpty(part)) continue;
+                string[] kv = part.Split(':');
+                if (kv.Length == 2 && int.TryParse(kv[1], out int count))
+                {
+                    totalSkins += count;
+                    totalPay += (count * payPerSkin);
+                }
+            }
+
+            if (totalSkins <= 0)
+            {
+                Session.SendWhisper("No tienes ninguna piel de caza para vender.", 1);
+                return;
+            }
+
+            Session.GetRoleplay().HuntSkins = "";
+            Session.GetHabbo().Credits += totalPay;
             Session.GetHabbo().UpdateCreditsBalance();
 
-            Session.Shout("*Vende " + Skins + " pieles de caza por $" + String.Format("{0:N0}", TotalPay) + "*", 4);
-            Session.SendWhisper("Has vendido " + Skins + " pieles y has recibido $" + String.Format("{0:N0}", TotalPay) + ".", 1);
+            Session.Shout("*Vende " + totalSkins + " pieles de caza por $" + String.Format("{0:N0}", totalPay) + "*", 4);
+            Session.SendWhisper("Has vendido " + totalSkins + " pieles y has recibido $" + String.Format("{0:N0}", totalPay) + ".", 1);
         }
     }
 }
