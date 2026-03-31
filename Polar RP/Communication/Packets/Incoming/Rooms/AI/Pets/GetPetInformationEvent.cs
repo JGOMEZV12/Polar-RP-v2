@@ -27,7 +27,7 @@ namespace Polar.Communication.Packets.Incoming.Rooms.AI.Pets
 
                 if (Session.GetHabbo().CurrentRoom.GetRoomUserManager().TryGetBot(LookupId, out Pet))
                 {
-                    if (Pet.IsBot && Pet.GetBotRoleplay() != null && Pet.GetBotRoleplay().IsPet)
+                    if (Pet.IsBot && Pet.GetBotRoleplay() != null && Pet.GetBotRoleplay().IsPet && Pet.GetBotRoleplay().Motto.Contains("[CAZA]"))
                     {
                         if (Session.GetRoleplay().EquippedWeapon != null)
                         {

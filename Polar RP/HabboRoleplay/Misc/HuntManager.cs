@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using Polar.HabboHotel.Rooms;
@@ -18,7 +18,7 @@ namespace Polar.HabboRoleplay.Misc
         {
             if (_isRunning) return;
             _isRunning = true;
-            _huntTimer = new Timer(OnTick, null, 60000, 120000); // Ticks every 2 minutes
+            _huntTimer = new Timer(OnTick, null, 30000, 60000); // Ticks every minute
         }
 
         private static void OnTick(object state)
@@ -42,7 +42,7 @@ namespace Polar.HabboRoleplay.Misc
 
         private static void ProcessHuntRoom(Room room)
         {
-            int currentHuntPets = room.GetRoomUserManager().GetRoleplayBots().Count(b => b.GetBotRoleplay() != null && (b.GetBotRoleplay().Motto.Contains("[CAZA]") || b.GetBotRoleplay().Name.Contains("MascotaSalvaje")));
+            int currentHuntPets = room.GetRoomUserManager().GetRoleplayBots().Count(b => b.GetBotRoleplay() != null && b.GetBotRoleplay().Motto.Contains("[CAZA]"));
 
             if (currentHuntPets < 5) // Limit per room
             {
@@ -54,10 +54,10 @@ namespace Polar.HabboRoleplay.Misc
         {
             CryptoRandom random = new CryptoRandom();
 
-            // Randomly choose a pet type from 0 to 42 (based on provided types)
-            int petType = random.Next(0, 43);
+            // Randomly choose a pet type from 1 to 19 (based on provided types)
+            int petType = random.Next(1, 20);
             string look = PetFigureForType(petType);
-            string name = "MascotaSalvaje";
+            string name = GetPetNameForType(petType);
 
             var WalkableSquare = room.GetGameMap().GetRandomWalkableSquare();
 
@@ -82,99 +82,87 @@ namespace Polar.HabboRoleplay.Misc
             RoleplayBotManager.DeployBotByID(botId, "default", room.Id);
         }
 
+        public static string GetPetNameForType(int type)
+        {
+            Random rand = new Random();
+            string[] names;
+
+            switch (type)
+            {
+                case 1: // Bear
+                    names = new[] { "Oso_Feroz", "Garra_Blanca", "Kodiak_Salvaje", "Ursa" };
+                    break;
+                case 2: // Lion
+                    names = new[] { "Simba_Salvaje", "Rey_Selva", "Garra_Dorada", "Mufasa" };
+                    break;
+                case 3: // Rhino
+                    names = new[] { "Cuerno_Roto", "Tanque_Gris", "Rino_Bravo", "Embestida" };
+                    break;
+                case 4: // Dragon
+                    names = new[] { "Aliento_Fuego", "Escama_Roja", "Draco_Salvaje", "Fafnir" };
+                    break;
+                case 5: // Monkey
+                    names = new[] { "Mono_Alisto", "Chimpance_Loco", "Garra_Agil", "Kong_Pequeño" };
+                    break;
+                case 6: // Horse
+                    names = new[] { "Rayo_Veloz", "Crines_Negras", "Corcel_Libre", "Relampago" };
+                    break;
+                case 7: // Bunny
+                    names = new[] { "Salto_Rapido", "Conejo_Pillo", "Orejas_Largas", "Tambor" };
+                    break;
+                case 8: // Pigeon
+                    names = new[] { "Vuelo_Alto", "Pluma_Gris", "Mensajera_Loca", "Torcaza" };
+                    break;
+                case 9: // Demon Monkey
+                    names = new[] { "Mono_Infernal", "Garra_Oscura", "Mandril_Poseido", "Azazel" };
+                    break;
+                case 10: // Baby Bear
+                    names = new[] { "Osezno_Tierno", "Pequeña_Garra", "Peluche_Bravo", "Baloo" };
+                    break;
+                case 11: // Gnome
+                    names = new[] { "Gnomo_Enojon", "Barba_Larga", "Duende_Maligno", "Gnomo_Cazador" };
+                    break;
+                case 12: // Kitten
+                    names = new[] { "Gatito_Cazador", "Zarpas_Pequeñas", "Michi_Salvaje", "Felix" };
+                    break;
+                case 13: // Piglet
+                    names = new[] { "Cerdito_Valiente", "Puerquito_Gordo", "Bacon_Salvaje", "Oink_Oink" };
+                    break;
+                case 14: // Haloompa
+                    names = new[] { "Haloompa_Misterioso", "Enano_Magico", "Criatura_Extraña", "Umpa_Lumpa" };
+                    break;
+                case 15: // Pterosaur
+                    names = new[] { "Ptero_Veloz", "Ala_Gigante", "Pico_Afilado", "Sombra_Aerea" };
+                    break;
+                case 16: // Velociraptor
+                    names = new[] { "Garra_Veloz", "Raptor_Feroz", "Cazador_Prehistorico", "Blue" };
+                    break;
+                case 17: // Cow
+                    names = new[] { "Vaca_Loca", "Cuernos_Largos", "Mu_Salvaje", "Lola" };
+                    break;
+                case 18: // Penguin
+                    names = new[] { "Pico_Frio", "Pinguino_Deslizante", "Aleta_Negra", "Pingu" };
+                    break;
+                case 19: // Elephant
+                    names = new[] { "Trompa_Larga", "Gigante_Gris", "Dumbo_Salvaje", "Colmillo_Blanco" };
+                    break;
+                default:
+                    names = new[] { "Mascota_Salvaje", "Animal_Bravo", "Criatura_Libre", "Bestia" };
+                    break;
+            }
+
+            return names[rand.Next(names.Length)];
+        }
+
         public static string PetFigureForType(int Type)
         {
             Random _random = new Random();
 
             switch (Type)
             {
-                #region Dog Figures
                 default:
-                case 60:
-                    {
-                        int RandomNumber = _random.Next(1, 4);
-                        switch (RandomNumber)
-                        {
-                            default:
-                            case 1:
-                                return "0 0 f08b90 2 2 -1 1 3 -1 1";
-                            case 2:
-                                return "0 15 ffffff 2 2 -1 0 3 -1 0";
-                            case 3:
-                                return "0 20 d98961 2 2 -1 0 3 -1 0";
-                            case 4:
-                                return "0 21 da9dbd 2 2 -1 0 3 -1 0";
-                        }
-                    }
-                #endregion
-
-                #region Cat Figures.
-                case 1:
-                    {
-                        int RandomNumber = _random.Next(1, 5);
-                        switch (RandomNumber)
-                        {
-                            default:
-                            case 1:
-                                return "1 18 d5b35f 2 2 -1 0 3 -1 0";
-                            case 2:
-                                return "1 0 ff7b3a 2 2 -1 0 3 -1 0";
-                            case 3:
-                                return "1 18 d98961 2 2 -1 0 3 -1 0";
-                            case 4:
-                                return "1 0 ff7b3a 2 2 -1 0 3 -1 1";
-                            case 5:
-                                return "1 24 d5b35f 2 2 -1 0 3 -1 0";
-                        }
-                    }
-                #endregion
-
-                #region Terrier Figures
-                case 2:
-                    {
-                        int RandomNumber = _random.Next(1, 6);
-                        switch (RandomNumber)
-                        {
-                            default:
-                            case 1:
-                                return "3 3 eeeeee 2 2 -1 0 3 -1 0";
-                            case 2:
-                                return "3 0 ffffff 2 2 -1 0 3 -1 0";
-                            case 3:
-                                return "3 5 eeeeee 2 2 -1 0 3 -1 0";
-                            case 4:
-                                return "3 6 eeeeee 2 2 -1 0 3 -1 0";
-                            case 5:
-                                return "3 4 dddddd 2 2 -1 0 3 -1 0";
-                            case 6:
-                                return "3 5 dddddd 2 2 -1 0 3 -1 0";
-                        }
-                    }
-                #endregion
-
-                #region Croco Figures
-                case 3:
-                    {
-                        int RandomNumber = _random.Next(1, 5);
-                        switch (RandomNumber)
-                        {
-                            default:
-                            case 1:
-                                return "2 10 84ce84 2 2 -1 0 3 -1 0";
-                            case 2:
-                                return "2 8 838851 2 2 0 0 3 -1 0";
-                            case 3:
-                                return "2 11 b99105 2 2 -1 0 3 -1 0";
-                            case 4:
-                                return "2 3 e8ce25 2 2 -1 0 3 -1 0";
-                            case 5:
-                                return "2 2 fcfad3 2 2 -1 0 3 -1 0";
-                        }
-                    }
-                #endregion
-
                 #region Bear Figures
-                case 4:
+                case 1:
                     {
                         int RandomNumber = _random.Next(1, 4);
                         switch (RandomNumber)
@@ -192,33 +180,8 @@ namespace Polar.HabboRoleplay.Misc
                     }
                 #endregion
 
-                #region Pig Figures
-                case 5:
-                    {
-                        int RandomNumber = _random.Next(1, 7);
-                        switch (RandomNumber)
-                        {
-                            default:
-                            case 1:
-                                return "5 2 ffffff 2 2 -1 0 3 -1 0";
-                            case 2:
-                                return "5 0 ffffff 2 2 -1 0 3 -1 0";
-                            case 3:
-                                return "5 3 ffffff 2 2 -1 0 3 -1 0";
-                            case 4:
-                                return "5 5 ffffff 2 2 -1 0 3 -1 0";
-                            case 5:
-                                return "5 7 ffffff 2 2 -1 0 3 -1 0";
-                            case 6:
-                                return "5 1 ffffff 2 2 -1 0 3 -1 0";
-                            case 7:
-                                return "5 8 ffffff 2 2 -1 0 3 -1 0";
-                        }
-                    }
-                #endregion
-
                 #region Lion Figures
-                case 6:
+                case 2:
                     {
                         int RandomNumber = _random.Next(1, 11);
                         switch (RandomNumber)
@@ -251,7 +214,7 @@ namespace Polar.HabboRoleplay.Misc
                 #endregion
 
                 #region Rhino Figures
-                case 7:
+                case 3:
                     {
                         int RandomNumber = _random.Next(1, 7);
                         switch (RandomNumber)
@@ -275,124 +238,8 @@ namespace Polar.HabboRoleplay.Misc
                     }
                 #endregion
 
-                #region Spider Figures
-                case 8:
-                    {
-                        int RandomNumber = _random.Next(1, 13);
-                        switch (RandomNumber)
-                        {
-                            default:
-                            case 1:
-                                return "8 0 ffffff 2 2 -1 0 3 -1 0";
-                            case 2:
-                                return "8 1 ffffff 2 2 -1 0 3 -1 0";
-                            case 3:
-                                return "8 2 ffffff 2 2 -1 0 3 -1 0";
-                            case 4:
-                                return "8 3 ffffff 2 2 -1 0 3 -1 0";
-                            case 5:
-                                return "8 4 ffffff 2 2 -1 0 3 -1 0";
-                            case 6:
-                                return "8 14 ffffff 2 2 -1 0 3 -1 0";
-                            case 7:
-                                return "8 11 ffffff 2 2 -1 0 3 -1 0";
-                            case 8:
-                                return "8 8 ffffff 2 2 -1 0 3 -1 0";
-                            case 9:
-                                return "8 6 ffffff 2 2 -1 0 3 -1 0";
-                            case 10:
-                                return "8 5 ffffff 2 2 -1 0 3 -1 0";
-                            case 11:
-                                return "8 9 ffffff 2 2 -1 0 3 -1 0";
-                            case 12:
-                                return "8 10 ffffff 2 2 -1 0 3 -1 0";
-                            case 13:
-                                return "8 7 ffffff 2 2 -1 0 3 -1 0";
-                        }
-                    }
-                #endregion
-
-                #region Turtle Figures
-                case 9:
-                    {
-                        int RandomNumber = _random.Next(1, 9);
-                        switch (RandomNumber)
-                        {
-                            default:
-                            case 1:
-                                return "9 0 ffffff 2 2 -1 0 3 -1 0";
-                            case 2:
-                                return "9 1 ffffff 2 2 -1 0 3 -1 0";
-                            case 3:
-                                return "9 2 ffffff 2 2 -1 0 3 -1 0";
-                            case 4:
-                                return "9 3 ffffff 2 2 -1 0 3 -1 0";
-                            case 5:
-                                return "9 4 ffffff 2 2 -1 0 3 -1 0";
-                            case 6:
-                                return "9 5 ffffff 2 2 -1 0 3 -1 0";
-                            case 7:
-                                return "9 6 ffffff 2 2 -1 0 3 -1 0";
-                            case 8:
-                                return "9 7 ffffff 2 2 -1 0 3 -1 0";
-                            case 9:
-                                return "9 8 ffffff 2 2 -1 0 3 -1 0";
-                        }
-                    }
-                #endregion
-
-                #region Chick Figures
-                case 10:
-                    {
-                        int RandomNumber = _random.Next(1, 1);
-                        switch (RandomNumber)
-                        {
-                            default:
-                            case 1:
-                                return "10 0 ffffff 2 2 -1 0 3 -1 0";
-                        }
-                    }
-                #endregion
-
-                #region Frog Figures
-                case 11:
-                    {
-                        int RandomNumber = _random.Next(1, 13);
-                        switch (RandomNumber)
-                        {
-                            default:
-                            case 1:
-                                return "11 1 ffffff 2 2 -1 0 3 -1 0";
-                            case 2:
-                                return "11 2 ffffff 2 2 -1 0 3 -1 0";
-                            case 3:
-                                return "11 3 ffffff 2 2 -1 0 3 -1 0";
-                            case 4:
-                                return "11 4 ffffff 2 2 -1 0 3 -1 0";
-                            case 5:
-                                return "11 5 ffffff 2 2 -1 0 3 -1 0";
-                            case 6:
-                                return "11 9 ffffff 2 2 -1 0 3 -1 0";
-                            case 7:
-                                return "11 10 ffffff 2 2 -1 0 3 -1 0";
-                            case 8:
-                                return "11 6 ffffff 2 2 -1 0 3 -1 0";
-                            case 9:
-                                return "11 12 ffffff 2 2 -1 0 3 -1 0";
-                            case 10:
-                                return "11 11 ffffff 2 2 -1 0 3 -1 0";
-                            case 11:
-                                return "11 15 ffffff 2 2 -1 0 3 -1 0";
-                            case 12:
-                                return "11 13 ffffff 2 2 -1 0 3 -1 0";
-                            case 13:
-                                return "11 18 ffffff 2 2 -1 0 3 -1 0";
-                        }
-                    }
-                #endregion
-
                 #region Dragon Figures
-                case 12:
+                case 4:
                     {
                         int RandomNumber = _random.Next(1, 6);
                         switch (RandomNumber)
@@ -415,7 +262,7 @@ namespace Polar.HabboRoleplay.Misc
                 #endregion
 
                 #region Monkey Figures
-                case 14:
+                case 5:
                     {
                         int RandomNumber = _random.Next(1, 14);
                         switch (RandomNumber)
@@ -454,7 +301,7 @@ namespace Polar.HabboRoleplay.Misc
                 #endregion
 
                 #region Horse Figures
-                case 15:
+                case 6:
                     {
                         int RandomNumber = _random.Next(1, 20);
                         switch (RandomNumber)
@@ -505,7 +352,7 @@ namespace Polar.HabboRoleplay.Misc
                 #endregion
 
                 #region Bunny Figures
-                case 17:
+                case 7:
                     {
                         int RandomNumber = _random.Next(1, 8);
                         switch (RandomNumber)
@@ -532,7 +379,7 @@ namespace Polar.HabboRoleplay.Misc
                 #endregion
 
                 #region Pigeon Figures (White & Black)
-                case 21:
+                case 8:
                     {
                         int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
@@ -547,7 +394,7 @@ namespace Polar.HabboRoleplay.Misc
                 #endregion
 
                 #region Demon Monkey Figures
-                case 23:
+                case 9:
                     {
                         int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
@@ -564,7 +411,7 @@ namespace Polar.HabboRoleplay.Misc
                 #endregion
 
                 #region Baby Bear Figures
-                case 24:
+                case 10:
                     {
                         int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
@@ -578,23 +425,8 @@ namespace Polar.HabboRoleplay.Misc
                     }
                 #endregion
 
-                #region Baby Terrier Figures
-                case 25:
-                    {
-                        int RandomNumber = _random.Next(1, 3);
-                        switch (RandomNumber)
-                        {
-                            default:
-                            case 1:
-                                return "25 0 ffffff";
-                            case 2:
-                                return "25 1 ffffff";
-                        }
-                    }
-                #endregion
-
                 #region Gnome Figures
-                case 26:
+                case 11:
                     {
                         int RandomNumber = _random.Next(1, 4);
                         switch (RandomNumber)
@@ -613,7 +445,7 @@ namespace Polar.HabboRoleplay.Misc
                 #endregion
 
                 #region Kitten Figures
-                case 28:
+                case 12:
                     {
                         int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
@@ -627,40 +459,8 @@ namespace Polar.HabboRoleplay.Misc
                     }
                 #endregion
 
-
-                #region Puppy Figures
-                case 29:
-                    {
-                        int RandomNumber = _random.Next(1, 11);
-                        switch (RandomNumber)
-                        {
-                            default:
-                            case 1:
-                                return "29 0 ffffff";
-                            case 2:
-                                return "29 1 ffffff";
-                            case 3:
-                                return "29 2 ffffff";
-                            case 4:
-                                return "29 3 ffffff";
-                            case 5:
-                                return "29 4 ffffff";
-                            case 6:
-                                return "29 5 ffffff";
-                            case 7:
-                                return "29 6 ffffff";
-                            case 8:
-                                return "29 7 ffffff";
-                            case 9:
-                                return "29 8 ffffff";
-                            case 10:
-                                return "29 9 ffffff";
-                        }
-                    }
-                #endregion
-
                 #region Piglet Figures
-                case 30:
+                case 13:
                     {
                         int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
@@ -676,7 +476,7 @@ namespace Polar.HabboRoleplay.Misc
 
 
                 #region Haloompa Figures
-                case 31:
+                case 14:
                     {
                         int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
@@ -690,24 +490,8 @@ namespace Polar.HabboRoleplay.Misc
                     }
                 #endregion
 
-
-                #region Rock/Stone Figures
-                case 32:
-                    {
-                        int RandomNumber = _random.Next(1, 3);
-                        switch (RandomNumber)
-                        {
-                            default:
-                            case 1:
-                                return "32 0 ffffff";
-                            case 2:
-                                return "32 1 ffffff";
-                        }
-                    }
-                #endregion
-
                 #region Pterosaur Figures
-                case 33:
+                case 15:
                     {
                         int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
@@ -722,7 +506,7 @@ namespace Polar.HabboRoleplay.Misc
                 #endregion
 
                 #region Velociraptor Figures
-                case 34:
+                case 16:
                     {
                         int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
@@ -737,7 +521,7 @@ namespace Polar.HabboRoleplay.Misc
                 #endregion
 
                 #region Cow Figures
-                case 35:
+                case 17:
                     {
                         int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
@@ -752,7 +536,7 @@ namespace Polar.HabboRoleplay.Misc
                 #endregion
 
                 #region Penguin Figures
-                case 36:
+                case 18:
                     {
                         int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
@@ -767,7 +551,7 @@ namespace Polar.HabboRoleplay.Misc
                 #endregion
 
                 #region Elephant Figures
-                case 37:
+                case 19:
                     {
                         int RandomNumber = _random.Next(1, 3);
                         switch (RandomNumber)
@@ -777,81 +561,6 @@ namespace Polar.HabboRoleplay.Misc
                                 return "37 0 ffffff";
                             case 2:
                                 return "37 1 ffffff";
-                        }
-                    }
-                #endregion
-
-                #region Handsome Baby Figures
-                case 38:
-                    {
-                        int RandomNumber = _random.Next(1, 3);
-                        switch (RandomNumber)
-                        {
-                            default:
-                            case 1:
-                                return "38 0 ffffff";
-                            case 2:
-                                return "38 1 ffffff";
-                        }
-                    }
-                #endregion
-
-                #region Ugly Baby Figures
-                case 39:
-                    {
-                        int RandomNumber = _random.Next(1, 3);
-                        switch (RandomNumber)
-                        {
-                            default:
-                            case 1:
-                                return "39 0 ffffff";
-                            case 2:
-                                return "39 1 ffffff";
-                        }
-                    }
-                #endregion
-
-                #region Mario Figures
-                case 40:
-                    {
-                        int RandomNumber = _random.Next(1, 3);
-                        switch (RandomNumber)
-                        {
-                            default:
-                            case 1:
-                                return "40 0 ffffff";
-                            case 2:
-                                return "40 1 ffffff";
-                        }
-                    }
-                #endregion
-
-                #region Pikachu Figures
-                case 41:
-                    {
-                        int RandomNumber = _random.Next(1, 3);
-                        switch (RandomNumber)
-                        {
-                            default:
-                            case 1:
-                                return "41 0 ffffff";
-                            case 2:
-                                return "41 1 ffffff";
-                        }
-                    }
-                #endregion
-
-                #region Wolf Figures
-                case 42:
-                    {
-                        int RandomNumber = _random.Next(1, 3);
-                        switch (RandomNumber)
-                        {
-                            default:
-                            case 1:
-                                return "42 0 ffffff";
-                            case 2:
-                                return "42 1 ffffff";
                         }
                     }
                 #endregion
