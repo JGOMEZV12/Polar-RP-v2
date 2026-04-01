@@ -890,12 +890,13 @@ namespace Polar.HabboHotel.Rooms
             int startX = user.SetStep ? user.SetX : user.X;
             int startY = user.SetStep ? user.SetY : user.Y;
 
-            user.Path?.Clear();
-            user.Path = PathFinder.FindPath(user, _room.GetGameMap().DiagonalEnabled,
-                _room.GetGameMap(), new Vector2D(startX, startY),
-                new Vector2D(user.GoalX, user.GoalY));
+            if (user.Path == null) user.Path = new List<Vector2D>();
 
-            if (user.Path != null && user.Path.Count > 1)
+            PathFinder.FindPath(user, _room.GetGameMap().DiagonalEnabled,
+                _room.GetGameMap(), new Vector2D(startX, startY),
+                new Vector2D(user.GoalX, user.GoalY), user.Path);
+
+            if (user.Path.Count > 1)
             {
                 user.PathStep = 1;
                 user.IsWalking = true;
@@ -1740,8 +1741,7 @@ namespace Polar.HabboHotel.Rooms
         public List<RoomUser> GetUserList()
         {
             if (_users == null) return new List<RoomUser>();
-            try { return _users.Values.ToList(); }
-            catch { return new List<RoomUser>(); }
+            return _users.Values.ToList();
         }
 
         public int SquareInFront(int X, int Y, int RotBody, string find)

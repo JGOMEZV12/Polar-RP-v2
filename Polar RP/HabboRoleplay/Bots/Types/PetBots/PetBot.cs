@@ -138,13 +138,36 @@ namespace Polar.HabboRoleplay.Bots.PetBots
 
         private RoomUser FindNearbyTarget()
         {
-            if (this.GetRoomUser() == null || this.GetRoom() == null) return null;
+            var user = this.GetRoomUser();
+            var room = this.GetRoom();
+            if (user == null || room == null) return null;
 
-            return this.GetRoom().GetRoomUserManager().GetRoomUsers()
-                .Where(u => !u.IsBot && u.GetClient() != null && u.GetClient().GetRoleplay() != null && !u.GetClient().GetRoleplay().IsDead && !u.GetClient().GetRoleplay().IsNoob)
-                .Where(u => RoleplayManager.GetDistanceBetweenPoints2D(this.GetRoomUser().Coordinate, u.Coordinate) <= 2)
-                .OrderBy(u => RoleplayManager.GetDistanceBetweenPoints2D(this.GetRoomUser().Coordinate, u.Coordinate))
-                .FirstOrDefault();
+            RoomUser bestTarget = null;
+            double minDistanceSq = 9.0; // 3^2 to allow up to distance 2.x
+
+            var users = room.GetRoomUserManager()._users.Values;
+            foreach (var target in users)
+            {
+                if (target == null || target.IsBot) continue;
+
+                var rp = target.GetClient()?.GetRoleplay();
+                if (rp == null || rp.IsDead || rp.IsNoob) continue;
+
+                int dx = user.X - target.X;
+                int dy = user.Y - target.Y;
+                int distSq = dx * dx + dy * dy;
+
+                if (distSq <= 4) // Exact distance 2 (2^2)
+                {
+                    if (distSq < minDistanceSq)
+                    {
+                        minDistanceSq = distSq;
+                        bestTarget = target;
+                    }
+                }
+            }
+
+            return bestTarget;
         }
 
         public override void StopActivities()

@@ -1,6 +1,6 @@
+using System;
 using System.Collections.Generic;
 using Polar.HabboHotel.Rooms;
-using Polar.HabboHotel.Pathfinding;
 
 namespace Polar.HabboHotel.Pathfinding
 {
@@ -26,111 +26,118 @@ namespace Polar.HabboHotel.Pathfinding
             new Vector2D(-1,  0),
         };
 
-        public static List<Vector2D> FindPath(
-            RoomUser user, bool diag, Gamemap map, Vector2D start, Vector2D end)
+        public static void FindPath(
+            RoomUser user, bool diag, Gamemap map, Vector2D start, Vector2D end, List<Vector2D> path)
         {
-            var path  = new List<Vector2D>();
-            var nodes = FindPathReversed(user, diag, map, start, end);
+            path.Clear();
 
-            if (nodes != null)
+            // Optimization: If start == end, return empty path immediately
+            if (start == end) return;
+
+            var usedNodes = PathFinderUsedNodesPool.Rent();
+            try
             {
-                path.Add(end);
-                while (nodes.Next != null)
+                var nodes = FindPathReversed(user, diag, map, start, end, usedNodes);
+
+                if (nodes != null)
                 {
-                    path.Add(nodes.Next.Position);
-                    nodes = nodes.Next;
+                    path.Add(end);
+                    var current = nodes;
+                    while (current.Next != null)
+                    {
+                        path.Add(current.Next.Position);
+                        current = current.Next;
+                    }
+                }
+
+                // Now it is safe to release all nodes back to the pool
+                foreach (var node in usedNodes)
+                {
+                    PathFinderNodePool.Release(node);
                 }
             }
-
-            return path;
+            finally
+            {
+                PathFinderUsedNodesPool.Return(usedNodes);
+            }
         }
 
-        public static PathFinderNode? FindPathReversed(
-            RoomUser user, bool diag, Gamemap map, Vector2D start, Vector2D end)
+        private static PathFinderNode? FindPathReversed(
+            RoomUser user, bool diag, Gamemap map, Vector2D start, Vector2D end, List<PathFinderNode> usedNodes)
         {
             int mapW = map.Model.MapSizeX;
             int mapH = map.Model.MapSizeY;
 
-            // ✅ FIX #10: pfMap se creaba como new PathFinderNode[mapW, mapH] dentro
-            //   de FindPathReversed, que es llamado en CADA ciclo de movimiento de CADA
-            //   usuario en CADA tick de la sala. Para una sala de 64×64 con 50 usuarios
-            //   a 20 ticks/s esto aloca ~64 MB/s de arrays 2D que el GC tiene que
-            //   recolectar constantemente.
-            //   Solución correcta: pool estático por thread (no compartido entre hilos).
-            //   ThreadLocal garantiza que cada hilo del ThreadPool tenga su propio array
-            //   sin contención, y el array se reusa entre llamadas del mismo hilo.
-            //   Se limpia con Array.Clear sólo las celdas modificadas (tracked en usedNodes).
             var pfMap = PathFinderMapPool.Rent(mapW, mapH);
-            var usedNodes = new List<PathFinderNode>(64); // para limpiar al final
 
             try
             {
-                var openList = new MinHeap<PathFinderNode>(256);
+                var openList = PathFinderHeapPool.Rent();
                 var movePoints = diag ? DiagMovePoints : NoDiagMovePoints;
 
-                var current = new PathFinderNode(start) { Cost = 0 };
-                var finish  = new PathFinderNode(end);
-
-                pfMap[current.Position.X, current.Position.Y] = current;
-                usedNodes.Add(current);
-                openList.Add(current);
-
-                while (openList.Count > 0)
+                try
                 {
-                    current = openList.ExtractFirst();
-                    current.InClosed = true;
+                    var current = PathFinderNodePool.Get(start);
+                    current.Cost = 0;
 
-                    for (int i = 0; i < movePoints.Length; i++)
+                    pfMap[current.Position.X, current.Position.Y] = current;
+                    usedNodes.Add(current);
+                    openList.Add(current);
+
+                    while (openList.Count > 0)
                     {
-                        Vector2D tmp  = current.Position + movePoints[i];
-                        bool inBounds = tmp.X >= 0 && tmp.Y >= 0 && tmp.X < mapW && tmp.Y < mapH;
-                        if (!inBounds) continue;
+                        current = openList.ExtractFirst();
+                        current.InClosed = true;
 
-                        bool isFinal = tmp.X == end.X && tmp.Y == end.Y;
-                        if (!map.IsValidStep(current.Position, tmp, isFinal, user.AllowOverride))
-                            continue;
-
-                        PathFinderNode? node = pfMap[tmp.X, tmp.Y];
-                        if (node == null)
+                        for (int i = 0; i < movePoints.Length; i++)
                         {
-                            node = new PathFinderNode(tmp);
-                            pfMap[tmp.X, tmp.Y] = node;
-                            usedNodes.Add(node);
-                        }
+                            Vector2D tmp = current.Position + movePoints[i];
+                            if (tmp.X < 0 || tmp.Y < 0 || tmp.X >= mapW || tmp.Y >= mapH) continue;
 
-                        if (node.InClosed) continue;
+                            bool isFinal = (tmp.X == end.X && tmp.Y == end.Y);
+                            if (!map.IsValidStep(current.Position, tmp, isFinal, user.AllowOverride))
+                                continue;
 
-                        bool isDiag = current.Position.X != node.Position.X &&
-                                      current.Position.Y != node.Position.Y;
-                        int diff = isDiag ? 14 : 10;
-                        int cost = current.Cost + diff
-                                 + Math.Abs(node.Position.X - end.X)
-                                 + Math.Abs(node.Position.Y - end.Y);
-
-                        if (cost < node.Cost)
-                        {
-                            node.Cost = cost;
-                            node.Next = current;
-                        }
-
-                        if (!node.InOpen)
-                        {
-                            if (node.Equals(finish))
+                            PathFinderNode? node = pfMap[tmp.X, tmp.Y];
+                            if (node == null)
                             {
-                                node.Next = current;
-                                return node;
+                                node = PathFinderNodePool.Get(tmp);
+                                pfMap[tmp.X, tmp.Y] = node;
+                                usedNodes.Add(node);
                             }
-                            node.InOpen = true;
-                            openList.Add(node);
+
+                            if (node.InClosed) continue;
+
+                            int diff = (current.Position.X != tmp.X && current.Position.Y != tmp.Y) ? 14 : 10;
+                            int gScore = current.Cost + diff;
+
+                            if (gScore < node.Cost)
+                            {
+                                node.Cost = gScore;
+                                node.Next = current;
+
+                                if (!node.InOpen)
+                                {
+                                    if (tmp == end)
+                                    {
+                                        return node;
+                                    }
+                                    node.InOpen = true;
+                                    openList.Add(node);
+                                }
+                            }
                         }
                     }
+                }
+                finally
+                {
+                    PathFinderHeapPool.Return(openList);
                 }
 
                 return null;
             }
             finally
             {
-                // Limpiar sólo las celdas que tocamos — O(k) en vez de O(w*h)
                 foreach (var n in usedNodes)
                     pfMap[n.Position.X, n.Position.Y] = null;
 
@@ -139,13 +146,8 @@ namespace Polar.HabboHotel.Pathfinding
         }
     }
 
-    // ✅ FIX #10 (cont.): Pool de arrays 2D por hilo.
-    //   ThreadLocal<T> crea una instancia por hilo del ThreadPool la primera vez
-    //   que ese hilo accede. Los arrays se resan indefinidamente sin GC intermedio.
     internal static class PathFinderMapPool
     {
-        // Tamaño máximo de sala soportado. Si un mapa expande más allá de esto
-        // se crea un array temporal (caso raro) y no se devuelve al pool.
         private const int MaxSize = 128;
 
         [ThreadStatic]
@@ -156,18 +158,63 @@ namespace Polar.HabboHotel.Pathfinding
             var arr = _cached;
             if (arr != null && arr.GetLength(0) >= w && arr.GetLength(1) >= h)
             {
-                _cached = null; // "checked out"
+                _cached = null;
                 return arr;
             }
-            // Pool miss o mapa más grande: allocar nuevo
             return new PathFinderNode?[Math.Max(w, MaxSize), Math.Max(h, MaxSize)];
         }
 
         public static void Return(PathFinderNode?[,] arr)
         {
-            // Devolver al pool sólo si cabe en el tamaño máximo
             if (arr.GetLength(0) <= MaxSize && arr.GetLength(1) <= MaxSize)
                 _cached = arr;
+        }
+    }
+
+    internal static class PathFinderUsedNodesPool
+    {
+        [ThreadStatic]
+        private static List<PathFinderNode>? _cached;
+
+        public static List<PathFinderNode> Rent()
+        {
+            var list = _cached;
+            if (list != null)
+            {
+                _cached = null;
+                list.Clear();
+                return list;
+            }
+            return new List<PathFinderNode>(128);
+        }
+
+        public static void Return(List<PathFinderNode> list)
+        {
+            if (list.Capacity <= 1024)
+                _cached = list;
+        }
+    }
+
+    internal static class PathFinderHeapPool
+    {
+        [ThreadStatic]
+        private static MinHeap<PathFinderNode>? _cached;
+
+        public static MinHeap<PathFinderNode> Rent()
+        {
+            var heap = _cached;
+            if (heap != null)
+            {
+                _cached = null;
+                heap.Clear();
+                return heap;
+            }
+            return new MinHeap<PathFinderNode>(256);
+        }
+
+        public static void Return(MinHeap<PathFinderNode> heap)
+        {
+            _cached = heap;
         }
     }
 }

@@ -148,17 +148,26 @@ namespace Polar.HabboHotel.Rooms
 
         public bool MapGotUser(Point coord)
         {
-            return GetRoomUsers(coord).Count > 0;
+            return _userMap.TryGetValue(coord, out var users) && users.Count > 0;
         }
 
         public bool MapGotUser(Point coord, bool checkingInvisible, bool isInvisible)
         {
-            // ✅ FIX #17: Antes filtraba bots con .Where().ToList() y luego comprobaba
-            //   users == null (nunca null) y Count > 0 dos veces. Simplificado.
-            List<RoomUser> users = GetRoomUsers(coord);
-            if (users.Count == 0) return false;
+            if (!_userMap.TryGetValue(coord, out var users) || users.Count == 0)
+                return false;
+
             if (!checkingInvisible) return true;
-            return users.Any(u => !u.IsBot && IsUserVisible(u, isInvisible));
+
+            lock (_userMapLock)
+            {
+                for (int i = 0; i < users.Count; i++)
+                {
+                    var u = users[i];
+                    if (u != null && !u.IsBot && IsUserVisible(u, isInvisible))
+                        return true;
+                }
+            }
+            return false;
         }
 
         private static bool IsUserVisible(RoomUser user, bool isInvisible)
@@ -174,9 +183,14 @@ namespace Polar.HabboHotel.Rooms
 
         public List<RoomUser> GetRoomUsers(Point coord)
         {
-            return _userMap.TryGetValue(coord, out var users)
-                ? new List<RoomUser>(users) // snapshot — no exponer la lista interna
-                : new List<RoomUser>();
+            if (_userMap.TryGetValue(coord, out var users))
+            {
+                lock (_userMapLock)
+                {
+                    return new List<RoomUser>(users);
+                }
+            }
+            return new List<RoomUser>();
         }
 
         #endregion
