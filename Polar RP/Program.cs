@@ -42,17 +42,25 @@ namespace Polar
             //   Añadido null-check + manejo de EOF para salir limpiamente.
             while (PolarEnvironment.IsLive)
             {
-                Console.CursorVisible = true;
-                string? input = Console.ReadLine();
-
-                if (input == null)
+                try
                 {
-                    // EOF en stdin — no hay consola activa, esperamos sin consumir CPU
-                    await Task.Delay(1000);
-                    continue;
-                }
+                    Console.CursorVisible = true;
+                    string? input = Console.ReadLine();
 
-                ConsoleCommandHandler.InvokeCommand(input);
+                    if (input == null)
+                    {
+                        // EOF en stdin — no hay consola activa, esperamos sin consumir CPU
+                        await Task.Delay(1000);
+                        continue;
+                    }
+
+                    ConsoleCommandHandler.InvokeCommand(input);
+                }
+                catch (Exception e)
+                {
+                    Logging.LogCriticalException("ERROR CRÍTICO CAPTURADO EN EL BUCLE PRINCIPAL (Main Loop): " + e);
+                    await Task.Delay(2000);
+                }
             }
         }
 
