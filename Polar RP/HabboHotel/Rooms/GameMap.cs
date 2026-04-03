@@ -742,11 +742,6 @@ namespace Polar.HabboHotel.Rooms
 
         public bool IsValidStep(Vector2D from, Vector2D to, bool endOfPath, bool @override,
             bool roller = false, bool isBot = false, bool isInvisible = false, bool diagMove = false)
-            => IsValidStep(new Point(from.X, from.Y), new Point(to.X, to.Y),
-                           endOfPath, @override, roller, isBot, isInvisible, diagMove);
-
-        public bool IsValidStep(Point from, Point to, bool endOfPath, bool @override,
-            bool roller = false, bool isBot = false, bool isInvisible = false, bool diagMove = false)
         {
             if (!ValidTile(to.X, to.Y)) return false;
             if (@override) return true;
@@ -756,32 +751,25 @@ namespace Polar.HabboHotel.Rooms
                 return false;
 
             List<Item> items = GetAllRoomItemForSquare(to.X, to.Y);
-            if (items.Count > 0 && HasSpecialItemsBlockingMovement(items, to, endOfPath))
-                return false;
 
-            if (!IsTileWalkable(GameMap[to.X, to.Y], endOfPath)) return false;
-            if (!roller && GetHeightDifference(from, to) > 1.5) return false;
-            if (diagMove && !IsValidDiagonalMove(from, to)) return false;
-
-            return true;
-        }
-
-        public bool IsValidStep2(RoomUser user, Vector2D from, Vector2D to, bool endOfPath, bool @override)
-            => IsValidStep2(user, new Point(from.X, from.Y), new Point(to.X, to.Y), endOfPath, @override);
-
-        public bool IsValidStep2(RoomUser user, Point from, Point to, bool endOfPath, bool @override)
-        {
-            if (user == null || !ValidTile(to.X, to.Y)) return false;
-            if (@override) return true;
-
-            List<Item> items = GetAllRoomItemForSquare(to.X, to.Y);
-
-            // ✅ FIX #20: Antes: .Any(...) para verificar + .FirstOrDefault(...) para obtener —
-            //   doble scan de la misma lista. Un solo FirstOrDefault es suficiente.
-            Item? gate = items.FirstOrDefault(x =>
-                x?.GetBaseItem().InteractionType == InteractionType.GUILD_GATE);
+            Item? gate = items.FirstOrDefault(x => x?.GetBaseItem().InteractionType == InteractionType.GUILD_GATE);
             if (gate != null)
-                return HandleGroupGateAccess(user, gate);
+            {
+                if (isBot)
+                {
+                    OpenGate(gate);
+                    return true;
+                }
+                // Si llegamos aquí no es bot, delegamos a la lógica de acceso de grupos
+                // Pero necesitamos el RoomUser. IsValidStep no lo tiene.
+                // Usaremos una búsqueda rápida del usuario en el Gamemap
+                var user = GetRoomUsers(new Point(from.X, from.Y)).FirstOrDefault(u => u != null && !u.IsBot);
+                if (user != null) return HandleGroupGateAccess(user, gate);
+                return false;
+            }
+
+            if (items.Count > 0 && HasSpecialItemsBlockingMovement(items, new Point(to.X, to.Y), endOfPath))
+                return false;
 
             bool isChair = false;
             double highestZ = -1;
@@ -796,22 +784,38 @@ namespace Polar.HabboHotel.Rooms
             }
 
             byte tileState = GameMap[to.X, to.Y];
-            if ((tileState == 3 && !endOfPath && !isChair) ||
-                tileState == 0 ||
-                (tileState == 2 && !endOfPath))
+            if (tileState == 0) return false;
+            if (tileState == 2 && !endOfPath) return false;
+            if (tileState == 3 && !endOfPath && !isChair) return false;
+
+            if (!roller && GetHeightDifference(from, to) > 1.5) return false;
+            if (diagMove && !IsValidDiagonalMove(from, to)) return false;
+
+            if (!isBot && endOfPath)
             {
-                user.Path?.Clear();
-                user.PathRecalcNeeded = true;
-                return false;
+                var other = _room.GetRoomUserManager().GetUserForSquare(to.X, to.Y);
+                if (other != null && !other.IsWalking) return false;
             }
 
-            double heightDiff = SqAbsoluteHeight(to.X, to.Y) - SqAbsoluteHeight(from.X, from.Y);
-            if (heightDiff > 1.5 && !user.RidingHorse) return false;
-
-            RoomUser? other = _room.GetRoomUserManager().GetUserForSquare(to.X, to.Y);
-            if (other != null && !other.IsWalking && endOfPath) return false;
-
             return true;
+        }
+
+        public double GetHeightDifference(Vector2D from, Vector2D to) =>
+            SqAbsoluteHeight(to.X, to.Y) - SqAbsoluteHeight(from.X, from.Y);
+
+        private bool IsValidDiagonalMove(Vector2D from, Vector2D to)
+        {
+            int dx = to.X - from.X;
+            int dy = to.Y - from.Y;
+
+            return (dx, dy) switch
+            {
+                (-1, -1) => GameMap[to.X + 1, to.Y] == 1 || GameMap[to.X, to.Y + 1] == 1,
+                (1, -1) => GameMap[to.X - 1, to.Y] == 1 || GameMap[to.X, to.Y + 1] == 1,
+                (1, 1) => GameMap[to.X - 1, to.Y] == 1 || GameMap[to.X, to.Y - 1] == 1,
+                (-1, 1) => GameMap[to.X + 1, to.Y] == 1 || GameMap[to.X, to.Y - 1] == 1,
+                _ => true
+            };
         }
 
         private bool HandleGroupGateAccess(RoomUser user, Item gate)

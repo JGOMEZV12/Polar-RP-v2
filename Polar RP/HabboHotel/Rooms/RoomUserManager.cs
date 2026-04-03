@@ -842,7 +842,7 @@ namespace Polar.HabboHotel.Rooms
             var to = new Vector2D(user.SetX, user.SetY);
             bool isFinalStep = (user.GoalX == user.SetX && user.GoalY == user.SetY);
 
-            if (_room.GetGameMap().IsValidStep2(user, from, to, isFinalStep, user.AllowOverride))
+            if (_room.GetGameMap().IsValidStep(from, to, isFinalStep, user.AllowOverride, isBot: user.IsBot))
             {
                 if (!user.RidingHorse)
                     _room.GetGameMap().UpdateUserMovement(
@@ -896,7 +896,7 @@ namespace Polar.HabboHotel.Rooms
                 _room.GetGameMap(), new Vector2D(startX, startY),
                 new Vector2D(user.GoalX, user.GoalY), user.Path);
 
-            if (user.Path.Count > 1)
+            if (user.Path.Count > 0)
             {
                 user.PathStep = 1;
                 user.IsWalking = true;
@@ -916,9 +916,10 @@ namespace Polar.HabboHotel.Rooms
             if (user.Path == null || user.Path.Count == 0) { StopWalking(user); return; }
 
             bool atDestination = (user.X == user.GoalX && user.Y == user.GoalY);
-            if (atDestination || invalidStep || user.PathStep >= user.Path.Count) { StopWalking(user); return; }
+            if (atDestination || invalidStep || user.PathStep > user.Path.Count) { StopWalking(user); return; }
 
-            int stepIndex = (user.Path.Count - user.PathStep) - 1;
+            // Path index is reversed (0 = destination, Count-1 = first step)
+            int stepIndex = (user.Path.Count - user.PathStep);
             if (stepIndex < 0 || stepIndex >= user.Path.Count) { StopWalking(user); return; }
 
             Vector2D nextStep = user.Path[stepIndex];
@@ -932,6 +933,7 @@ namespace Polar.HabboHotel.Rooms
         {
             if (user.IsBot && user.FastWalking && user.BotData != null)
             {
+                if (!user.BotData.Name.Contains("#")) return;
                 string passengerName = user.BotData.Name.Split('#')[1];
                 var client = PolarEnvironment.GetGame().GetClientManager().GetClientByUsername(passengerName);
                 if (client != null)
@@ -943,8 +945,9 @@ namespace Polar.HabboHotel.Rooms
                         int pIdx = (passenger.Path.Count - passenger.PathStep) - 1;
                         if (pIdx >= 0 && pIdx < passenger.Path.Count)
                         {
+                            user.PathStep += (stepIndex - pIdx);
                             nextStep = passenger.Path[pIdx];
-                            user.PathStep++;
+                            stepIndex = pIdx;
                         }
                     }
                 }
@@ -957,15 +960,14 @@ namespace Polar.HabboHotel.Rooms
             if (skip <= 0) return;
 
             int newIdx = stepIndex - skip;
-            if (newIdx >= 0)
+            if (newIdx < 0) newIdx = 0;
+
+            Vector2D skipped = user.Path[newIdx];
+            if (skipped.X != nextStep.X || skipped.Y != nextStep.Y)
             {
-                Vector2D skipped = user.Path[newIdx];
-                if (skipped.X != nextStep.X || skipped.Y != nextStep.Y)
-                {
-                    nextStep = skipped;
-                    user.PathStep += (stepIndex - newIdx - 1);
-                    stepIndex = newIdx;
-                }
+                user.PathStep += (stepIndex - newIdx);
+                nextStep = skipped;
+                stepIndex = newIdx;
             }
         }
 
@@ -995,9 +997,9 @@ namespace Polar.HabboHotel.Rooms
             if (nextX == user.X && nextY == user.Y) return;
 
             bool isFinalStep = (user.GoalX == nextX && user.GoalY == nextY);
-            if (!_room.GetGameMap().IsValidStep2(user,
+            if (!_room.GetGameMap().IsValidStep(
                     new Vector2D(user.X, user.Y), new Vector2D(nextX, nextY),
-                    isFinalStep, user.AllowOverride)) return;
+                    isFinalStep, user.AllowOverride, isBot: user.IsBot)) return;
 
             double nextZ = _room.GetGameMap().SqAbsoluteHeight(nextX, nextY);
 

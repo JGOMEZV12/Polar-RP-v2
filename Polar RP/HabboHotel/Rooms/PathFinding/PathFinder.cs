@@ -29,10 +29,11 @@ namespace Polar.HabboHotel.Pathfinding
         public static void FindPath(
             RoomUser user, bool diag, Gamemap map, Vector2D start, Vector2D end, List<Vector2D> path)
         {
+            if (path == null) throw new ArgumentNullException(nameof(path));
             path.Clear();
 
             // Optimization: If start == end, return empty path immediately
-            if (start == end) return;
+            if (start.X == end.X && start.Y == end.Y) return;
 
             var usedNodes = PathFinderUsedNodesPool.Rent();
             try
@@ -41,11 +42,13 @@ namespace Polar.HabboHotel.Pathfinding
 
                 if (nodes != null)
                 {
-                    path.Add(end);
                     var current = nodes;
-                    while (current.Next != null)
+                    while (current != null)
                     {
-                        path.Add(current.Next.Position);
+                        // Skip the start node (it's the last one in the chain)
+                        if (current.Next == null) break;
+
+                        path.Add(current.Position);
                         current = current.Next;
                     }
                 }
@@ -95,7 +98,7 @@ namespace Polar.HabboHotel.Pathfinding
                             if (tmp.X < 0 || tmp.Y < 0 || tmp.X >= mapW || tmp.Y >= mapH) continue;
 
                             bool isFinal = (tmp.X == end.X && tmp.Y == end.Y);
-                            if (!map.IsValidStep(current.Position, tmp, isFinal, user.AllowOverride))
+                        if (!map.IsValidStep(current.Position, tmp, isFinal, user.AllowOverride, isBot: user.IsBot))
                                 continue;
 
                             PathFinderNode? node = pfMap[tmp.X, tmp.Y];
@@ -118,7 +121,7 @@ namespace Polar.HabboHotel.Pathfinding
 
                                 if (!node.InOpen)
                                 {
-                                    if (tmp == end)
+                                    if (tmp.X == end.X && tmp.Y == end.Y)
                                     {
                                         return node;
                                     }

@@ -527,6 +527,7 @@ namespace Polar.HabboHotel.Rooms
                 UnIdle();
                 GoalX = pX;
                 GoalY = pY;
+                this.AllowOverride = pOverride;
                 PathRecalcNeeded = true;
                 FreezeInteracting = false;
 
@@ -536,9 +537,6 @@ namespace Polar.HabboHotel.Rooms
 
                 if (items.Count > 0)
                 {
-                    // ✅ FIX #5: Antes se llamaba a .Where().Count() > 0 para verificar
-                    //   y luego .Where().First() para obtener — doble scan.
-                    //   Reemplazado con FirstOrDefault en una sola pasada.
                     var bed = items.FirstOrDefault(x => x?.GetBaseItem().IsBed() == true);
                     var chair = items.FirstOrDefault(x => x?.GetBaseItem().IsSeat == true);
 
@@ -572,6 +570,7 @@ namespace Polar.HabboHotel.Rooms
             UnIdle();
             GoalX = pX;
             GoalY = pY;
+            this.AllowOverride = pOverride;
             PathRecalcNeeded = true;
             FreezeInteracting = false;
         }
