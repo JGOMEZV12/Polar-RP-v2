@@ -100,13 +100,13 @@ namespace Polar.HabboRoleplay.Combat.Types
 
                     if (Amount > 0)
                     {
-                        RoleplayManager.Shout(Client, "*Golpea a " + TargetClient.GetHabbo().Username + ", causando " + Damage + " de daño*", 6);
-                        RoleplayManager.Shout(Client, "*Golpea a " + TargetClient.GetHabbo().Username + ", golpeando y robando $" + String.Format("{0:N0}", Amount) + " de su cartera*", 6);
+                        RoleplayManager.ShoutSay(Client, "*Golpea a " + TargetClient.GetHabbo().Username + ", causando " + Damage + " de daño*", 6, "black", true);
+                        RoleplayManager.ShoutSay(Client, "*Golpea a " + TargetClient.GetHabbo().Username + ", golpeando y robando $" + String.Format("{0:N0}", Amount) + " de su cartera*", 6, "black", true);
                     }
                     else
                     {
-                        RoleplayManager.Shout(Client, "*Golpea a " + TargetClient.GetHabbo().Username + ", causando " + Damage + " daño*", 6);
-                        RoleplayManager.Shout(Client, "*Golpea a " + TargetClient.GetHabbo().Username + ", noqueandolo*", 6);
+                        RoleplayManager.ShoutSay(Client, "*Golpea a " + TargetClient.GetHabbo().Username + ", causando " + Damage + " daño*", 6, "black", true);
+                        RoleplayManager.ShoutSay(Client, "*Golpea a " + TargetClient.GetHabbo().Username + ", noqueandolo*", 6, "black", true);
                     }
 
                     BountyManager.CheckBounty(Client, TargetClient.GetHabbo().Id);
@@ -116,7 +116,7 @@ namespace Polar.HabboRoleplay.Combat.Types
             }
             else
             {
-                RoleplayManager.Shout(Client, "*Golpea a " + TargetClient.GetHabbo().Username + ", causando " + Damage + " de daño*", 6);
+                RoleplayManager.ShoutSay(Client, "*Golpea a " + TargetClient.GetHabbo().Username + ", causando " + Damage + " de daño*", 6, "black", true);
                 Client.GetRoleplay().OpenUsersDialogue(TargetClient);
                 TargetClient.GetRoleplay().OpenUsersDialogue(Client);
             }
@@ -137,7 +137,7 @@ namespace Polar.HabboRoleplay.Combat.Types
             }
             else
             {
-                RoleplayManager.Shout(Client, "*Golpea el auto que " + TargetClient.GetHabbo().Username + " concuce causandole " + Damage + " de daño*", 5);
+                RoleplayManager.ShoutSay(Client, "*Golpea el auto que " + TargetClient.GetHabbo().Username + " concuce causandole " + Damage + " de daño*", 5, "black", true);
 
                 // Stats WebSocket
                 Client.GetRoleplay().OpenUsersDialogue(TargetClient);
@@ -195,7 +195,7 @@ namespace Polar.HabboRoleplay.Combat.Types
             if (Bot.CurHealth - Damage <= 0)
                 Died = true;
             else
-                RoleplayManager.Shout(Client, "*Golpea a " + Bot.Name + ", causando " + Damage + " de Daño*", 6);
+                RoleplayManager.ShoutSay(Client, "*Golpea a " + Bot.Name + ", causando " + Damage + " de Daño*", 6, "black", true);
 
             PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Client, "ACH_Punching", 1);
             PolarEnvironment.GetGame().GetQuestManager().ProgressUserQuest(Client, QuestType.PUNCH_USER, 1);
@@ -483,7 +483,7 @@ namespace Polar.HabboRoleplay.Combat.Types
 
             if (Distance > 1)
             {
-                RoleplayManager.Shout(Client, "*Golpea a " + (Bot == null ? TargetClient.GetHabbo().Username : Bot.Name) + ", pero falla*", 4);
+                RoleplayManager.ShoutSay(Client, "*Golpea a " + (Bot == null ? TargetClient.GetHabbo().Username : Bot.Name) + ", pero falla*", 4, "black", true);
                 Client.GetRoleplay().CooldownManager.CreateCooldown("fist", 1000, RoleplayManager.DefaultHitCooldown);
                 return false;
             }

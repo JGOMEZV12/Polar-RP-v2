@@ -94,7 +94,7 @@ namespace Polar.HabboRoleplay.Weapons
                 Client.GetRoleplay().WLife--;
                 RoleplayManager.UpdateMyWeaponStats(Client, "life", Client.GetRoleplay().WLife, Client.GetRoleplay().EquippedWeapon.Name);
                 if (Client.GetRoleplay().WLife <= 0)
-                    RoleplayManager.Shout(Client, "* Mientras " + Client.GetHabbo().Username + " recargaba su arma, se escucha como cruje y se daña.", 4);
+                    RoleplayManager.ShoutSay(Client, "* Mientras " + Client.GetHabbo().Username + " recargaba su arma, se escucha como cruje y se daña.", 4, "black", true);
 
                 this.WLife = Client.GetRoleplay().WLife;
                 return true;
@@ -143,7 +143,7 @@ namespace Polar.HabboRoleplay.Weapons
             else
             {
                 if (TargetClient != null)
-                    RoleplayManager.Shout(Client, "*Intenta disparar a " + TargetClient.GetHabbo().Username + " Pero se da cuenta de que se le acabaron las balas por completo*", 4);
+                    RoleplayManager.ShoutSay(Client, "*Intenta disparar a " + TargetClient.GetHabbo().Username + " Pero se da cuenta de que se le acabaron las balas por completo*", 4, "black", true);
                 else
                     Client.SendWhisper("¡Te has quedado sin balas para recargar tu arma!", 1);
                 return false;
@@ -159,7 +159,7 @@ namespace Polar.HabboRoleplay.Weapons
             Text = Text.Replace("[NAME]", PublicName);
             Text = Text.Replace("[BULLETS]", Bullets.ToString());
 
-            RoleplayManager.Shout(Client, Text, 4);
+            RoleplayManager.ShoutSay(Client, Text, 4, "black", true);
         }
     }
 }

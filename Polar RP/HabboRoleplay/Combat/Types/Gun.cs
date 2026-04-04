@@ -49,14 +49,14 @@ namespace Polar.HabboRoleplay.Combat.Types
             {
                 if (Distance > RoleplayManager.StunGunRange)
                 {
-                    RoleplayManager.Shout(Client, "*Dispara su pistola electrica hacia " + TargetClient.GetHabbo().Username + ", pero el disparo no lo alcanza*", 37);
+                    RoleplayManager.ShoutSay(Client, "*Dispara su pistola electrica hacia " + TargetClient.GetHabbo().Username + ", pero el disparo no lo alcanza*", 37, "black", true);
                     TargetClient.GetRoleplay().SpecialCooldowns.TryUpdate("stun", 1800, TargetClient.GetRoleplay().SpecialCooldowns["stun"]);
                     return;
                 }
 
                 if (Chancex <= 8)
                 {
-                    RoleplayManager.Shout(Client, "*Dispara su pistola electrica hacia " + TargetClient.GetHabbo().Username + ", pero falla*", 37);
+                    RoleplayManager.ShoutSay(Client, "*Dispara su pistola electrica hacia " + TargetClient.GetHabbo().Username + ", pero falla*", 37, "black", true);
                     Client.GetRoleplay().CooldownManager.CreateCooldown("stun", 1000, 3);
                 }
                 else
@@ -67,7 +67,7 @@ namespace Polar.HabboRoleplay.Combat.Types
                         return;
                     }
 
-                    RoleplayManager.Shout(Client, "*Dispara su pistola electrica hacia " + TargetClient.GetHabbo().Username + " inmovilizándolo inmediatamente*", 37);
+                    RoleplayManager.ShoutSay(Client, "*Dispara su pistola electrica hacia " + TargetClient.GetHabbo().Username + " inmovilizándolo inmediatamente*", 37, "black", true);
                     TargetClient.GetRoleplay().TimerManager.CreateTimer("stun", 1000, false);
 
                     FreezeTarget(TargetClient);
@@ -99,7 +99,7 @@ namespace Polar.HabboRoleplay.Combat.Types
 
             if (TargetClient.GetRoleplay().CarEnableId == 817)
             {
-                RoleplayManager.Shout(Client, "*Intentó de disparar a " + TargetClient.GetHabbo().Username + ", pero falla*", 4);
+                RoleplayManager.ShoutSay(Client, "*Intentó de disparar a " + TargetClient.GetHabbo().Username + ", pero falla*", 4, "black", true);
                 Client.GetRoleplay().GunShots++;
 
                 Client.GetRoleplay().Bullets--;
@@ -149,7 +149,7 @@ namespace Polar.HabboRoleplay.Combat.Types
 
             if (Distance > Range)
             {
-                RoleplayManager.Shout(Client, "*Intentó de disparar a " + TargetClient.GetHabbo().Username + ", pero falla*", 4);
+                RoleplayManager.ShoutSay(Client, "*Intentó de disparar a " + TargetClient.GetHabbo().Username + ", pero falla*", 4, "black", true);
                 Client.GetRoleplay().GunShots++;
 
                 Client.GetRoleplay().Bullets--;
@@ -172,7 +172,7 @@ namespace Polar.HabboRoleplay.Combat.Types
                 string Text = Weapon.FiringText.Split(':')[1];
                 string GunName = Weapon.PublicName;
 
-                RoleplayManager.Shout(Client, FormatFiringText(Text, GunName, TargetClient.GetHabbo().Username, Damage, Weapon.Energy), 6);
+                RoleplayManager.ShoutSay(Client, FormatFiringText(Text, GunName, TargetClient.GetHabbo().Username, Damage, Weapon.Energy), 6, "black", true);
 
 
                 PolarEnvironment.GetGame().GetQuestManager().ProgressUserQuest(Client, QuestType.KILL_USER);
@@ -327,7 +327,7 @@ namespace Polar.HabboRoleplay.Combat.Types
                 //PolarEnvironment.GetGame().GetWebEventManager().SendDataDirect(Client, "compose_discord|" + Client.GetHabbo().Username + "|Asesinó a|" + TargetClient.GetHabbo().Username);
 
                 BountyManager.CheckBounty(Client, TargetClient.GetHabbo().Id);
-                RoleplayManager.Shout(TargetClient, "*" + Client.GetHabbo().Username + " me ha asesinado!*", 32);
+                RoleplayManager.ShoutSay(TargetClient, "*" + Client.GetHabbo().Username + " me ha asesinado!*", 32, "black", true);
                 TargetClient.GetRoleplay().CurHealth = 0;
                 TargetClient.GetRoleplay().IsDead = true;
                 TargetClient.GetRoleplay().DeadTimeLeft = RoleplayManager.DeathTime;
@@ -378,7 +378,7 @@ else
                    ", causando " + Damage + " de daño*";
 }
 
-RoleplayManager.Shout(Client, modifiedText, 6);
+RoleplayManager.ShoutSay(Client, modifiedText, 6, "black", true);
 
 Client.GetRoleplay().OpenUsersDialogue(TargetClient);
                 TargetClient.GetRoleplay().OpenUsersDialogue(Client);

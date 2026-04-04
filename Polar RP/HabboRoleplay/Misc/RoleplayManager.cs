@@ -303,6 +303,12 @@ namespace Polar.HabboRoleplay.Misc
             }
         }
 
+        public static void Say(GameClient Session, string Speech, int Bubble = 0, bool isSystemMessage = false)
+        {
+            if (Session?.GetRoomUser() == null) return;
+            Session.GetRoomUser().OnChat(Bubble, Speech, false, string.Empty, isSystemMessage);
+        }
+
         public static void AddPhoneAppOwned(GameClient Client, int AppId, string Extradata = "")
         {
             if (Client.GetRoleplay().Phone > 0)
@@ -2062,6 +2068,12 @@ namespace Polar.HabboRoleplay.Misc
                 }
                 User.SendNamePacket();
             }
+        }
+
+        public static void ShoutSay(GameClient Session, string Speech, int Bubble = 0, string Colour = "black", bool isSystemMessage = false)
+        {
+            if (Session?.GetRoomUser() == null) return;
+            Session.GetRoomUser().OnChat(Bubble, Speech, true, Colour, isSystemMessage);
         }
 
 

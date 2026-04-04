@@ -306,9 +306,11 @@ namespace Polar.HabboHotel.Rooms
                 ChatSpamCount = 0;
         }
 
-        public bool IncrementAndCheckFlood(out int muteTime)
+        public bool IncrementAndCheckFlood(out int muteTime, bool isSystemMessage = false)
         {
             muteTime = 0;
+            if (isSystemMessage) return false;
+
             ChatSpamCount++;
 
             if (ChatSpamTicks == -1)
@@ -333,12 +335,12 @@ namespace Polar.HabboHotel.Rooms
         // ────────────────────────────────────────────────
         //  OnChat
         // ────────────────────────────────────────────────
-        public void OnChat(int bubble, string message, bool shout, string colour)
+        public void OnChat(int bubble, string message, bool shout, string colour, bool isSystemMessage = false)
         {
             if (GetClient()?.GetHabbo() == null || mRoom == null || message == null)
                 return;
 
-            if (mRoom.GetWired() != null)
+            if (!isSystemMessage && mRoom.GetWired() != null)
             {
                 if (mRoom.GetWired().TriggerEvent(Items.Wired.WiredBoxType.TriggerUserSays, GetClient().GetHabbo(), message))
                 { ChatSpamCount = 0; return; }
