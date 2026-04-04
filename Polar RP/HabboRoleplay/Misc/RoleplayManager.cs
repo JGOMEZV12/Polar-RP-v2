@@ -3922,7 +3922,7 @@ namespace Polar.HabboRoleplay.Misc
             {
                 Deviation = new Point(User.Coordinate.X - 2, User.Coordinate.Y);
 
-                if (!User.GetRoom().GetGameMap().IsValidStep(new Vector2D(User.X, User.Y), new Vector2D(Deviation.X, Deviation.Y),
+                if (!User.GetRoom().GetGameMap().IsValidStep(User, new Vector2D(User.X, User.Y), new Vector2D(Deviation.X, Deviation.Y),
                     (User.GoalX == Deviation.X && User.GoalY == User.SetY), User.AllowOverride))
                 {
                     Deviation = new Point(User.Coordinate.X - 1, User.Coordinate.Y);
@@ -3933,7 +3933,7 @@ namespace Polar.HabboRoleplay.Misc
             else if (Direction == WalkDirections.Down)
             {
                 Deviation = new Point(User.Coordinate.X + 2, User.Coordinate.Y);
-                if (!User.GetRoom().GetGameMap().IsValidStep(new Vector2D(User.X, User.Y), new Vector2D(Deviation.X, Deviation.Y),
+                if (!User.GetRoom().GetGameMap().IsValidStep(User, new Vector2D(User.X, User.Y), new Vector2D(Deviation.X, Deviation.Y),
                      (User.GoalX == Deviation.X && User.GoalY == User.SetY), User.AllowOverride))
                 {
                     Deviation = new Point(User.Coordinate.X + 1, User.Coordinate.Y);
@@ -3943,7 +3943,7 @@ namespace Polar.HabboRoleplay.Misc
             else if (Direction == WalkDirections.Right)
             {
                 Deviation = new Point(User.Coordinate.X, User.Coordinate.Y - 2);
-                if (!User.GetRoom().GetGameMap().IsValidStep(new Vector2D(User.X, User.Y), new Vector2D(Deviation.X, Deviation.Y),
+                if (!User.GetRoom().GetGameMap().IsValidStep(User, new Vector2D(User.X, User.Y), new Vector2D(Deviation.X, Deviation.Y),
                      (User.GoalX == Deviation.X && User.GoalY == User.SetY), User.AllowOverride))
                 {
                     Deviation = new Point(User.Coordinate.X, User.Coordinate.Y - 1);
@@ -3952,7 +3952,7 @@ namespace Polar.HabboRoleplay.Misc
             else if (Direction == WalkDirections.Left)
             {
                 Deviation = new Point(User.Coordinate.X, User.Coordinate.Y + 2);
-                if (!User.GetRoom().GetGameMap().IsValidStep(new Vector2D(User.X, User.Y), new Vector2D(Deviation.X, Deviation.Y),
+                if (!User.GetRoom().GetGameMap().IsValidStep(User, new Vector2D(User.X, User.Y), new Vector2D(Deviation.X, Deviation.Y),
                      (User.GoalX == Deviation.X && User.GoalY == User.SetY), User.AllowOverride))
                 {
                     Deviation = new Point(User.Coordinate.X, User.Coordinate.Y + 1);

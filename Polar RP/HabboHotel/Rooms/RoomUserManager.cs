@@ -842,7 +842,7 @@ namespace Polar.HabboHotel.Rooms
             var to = new Vector2D(user.SetX, user.SetY);
             bool isFinalStep = (user.GoalX == user.SetX && user.GoalY == user.SetY);
 
-            if (_room.GetGameMap().IsValidStep(from, to, isFinalStep, user.AllowOverride, isBot: user.IsBot))
+            if (_room.GetGameMap().IsValidStep(user, from, to, isFinalStep, user.AllowOverride))
             {
                 if (!user.RidingHorse)
                     _room.GetGameMap().UpdateUserMovement(
@@ -997,9 +997,9 @@ namespace Polar.HabboHotel.Rooms
             if (nextX == user.X && nextY == user.Y) return;
 
             bool isFinalStep = (user.GoalX == nextX && user.GoalY == nextY);
-            if (!_room.GetGameMap().IsValidStep(
+            if (!_room.GetGameMap().IsValidStep(user,
                     new Vector2D(user.X, user.Y), new Vector2D(nextX, nextY),
-                    isFinalStep, user.AllowOverride, isBot: user.IsBot)) return;
+                    isFinalStep, user.AllowOverride)) return;
 
             double nextZ = _room.GetGameMap().SqAbsoluteHeight(nextX, nextY);
 

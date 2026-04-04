@@ -158,12 +158,12 @@ namespace Polar.HabboRoleplay.Bots.Manager.TimerHandlers.Types
             if (this.GetRoomUser().GetRoom().GetGameMap() == null)
                 return false;
 
-            if (!this.GetRoomUser().GetRoom().GetGameMap().IsValidStep(
-                new Vector2D(GetRoomUser().X, GetRoomUser().Y), new Vector2D(Point.X, Point.Y), false, false, isBot: true))
+            if (!this.GetRoomUser().GetRoom().GetGameMap().IsValidStep(GetRoomUser(),
+                new Vector2D(GetRoomUser().X, GetRoomUser().Y), new Vector2D(Point.X, Point.Y), false, false))
             {
                 Point = this.InteractingUser.GetRoomUser().SquareInFront;
-                if (!this.GetRoomUser().GetRoom().GetGameMap().IsValidStep(
-               new Vector2D(GetRoomUser().X, GetRoomUser().Y), new Vector2D(Point.X, Point.Y), false, false, isBot: true))
+                if (!this.GetRoomUser().GetRoom().GetGameMap().IsValidStep(GetRoomUser(),
+               new Vector2D(GetRoomUser().X, GetRoomUser().Y), new Vector2D(Point.X, Point.Y), false, false))
                 {
                     Point = this.InteractingUser.GetRoomUser().Coordinate;
                 }

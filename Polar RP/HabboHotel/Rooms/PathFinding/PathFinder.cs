@@ -98,7 +98,7 @@ namespace Polar.HabboHotel.Pathfinding
                             if (tmp.X < 0 || tmp.Y < 0 || tmp.X >= mapW || tmp.Y >= mapH) continue;
 
                             bool isFinal = (tmp.X == end.X && tmp.Y == end.Y);
-                        if (!map.IsValidStep(current.Position, tmp, isFinal, user.AllowOverride, isBot: user.IsBot))
+                            if (!map.IsValidStep(user, current.Position, tmp, isFinal, user.AllowOverride))
                                 continue;
 
                             PathFinderNode? node = pfMap[tmp.X, tmp.Y];

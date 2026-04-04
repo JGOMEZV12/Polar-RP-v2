@@ -126,6 +126,7 @@ namespace Polar.HabboHotel.Rooms
         {
             if (user == null) return;
 
+            bool isEmpty = false;
             lock (_userMapLock)
             {
                 if (!_userMap.TryGetValue(coord, out var list)) return;
@@ -133,10 +134,13 @@ namespace Polar.HabboHotel.Rooms
                 list.RemoveAll(u => u?.VirtualId == user.VirtualId);
 
                 if (list.Count == 0)
+                {
                     _userMap.TryRemove(coord, out _);
+                    isEmpty = true;
+                }
             }
 
-            if (ValidTile(coord.X, coord.Y))
+            if (isEmpty && ValidTile(coord.X, coord.Y))
                 mUserOnMap[coord.X, coord.Y] = 0;
         }
 
@@ -558,7 +562,10 @@ namespace Polar.HabboHotel.Rooms
             }
             else
             {
-                if (GameMap[coord.X, coord.Y] != 3)
+                // Un ítem no-caminable solo marca como bloqueado (0) si no hay
+                // una silla (3) o asiento del modelo (2) debajo.
+                byte current = GameMap[coord.X, coord.Y];
+                if (current != 3 && current != 2)
                     GameMap[coord.X, coord.Y] = 0;
             }
         }
@@ -740,32 +747,35 @@ namespace Polar.HabboHotel.Rooms
             return true;
         }
 
-        public bool IsValidStep(Vector2D from, Vector2D to, bool endOfPath, bool @override,
-            bool roller = false, bool isBot = false, bool isInvisible = false, bool diagMove = false)
+        public bool IsValidStep(RoomUser user, Vector2D from, Vector2D to, bool endOfPath, bool @override,
+            bool roller = false, bool isInvisible = false, bool diagMove = false)
         {
             if (!ValidTile(to.X, to.Y)) return false;
             if (@override) return true;
 
-            if (!isBot && !_room.RoomBlockingEnabled &&
-                SquareHasUsers(to.X, to.Y, true, isInvisible))
-                return false;
+            // Bloqueo por usuarios
+            if (!_room.RoomBlockingEnabled && SquareHasUsers(to.X, to.Y, true, isInvisible))
+            {
+                // Solo permitimos el paso si es el mismo usuario (evita auto-bloqueo al clicar tu sitio)
+                var usersOnTile = GetRoomUsers(new Point(to.X, to.Y));
+                if (!usersOnTile.Any(u => u != null && u.VirtualId == user.VirtualId))
+                {
+                    // Bots respetan usuarios si es el destino final o si el usuario no es él mismo
+                    return false;
+                }
+            }
 
             List<Item> items = GetAllRoomItemForSquare(to.X, to.Y);
 
             Item? gate = items.FirstOrDefault(x => x?.GetBaseItem().InteractionType == InteractionType.GUILD_GATE);
             if (gate != null)
             {
-                if (isBot)
+                if (user.IsBot)
                 {
                     OpenGate(gate);
                     return true;
                 }
-                // Si llegamos aquí no es bot, delegamos a la lógica de acceso de grupos
-                // Pero necesitamos el RoomUser. IsValidStep no lo tiene.
-                // Usaremos una búsqueda rápida del usuario en el Gamemap
-                var user = GetRoomUsers(new Point(from.X, from.Y)).FirstOrDefault(u => u != null && !u.IsBot);
-                if (user != null) return HandleGroupGateAccess(user, gate);
-                return false;
+                return HandleGroupGateAccess(user, gate);
             }
 
             if (items.Count > 0 && HasSpecialItemsBlockingMovement(items, new Point(to.X, to.Y), endOfPath))
@@ -784,17 +794,26 @@ namespace Polar.HabboHotel.Rooms
             }
 
             byte tileState = GameMap[to.X, to.Y];
+            // 0 = BLOQUEADO, 1 = ABIERTO, 2 = ASIENTO MODELO, 3 = ASIENTO ÍTEM / CAMA
             if (tileState == 0) return false;
-            if (tileState == 2 && !endOfPath) return false;
-            if (tileState == 3 && !endOfPath && !isChair) return false;
+
+            // Siempre permitir el destino final si hay un asiento o cama
+            if (endOfPath && (tileState == 2 || tileState == 3)) return true;
+
+            // Bloquear paso si es un asiento del modelo (estado 2)
+            if (tileState == 2) return false;
+
+            // Bloquear paso si es asiento de ítem (estado 3) PERO el ítem más alto no es el asiento (ej: mesa encima)
+            if (tileState == 3 && !isChair) return false;
 
             if (!roller && GetHeightDifference(from, to) > 1.5) return false;
             if (diagMove && !IsValidDiagonalMove(from, to)) return false;
 
-            if (!isBot && endOfPath)
+            // Colisión final con otros usuarios (no con uno mismo)
+            if (endOfPath)
             {
                 var other = _room.GetRoomUserManager().GetUserForSquare(to.X, to.Y);
-                if (other != null && !other.IsWalking) return false;
+                if (other != null && other.VirtualId != user.VirtualId && !other.IsWalking) return false;
             }
 
             return true;

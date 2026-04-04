@@ -424,7 +424,7 @@ namespace Polar.HabboHotel.Rooms
                 if (rollerUser != null &&
                     !rollerUser.IsWalking &&
                     nextRollerClear &&
-                    _room.GetGameMap().IsValidStep(new Vector2D(roller.GetX, roller.GetY), new Vector2D(nextSquare.X, nextSquare.Y), true, false, true) &&
+                    _room.GetGameMap().IsValidStep(rollerUser, new Vector2D(roller.GetX, roller.GetY), new Vector2D(nextSquare.X, nextSquare.Y), true, false, true) &&
                     _room.GetGameMap().CanRollItemHere(nextSquare.X, nextSquare.Y) &&
                     _room.GetGameMap().GetFloorStatus(nextSquare) != 0 &&
                     !rollerUsersMoved.Contains(rollerUser.HabboId))

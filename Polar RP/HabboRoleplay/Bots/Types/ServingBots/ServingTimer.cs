@@ -150,7 +150,8 @@ namespace Polar.HabboRoleplay.Timers.Types
 
                 if (base.CachedBot.DRoomUser.X != botRp.oX || base.CachedBot.DRoomUser.Y != botRp.oY)
                 {
-                    base.CachedBot.DRoomUser.MoveTo(botRp.oX, botRp.oY, true);
+                    // FIX: No usar override (false) para que el bot no atraviese mesas ni usuarios al volver
+                    base.CachedBot.DRoomUser.MoveTo(botRp.oX, botRp.oY, false);
                 }
             }
             catch { }
