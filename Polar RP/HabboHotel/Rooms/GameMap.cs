@@ -223,18 +223,11 @@ namespace Polar.HabboHotel.Rooms
 
         private void UpdateUserStateAndPosition(RoomUser user, Point newPoint, double newZ)
         {
-            if (ValidTile(user.X, user.Y))
-                GameMap[user.X, user.Y] = user.SqState;
-
             UpdateUserMovement(user.Coordinate, newPoint, user);
 
             user.X = newPoint.X;
             user.Y = newPoint.Y;
             user.Z = newZ;
-
-            user.SqState = GameMap[newPoint.X, newPoint.Y];
-            if (ValidTile(newPoint.X, newPoint.Y))
-                GameMap[newPoint.X, newPoint.Y] = 1;
         }
 
         private void UpdateUserOrientation(RoomUser user, Point point)
@@ -325,8 +318,6 @@ namespace Polar.HabboHotel.Rooms
 
         private void UpdateUserPositions()
         {
-            if (_room.RoomBlockingEnabled) return;
-
             foreach (RoomUser user in _room.GetRoomUserManager().GetUserList())
             {
                 if (user != null) UpdateUserMapPosition(user);
@@ -337,8 +328,6 @@ namespace Polar.HabboHotel.Rooms
         {
             if (!ValidTile(user.X, user.Y)) return;
 
-            user.SqState = GameMap[user.X, user.Y];
-            GameMap[user.X, user.Y] = 0;
             mUserOnMap[user.X, user.Y] = 1;
         }
 
@@ -753,8 +742,8 @@ namespace Polar.HabboHotel.Rooms
             if (!ValidTile(to.X, to.Y)) return false;
             if (@override) return true;
 
-            // Bloqueo por usuarios
-            if (!_room.RoomBlockingEnabled && SquareHasUsers(to.X, to.Y, true, isInvisible))
+            // Bloqueo por usuarios (si RoomBlockingEnabled es true, bloqueamos el paso)
+            if (_room.RoomBlockingEnabled && SquareHasUsers(to.X, to.Y, true, isInvisible))
             {
                 // Solo permitimos el paso si es el mismo usuario (evita auto-bloqueo al clicar tu sitio)
                 var usersOnTile = GetRoomUsers(new Point(to.X, to.Y));

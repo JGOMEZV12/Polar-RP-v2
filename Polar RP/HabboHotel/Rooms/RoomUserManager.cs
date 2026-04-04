@@ -530,11 +530,6 @@ namespace Polar.HabboHotel.Rooms
 
         public void RemoveRoomUser(RoomUser user)
         {
-            if (user.SetStep)
-                _room.GetGameMap().GameMap[user.SetX, user.SetY] = user.SqState;
-            else
-                _room.GetGameMap().GameMap[user.X, user.Y] = user.SqState;
-
             _room.GetGameMap().RemoveUserFromMap(user, new Point(user.X, user.Y));
             _room.SendMessage(new UserRemoveComposer(user.VirtualId));
             this._users.TryRemove(user.InternalRoomID, out _);
@@ -844,20 +839,16 @@ namespace Polar.HabboHotel.Rooms
 
             if (_room.GetGameMap().IsValidStep(user, from, to, isFinalStep, user.AllowOverride))
             {
-                if (!user.RidingHorse)
-                    _room.GetGameMap().UpdateUserMovement(
-                        new Point(user.Coordinate.X, user.Coordinate.Y),
-                        new Point(user.SetX, user.SetY), user);
+                _room.GetGameMap().UpdateUserMovement(
+                    new Point(user.Coordinate.X, user.Coordinate.Y),
+                    new Point(user.SetX, user.SetY), user);
 
                 foreach (Item item in _room.GetGameMap().GetCoordinatedItems(new Point(user.X, user.Y)))
                     item.UserWalksOffFurni(user);
 
-                if (!user.IsBot || !user.RidingHorse)
-                {
-                    user.X = user.SetX;
-                    user.Y = user.SetY;
-                    user.Z = user.SetZ;
-                }
+                user.X = user.SetX;
+                user.Y = user.SetY;
+                user.Z = user.SetZ;
 
                 if (!user.IsBot && user.RidingHorse)
                 {
@@ -1009,10 +1000,10 @@ namespace Polar.HabboHotel.Rooms
                 user.isSitting = false;
                 user.isLying = false;
                 user.UpdateNeeded = true;
-            }
 
-            user.Statusses.Remove("lay");
-            user.Statusses.Remove("sit");
+                user.Statusses.Remove("lay");
+                user.Statusses.Remove("sit");
+            }
 
             if (!user.IsBot && !user.IsPet && user.GetClient() != null)
             {
@@ -1184,6 +1175,8 @@ namespace Polar.HabboHotel.Rooms
                 {
                     if (!User.Statusses.ContainsKey("sit"))
                         User.Statusses.Add("sit", "1.0");
+
+                    User.isSitting = true;
                     User.Z = Model.SqFloorHeight[User.X, User.Y];
                     User.RotHead = Model.SqSeatRot[User.X, User.Y];
                     User.RotBody = Model.SqSeatRot[User.X, User.Y];
@@ -1203,6 +1196,7 @@ namespace Polar.HabboHotel.Rooms
                         if (Item.GetBaseItem().IsSeat && !User.Statusses.ContainsKey("sit"))
                         {
                             User.Statusses.Add("sit", TextHandling.GetString(Item.GetBaseItem().Height));
+                            User.isSitting = true;
                             User.Z = Item.GetZ;
                             User.RotHead = Item.Rotation;
                             User.RotBody = Item.Rotation;
@@ -1334,6 +1328,8 @@ namespace Polar.HabboHotel.Rooms
                                 {
                                     if (!User.Statusses.ContainsKey("lay"))
                                         User.Statusses.Add("lay", TextHandling.GetString(Item.GetBaseItem().Height) + " null");
+
+                                    User.isLying = true;
 
                                     if (Item.GetBaseItem().InteractionType == InteractionType.BEDEFFECT && !User.IsBot)
                                     {
