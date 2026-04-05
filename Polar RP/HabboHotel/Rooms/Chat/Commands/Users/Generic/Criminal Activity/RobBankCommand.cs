@@ -84,6 +84,12 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Criminal
                 return;
             }
 
+            if (Room.BankCapturing && Room.TurfUserAtackerId != Session.GetHabbo().Id)
+            {
+                Session.SendWhisper("¡Alguien más ya está robando la bóveda!");
+                return;
+            }
+
             if (RoleplayManager.VaultCooldowns.TryGetValue(Room.RoomId, out DateTime cooldownEnd))
             {
                 if (DateTime.Now < cooldownEnd)
