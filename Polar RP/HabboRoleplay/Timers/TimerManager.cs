@@ -145,6 +145,17 @@ namespace Polar.HabboRoleplay.Timers
         }
 
         /// <summary>
+        /// Ends a specific timer by type
+        /// </summary>
+        public void EndTimer(string type)
+        {
+            if (ActiveTimers.TryRemove(type, out RoleplayTimer timer))
+            {
+                timer.EndTimer();
+            }
+        }
+
+        /// <summary>
         /// Ends all of the timers
         /// </summary>
         public void EndAllTimers()

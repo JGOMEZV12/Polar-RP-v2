@@ -376,6 +376,9 @@ namespace Polar.HabboRoleplay.Timers.Types
                     base.Client.GetRoleplay().Robbery = false;
                     base.Client.GetRoleplay().BankCapturing = false;
                     base.Client.GetRoomUser().GetRoom().BankCapturing = false;
+
+                    // Set 5 hour cooldown for the vault
+                    RoleplayManager.VaultCooldowns[base.Client.GetRoomUser().RoomId] = DateTime.Now.AddHours(5);
                 }
                 #endregion
 

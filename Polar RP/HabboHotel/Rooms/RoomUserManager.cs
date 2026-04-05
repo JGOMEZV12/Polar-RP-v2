@@ -1486,16 +1486,34 @@ namespace Polar.HabboHotel.Rooms
 
                                         if (!User.IsBot)
                                         {
-                                            if (User.GetClient().GetRoleplay().IsJailed && !Room.IsPrison && !Room.IsPrison2 && !User.GetClient().GetRoleplay().Jailbroken)
+                                            var rp = User.GetClient().GetRoleplay();
+                                            if (rp.IsJailed && !Room.IsPrison && !Room.IsPrison2 && !rp.Jailbroken)
                                             {
                                                 User.GetClient().SendWhisper("¡No puedes usar flechas para escapar mientras estás encarcelado!", 1);
                                                 break;
                                             }
-                                            if (User.GetClient().GetRoleplay().IsDead)
+                                            if (rp.IsDead)
                                             {
                                                 User.GetClient().SendWhisper("¡No puedes usar flechas mientras estás muerto!", 1);
                                                 break;
                                             }
+
+                                            // Finalizar captura de banco/turf si usa flechas
+                                            if (rp.BankCapturing || rp.TurfCapturing || rp.ATMRobbery || rp.Robbery)
+                                            {
+                                                if (rp.BankCapturing) { rp.BankCapturing = false; Room.BankCapturing = false; }
+                                                if (rp.TurfCapturing) { rp.TurfCapturing = false; Room.TurfCapturing = false; }
+                                                if (rp.ATMRobbery) rp.ATMRobbery = false;
+                                                if (rp.Robbery) rp.Robbery = false;
+
+                                                rp.BreakGeneralTimer = true;
+                                                rp.TimerManager.EndTimer("bankrob");
+                                                rp.TimerManager.EndTimer("turfcapture");
+                                                rp.TimerManager.EndTimer("atmrob");
+
+                                                User.GetClient().SendWhisper("¡Has abandonado la zona y la acción ha sido cancelada!", 1);
+                                            }
+
                                             User.ClearMovement(true);
                                         }
 
@@ -1576,16 +1594,34 @@ namespace Polar.HabboHotel.Rooms
 
                                         if (!User.IsBot)
                                         {
-                                            if (User.GetClient().GetRoleplay().IsJailed && !Room.IsPrison && !Room.IsPrison2 && !User.GetClient().GetRoleplay().Jailbroken)
+                                            var rp = User.GetClient().GetRoleplay();
+                                            if (rp.IsJailed && !Room.IsPrison && !Room.IsPrison2 && !rp.Jailbroken)
                                             {
                                                 User.GetClient().SendWhisper("¡No puedes usar flechas para escapar mientras estás encarcelado!", 1);
                                                 break;
                                             }
-                                            if (User.GetClient().GetRoleplay().IsDead)
+                                            if (rp.IsDead)
                                             {
                                                 User.GetClient().SendWhisper("¡No puedes usar flechas mientras estás muerto!", 1);
                                                 break;
                                             }
+
+                                            // Finalizar captura de banco/turf si usa flechas
+                                            if (rp.BankCapturing || rp.TurfCapturing || rp.ATMRobbery || rp.Robbery)
+                                            {
+                                                if (rp.BankCapturing) { rp.BankCapturing = false; Room.BankCapturing = false; }
+                                                if (rp.TurfCapturing) { rp.TurfCapturing = false; Room.TurfCapturing = false; }
+                                                if (rp.ATMRobbery) rp.ATMRobbery = false;
+                                                if (rp.Robbery) rp.Robbery = false;
+
+                                                rp.BreakGeneralTimer = true;
+                                                rp.TimerManager.EndTimer("bankrob");
+                                                rp.TimerManager.EndTimer("turfcapture");
+                                                rp.TimerManager.EndTimer("atmrob");
+
+                                                User.GetClient().SendWhisper("¡Has abandonado la zona y la acción ha sido cancelada!", 1);
+                                            }
+
                                             User.ClearMovement(true);
                                         }
 

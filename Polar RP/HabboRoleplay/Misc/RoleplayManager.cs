@@ -54,6 +54,7 @@ namespace Polar.HabboRoleplay.Misc
         /// </summary>
         /// 
         public static int VaultRobbery = 130000;
+        public static ConcurrentDictionary<int, DateTime> VaultCooldowns = new ConcurrentDictionary<int, DateTime>();
         public static int VehiclesOwnedID = 10000000;// Para Autos CORP
         public static int ChatsID = 0;
         private static readonly object itemobj = new object();
