@@ -526,7 +526,7 @@ namespace Polar.Communication.Packets.Incoming.Catalog
 
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("UPDATE `catalog_items` SET `limited_sells` = @sells WHERE `id` = @id");
+                    dbClient.SetQuery($"UPDATE `catalog_items` SET `limited_sells` = @sells WHERE `{Polar.Core.DatabaseCompatibility.CatalogItemIdColumn}` = @id");
                 dbClient.AddParameter("sells", item.LimitedEditionSells);
                 dbClient.AddParameter("id", item.Id);
                 dbClient.RunQuery();

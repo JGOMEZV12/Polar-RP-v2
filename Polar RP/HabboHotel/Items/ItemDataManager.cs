@@ -35,7 +35,7 @@ namespace Polar.HabboHotel.Items
             {
                 using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                 {
-                    dbClient.SetQuery("SELECT * FROM `furniture`");
+                    dbClient.SetQuery($"SELECT * FROM `{DatabaseCompatibility.FurnitureTable}`");
                     DataTable ItemData = dbClient.getTable();
 
                     if (ItemData != null)
@@ -44,31 +44,35 @@ namespace Polar.HabboHotel.Items
                         {
                             try
                             {
-                                int id = Convert.ToInt32(Row["id"]);
-                                int spriteID = Convert.ToInt32(Row["sprite_id"]);
-                                string itemName = Convert.ToString(Row["item_name"]);
-                                string publicname = Convert.ToString(Row["public_name"]);
+                                int id = Convert.ToInt32(Row[DatabaseCompatibility.FurniIdColumn]);
+                                int spriteID = Convert.ToInt32(Row.Table.Columns.Contains("sprite_id") ? Row["sprite_id"] : Row["id"]);
+                                string itemName = Convert.ToString(Row[DatabaseCompatibility.FurniItemNameColumn]);
+                                string publicname = Convert.ToString(Row.Table.Columns.Contains("public_name") ? Row["public_name"] : itemName);
                                 string type = Row["type"].ToString();
-                                int width = Convert.ToInt32(Row["width"]);
-                                int length = Convert.ToInt32(Row["length"]);
-                                double height = Convert.ToDouble(Row["stack_height"]);
-                                bool allowStack = PolarEnvironment.EnumToBool(Row["can_stack"].ToString());
-                                bool allowWalk = PolarEnvironment.EnumToBool(Row["is_walkable"].ToString());
-                                bool allowSit = PolarEnvironment.EnumToBool(Row["can_sit"].ToString());
-                                bool allowRecycle = PolarEnvironment.EnumToBool(Row["allow_recycle"].ToString());
-                                bool allowTrade = PolarEnvironment.EnumToBool(Row["allow_trade"].ToString());
-                                bool allowMarketplace = Convert.ToInt32(Row["allow_marketplace_sell"]) == 1;
-                                bool allowGift = Convert.ToInt32(Row["allow_gift"]) == 1;
-                                bool allowInventoryStack = PolarEnvironment.EnumToBool(Row["allow_inventory_stack"].ToString());
-                                InteractionType interactionType = InteractionTypes.GetTypeFromString(Convert.ToString(Row["interaction_type"]));
-                                int behaviourData = Convert.ToInt32(Row["behaviour_data"]);
-                                int cycleCount = Convert.ToInt32(Row["interaction_modes_count"]);
-                                string vendingIDS = Convert.ToString(Row["vending_ids"]);
-                                List<double> heightAdjustable = Row["height_adjustable"].ToString() != String.Empty ? Row["height_adjustable"].ToString().Split(',').Select(x => Convert.ToDouble(x)).ToList() : new List<double>();
-                                int EffectId = Convert.ToInt32(Row["effect_id"]);
-                                bool IsRare = PolarEnvironment.EnumToBool(Row["is_rare"].ToString());
-                                int ClothingId = Convert.ToInt32(Row["clothing_id"]);
-                                bool ExtraRot = PolarEnvironment.EnumToBool(Row["extra_rot"].ToString());
+                                int width = Convert.ToInt32(Row.Table.Columns.Contains("width") ? Row["width"] : 1);
+                                int length = Convert.ToInt32(Row.Table.Columns.Contains("length") ? Row["length"] : 1);
+                                double height = Convert.ToDouble(Row.Table.Columns.Contains("stack_height") ? Row["stack_height"] : (Row.Table.Columns.Contains("height") ? Row["height"] : 0));
+                                bool allowStack = Row.Table.Columns.Contains("can_stack") ? PolarEnvironment.EnumToBool(Row["can_stack"].ToString()) : true;
+                                bool allowWalk = Row.Table.Columns.Contains("is_walkable") ? PolarEnvironment.EnumToBool(Row["is_walkable"].ToString()) : true;
+                                bool allowSit = Row.Table.Columns.Contains("can_sit") ? PolarEnvironment.EnumToBool(Row["can_sit"].ToString()) : false;
+                                bool allowRecycle = Row.Table.Columns.Contains("allow_recycle") ? PolarEnvironment.EnumToBool(Row["allow_recycle"].ToString()) : true;
+                                bool allowTrade = Row.Table.Columns.Contains("allow_trade") ? PolarEnvironment.EnumToBool(Row["allow_trade"].ToString()) : true;
+                                bool allowMarketplace = Row.Table.Columns.Contains("allow_marketplace_sell") ? Convert.ToInt32(Row["allow_marketplace_sell"]) == 1 : true;
+                                bool allowGift = Row.Table.Columns.Contains("allow_gift") ? Convert.ToInt32(Row["allow_gift"]) == 1 : true;
+                                bool allowInventoryStack = Row.Table.Columns.Contains("allow_inventory_stack") ? PolarEnvironment.EnumToBool(Row["allow_inventory_stack"].ToString()) : true;
+
+                                InteractionType interactionType = InteractionType.NONE;
+                                if (Row.Table.Columns.Contains("interaction_type"))
+                                    interactionType = InteractionTypes.GetTypeFromString(Convert.ToString(Row["interaction_type"]));
+
+                                int behaviourData = Row.Table.Columns.Contains("behaviour_data") ? Convert.ToInt32(Row["behaviour_data"]) : 0;
+                                int cycleCount = Row.Table.Columns.Contains("interaction_modes_count") ? Convert.ToInt32(Row["interaction_modes_count"]) : 1;
+                                string vendingIDS = Row.Table.Columns.Contains("vending_ids") ? Convert.ToString(Row["vending_ids"]) : "";
+                                List<double> heightAdjustable = (Row.Table.Columns.Contains("height_adjustable") && Row["height_adjustable"].ToString() != String.Empty) ? Row["height_adjustable"].ToString().Split(',').Select(x => Convert.ToDouble(x)).ToList() : new List<double>();
+                                int EffectId = Row.Table.Columns.Contains("effect_id") ? Convert.ToInt32(Row["effect_id"]) : 0;
+                                bool IsRare = Row.Table.Columns.Contains("is_rare") ? PolarEnvironment.EnumToBool(Row["is_rare"].ToString()) : false;
+                                int ClothingId = Row.Table.Columns.Contains("clothing_id") ? Convert.ToInt32(Row["clothing_id"]) : 0;
+                                bool ExtraRot = Row.Table.Columns.Contains("extra_rot") ? PolarEnvironment.EnumToBool(Row["extra_rot"].ToString()) : false;
 
                                 if (!this._gifts.ContainsKey(spriteID))
                                     this._gifts.Add(spriteID, new ItemData(id, spriteID, itemName, publicname, type, width, length, height, allowStack, allowWalk, allowSit, allowRecycle, allowTrade, allowMarketplace, allowGift, allowInventoryStack, interactionType, behaviourData, cycleCount, vendingIDS, heightAdjustable, EffectId, IsRare, ClothingId, ExtraRot));

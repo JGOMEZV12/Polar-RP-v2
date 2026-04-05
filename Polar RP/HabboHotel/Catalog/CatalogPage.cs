@@ -40,10 +40,10 @@ namespace Polar.HabboHotel.Catalog
             this._template = Template;
 
             // Parse PageStrings1
-            this._pageStrings1 = ParsePageStrings(PageStrings1);
+            this._pageStrings1 = ParsePageStrings(PageStrings1, Template);
 
             // Parse PageStrings2
-            this._pageStrings2 = ParsePageStrings(PageStrings2);
+            this._pageStrings2 = ParsePageStrings(PageStrings2, Template);
 
             this.Items = Items ?? new Dictionary<int, CatalogItem>();
             this.ItemOffers = itemOffers ?? new Dictionary<int, CatalogItem>();
@@ -65,10 +65,10 @@ namespace Polar.HabboHotel.Catalog
             this._template = Template;
 
             // Parse PageStrings1
-            this._pageStrings1 = ParsePageStrings(PageStrings1);
+            this._pageStrings1 = ParsePageStrings(PageStrings1, Template);
 
             // Parse PageStrings2
-            this._pageStrings2 = ParsePageStrings(PageStrings2);
+            this._pageStrings2 = ParsePageStrings(PageStrings2, Template);
 
             this.Items = Items ?? new Dictionary<int, CatalogItem>();
 
@@ -111,16 +111,20 @@ namespace Polar.HabboHotel.Catalog
         }
 
         // Método helper para parsear cadenas de página
-        private List<string> ParsePageStrings(string pageStrings)
+        private List<string> ParsePageStrings(string pageStrings, string template)
         {
             var result = new List<string>();
 
             if (!string.IsNullOrEmpty(pageStrings))
             {
-                foreach (string str in pageStrings.Split('|'))
+                // Arcturus often uses | for everything, but sometimes , if it was imported from Plus
+                // and layouts might need specific splits.
+                char separator = pageStrings.Contains('|') ? '|' : (pageStrings.Contains(';') ? ';' : ',');
+
+                foreach (string str in pageStrings.Split(separator))
                 {
-                    if (!string.IsNullOrEmpty(str))
-                        result.Add(str);
+                    // No omitir vacíos si es un layout que espera un número fijo de strings
+                    result.Add(str);
                 }
             }
 

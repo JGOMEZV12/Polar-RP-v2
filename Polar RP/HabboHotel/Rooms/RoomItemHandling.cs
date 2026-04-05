@@ -155,7 +155,7 @@ namespace Polar.HabboHotel.Rooms
                 if (item.UserID == 0)
                 {
                     using var dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor();
-                    dbClient.SetQuery("UPDATE `items` SET `user_id` = @uid WHERE `id` = @id");
+                    dbClient.SetQuery($"UPDATE `{Polar.Core.DatabaseCompatibility.ItemsTable}` SET `user_id` = @uid WHERE `id` = @id");
                     dbClient.AddParameter("uid", _room.OwnerId);
                     dbClient.AddParameter("id", item.Id);
                     dbClient.RunQuery();
@@ -166,7 +166,7 @@ namespace Polar.HabboHotel.Rooms
                     if (!_room.GetGameMap().ValidTile(item.GetX, item.GetY))
                     {
                         using var dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor();
-                        dbClient.SetQuery("UPDATE `items` SET `room_id` = '0' WHERE `id` = @id");
+                        dbClient.SetQuery($"UPDATE `{Polar.Core.DatabaseCompatibility.ItemsTable}` SET `room_id` = '0' WHERE `id` = @id");
                         dbClient.AddParameter("id", item.Id);
                         dbClient.RunQuery();
 
@@ -189,7 +189,7 @@ namespace Polar.HabboHotel.Rooms
                     if (string.IsNullOrWhiteSpace(item.wallCoord))
                     {
                         using var dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor();
-                        dbClient.SetQuery("UPDATE `items` SET `wall_pos` = @wall_pos WHERE `id` = @id");
+                        dbClient.SetQuery($"UPDATE `{Polar.Core.DatabaseCompatibility.ItemsTable}` SET `wall_pos` = @wall_pos WHERE `id` = @id");
                         dbClient.AddParameter("wall_pos", ":w=0,2 l=11,53 l");
                         dbClient.AddParameter("id", item.Id);
                         dbClient.RunQuery();
@@ -202,7 +202,7 @@ namespace Polar.HabboHotel.Rooms
                     catch
                     {
                         using var dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor();
-                        dbClient.SetQuery("UPDATE `items` SET `wall_pos` = @wall_pos WHERE `id` = @id");
+                        dbClient.SetQuery($"UPDATE `{Polar.Core.DatabaseCompatibility.ItemsTable}` SET `wall_pos` = @wall_pos WHERE `id` = @id");
                         dbClient.AddParameter("wall_pos", ":w=0,2 l=11,53 l");
                         dbClient.AddParameter("id", item.Id);
                         dbClient.RunQuery();
@@ -527,7 +527,7 @@ namespace Polar.HabboHotel.Rooms
                             iname == "olympics_c16_crosstrainer")
                             item.ExtraData = "0";
 
-                        dbClient.SetQuery("UPDATE `items` SET `extra_data` = @edata WHERE `id` = @id");
+                        dbClient.SetQuery($"UPDATE `{Polar.Core.DatabaseCompatibility.ItemsTable}` SET `extra_data` = @edata WHERE `id` = @id");
                         dbClient.AddParameter("edata", item.ExtraData);
                         dbClient.AddParameter("id", item.Id);
                         dbClient.RunQuery();
@@ -546,14 +546,14 @@ namespace Polar.HabboHotel.Rooms
                                              iname.Contains("landscape_single");
                         if (!isSpecialWall)
                         {
-                            dbClient.SetQuery("UPDATE `items` SET `wall_pos` = @wallPos WHERE `id` = @id");
+                            dbClient.SetQuery($"UPDATE `{Polar.Core.DatabaseCompatibility.ItemsTable}` SET `wall_pos` = @wallPos WHERE `id` = @id");
                             dbClient.AddParameter("wallPos", item.wallCoord);
                             dbClient.AddParameter("id", item.Id);
                             dbClient.RunQuery();
                         }
                     }
 
-                    dbClient.SetQuery("UPDATE `items` SET `x` = @x, `y` = @y, `z` = @z, `rot` = @rot WHERE `id` = @id");
+                    dbClient.SetQuery($"UPDATE `{Polar.Core.DatabaseCompatibility.ItemsTable}` SET `x` = @x, `y` = @y, `z` = @z, `rot` = @rot WHERE `id` = @id");
                     dbClient.AddParameter("x", item.GetX);
                     dbClient.AddParameter("y", item.GetY);
                     dbClient.AddParameter("z", item.GetZ);
@@ -793,7 +793,7 @@ namespace Polar.HabboHotel.Rooms
             }
 
             using IQueryAdapter db = PolarEnvironment.GetDatabaseManager().GetQueryReactor();
-            db.SetQuery("UPDATE `items` SET `room_id` = @rid, `x` = @x, `y` = @y, `z` = @z, `rot` = @rot WHERE `id` = @id");
+            db.SetQuery($"UPDATE `{Polar.Core.DatabaseCompatibility.ItemsTable}` SET `room_id` = @rid, `x` = @x, `y` = @y, `z` = @z, `rot` = @rot WHERE `id` = @id");
             db.AddParameter("rid", _room.RoomId);
             db.AddParameter("x", item.GetX);
             db.AddParameter("y", item.GetY);
@@ -851,7 +851,7 @@ namespace Polar.HabboHotel.Rooms
             }
 
             using IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor();
-            dbClient.SetQuery("UPDATE `items` SET `room_id` = @rid, `x` = @x, `y` = @y, `z` = @z, `rot` = @rot, `wall_pos` = @wpos WHERE `id` = @id");
+            dbClient.SetQuery($"UPDATE `{Polar.Core.DatabaseCompatibility.ItemsTable}` SET `room_id` = @rid, `x` = @x, `y` = @y, `z` = @z, `rot` = @rot, `wall_pos` = @wpos WHERE `id` = @id");
             dbClient.AddParameter("rid", _room.RoomId);
             dbClient.AddParameter("x", item.GetX);
             dbClient.AddParameter("y", item.GetY);

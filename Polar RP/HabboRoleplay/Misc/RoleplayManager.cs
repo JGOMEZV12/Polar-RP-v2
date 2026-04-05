@@ -1113,7 +1113,7 @@ namespace Polar.HabboRoleplay.Misc
         {
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.RunQuery("UPDATE `items` SET `room_id` = '0' WHERE `id` = '" + furni_id + "' LIMIT 1");
+                dbClient.RunQuery($"UPDATE `{Polar.Core.DatabaseCompatibility.ItemsTable}` SET `room_id` = '0' WHERE `id` = '" + furni_id + "' LIMIT 1");
             }
 
             if (Client != null && Client.GetRoomUser() != null && newroom <= 0)
@@ -1532,10 +1532,10 @@ namespace Polar.HabboRoleplay.Misc
             {
                 using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                 {
-                    dbClient.SetQuery("SELECT id FROM items WHERE id = '" + ItemId + "'");
+                    dbClient.SetQuery($"SELECT id FROM `{Polar.Core.DatabaseCompatibility.ItemsTable}` WHERE id = '" + ItemId + "'");
                     if (dbClient.getInteger() <= 0)
                     {
-                        dbClient.SetQuery("INSERT INTO items (id,user_id,room_id,base_item) VALUES (" + ItemId + ", 0, " + roomid + ", " + BaseItem + ")");
+                        dbClient.SetQuery($"INSERT INTO `{Polar.Core.DatabaseCompatibility.ItemsTable}` (id,user_id,room_id,{Polar.Core.DatabaseCompatibility.ItemsBaseItemColumn}) VALUES (" + ItemId + ", 0, " + roomid + ", " + BaseItem + ")");
                         dbClient.RunQuery();
                     }
                 }
@@ -3749,9 +3749,9 @@ namespace Polar.HabboRoleplay.Misc
                     {
                         try
                         {
-                            dbClient.SetQuery("INSERT INTO items (user_id, base_item, room_id) VALUES (1, " + BaseId + ", " + roomid + ")");
+                            dbClient.SetQuery($"INSERT INTO `{Polar.Core.DatabaseCompatibility.ItemsTable}` (user_id, {Polar.Core.DatabaseCompatibility.ItemsBaseItemColumn}, room_id) VALUES (1, " + BaseId + ", " + roomid + ")");
                             dbClient.RunQuery();
-                            dbClient.SetQuery("SELECT id FROM items WHERE user_id = '1' AND room_id = '" + roomid + "' AND base_item = '" + BaseId + "' ORDER BY id DESC LIMIT 1");
+                            dbClient.SetQuery($"SELECT id FROM `{Polar.Core.DatabaseCompatibility.ItemsTable}` WHERE user_id = '1' AND room_id = '" + roomid + "' AND {Polar.Core.DatabaseCompatibility.ItemsBaseItemColumn} = '" + BaseId + "' ORDER BY id DESC LIMIT 1");
                             ItDemId = dbClient.getInteger();
                             ItemId = ItDemId;
                         }
