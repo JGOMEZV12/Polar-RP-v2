@@ -1,0 +1,55 @@
+using System;
+using System.Linq;
+using System.Collections.Concurrent;
+using Polar.Communication.Packets.Incoming;
+using Polar.HabboHotel.Rooms;
+using Polar.HabboHotel.Users;
+using Polar.HabboHotel.Rooms.Chat.Commands;
+
+namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
+{
+    class ExecuteCommandBox : IWiredItem
+    {
+        public Room Instance { get; set; }
+        public Item Item { get; set; }
+        public WiredBoxType Type { get { return WiredBoxType.EffectExecuteCommand; } }
+        public ConcurrentDictionary<int, Item> SetItems { get; set; }
+        public string StringData { get; set; }
+        public bool BoolData { get; set; }
+        public string ItemsData { get; set; }
+
+        public ExecuteCommandBox(Room instance, Item item)
+        {
+            this.Instance = instance;
+            this.Item = item;
+            this.SetItems = new ConcurrentDictionary<int, Item>();
+        }
+
+        public void HandleSave(ClientPacket Packet)
+        {
+            int Unknown = Packet.PopInt();
+            string Command = Packet.PopString(); // El comando a ejecutar (ej: :teleport)
+            this.StringData = Command;
+        }
+
+        public bool Execute(params object[] Params)
+        {
+            if (Params == null || Params.Length == 0)
+                return false;
+
+            Habbo Player = (Habbo)Params[0];
+            if (Player == null || Player.GetClient() == null)
+                return false;
+
+            if (string.IsNullOrEmpty(StringData))
+                return false;
+
+            string commandLine = StringData.Replace("{username}", Player.Username);
+
+            // Ejecutar comando a través del CommandManager
+            PolarEnvironment.GetGame().GetCommandManager().Parse(Player.GetClient(), commandLine);
+
+            return true;
+        }
+    }
+}

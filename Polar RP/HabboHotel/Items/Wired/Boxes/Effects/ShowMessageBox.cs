@@ -67,6 +67,31 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
             if (StringData.Contains("%USERSONLINE%"))
                 Message = Message.Replace("%USERSONLINE%", PolarEnvironment.GetGame().GetClientManager().Count.ToString());
 
+            Message = Message.Replace("{username}", Player.Username);
+
+            // Roleplay Variables
+            if (Player.GetClient().GetRoleplay() != null)
+            {
+                var rp = Player.GetClient().GetRoleplay();
+                Message = Message.Replace("{job}", Polar.HabboHotel.Groups.GroupManager.GetJob(rp.JobId)?.Name ?? "Ninguno");
+                Message = Message.Replace("{gang}", Polar.HabboHotel.Groups.GroupManager.GetGang(rp.GangId)?.Name ?? "Ninguna");
+                Message = Message.Replace("{health}", rp.CurHealth.ToString());
+                Message = Message.Replace("{maxhealth}", rp.MaxHealth.ToString());
+                Message = Message.Replace("{armor}", rp.Armor.ToString());
+                Message = Message.Replace("{energy}", rp.CurEnergy.ToString());
+                Message = Message.Replace("{maxenergy}", rp.MaxEnergy.ToString());
+                Message = Message.Replace("{hunger}", rp.Hunger.ToString());
+                Message = Message.Replace("{hygiene}", rp.Hygiene.ToString());
+                Message = Message.Replace("{poop}", rp.Poop.ToString());
+                Message = Message.Replace("{level}", rp.Level.ToString());
+                Message = Message.Replace("{exp}", rp.LevelEXP.ToString());
+                Message = Message.Replace("{money}", Player.Credits.ToString());
+                Message = Message.Replace("{bank}", rp.BankChequings.ToString());
+                Message = Message.Replace("{intelligence}", rp.Intelligence.ToString());
+                Message = Message.Replace("{strength}", rp.Strength.ToString());
+                Message = Message.Replace("{stamina}", rp.Stamina.ToString());
+            }
+
             Player.GetClient().SendMessage(new WhisperComposer(User.VirtualId, Message, 0, 34));
             return true;
         }

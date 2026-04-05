@@ -125,6 +125,58 @@ namespace Polar.HabboHotel.Items.Wired
                     return WiredBoxType.EffectGiveUserBadge;
                 case 62:
                     return WiredBoxType.EffectAddScore;
+                case 63:
+                    return WiredBoxType.EffectGiveCurrency;
+                case 64:
+                    return WiredBoxType.ConditionHasJob;
+                case 65:
+                    return WiredBoxType.ConditionIsNight;
+                case 66:
+                    return WiredBoxType.ConditionIsDay;
+                case 67:
+                    return WiredBoxType.EffectExecuteCommand;
+                case 68:
+                    return WiredBoxType.EffectGiveExperience;
+                case 69:
+                    return WiredBoxType.ConditionIsJailed;
+                case 70:
+                    return WiredBoxType.ConditionIsDead;
+                case 71:
+                    return WiredBoxType.EffectApplyEffect;
+                case 72:
+                    return WiredBoxType.ConditionIsDriving;
+                case 73:
+                    return WiredBoxType.EffectDamageUser;
+                case 74:
+                    return WiredBoxType.EffectHealUser;
+                case 75:
+                    return WiredBoxType.ConditionHasVip;
+                case 76:
+                    return WiredBoxType.EffectSetMotto;
+                case 77:
+                    return WiredBoxType.EffectFreezeUser;
+                case 78:
+                    return WiredBoxType.EffectUnfreezeUser;
+                case 79:
+                    return WiredBoxType.ConditionIsSitting;
+                case 80:
+                    return WiredBoxType.EffectGiveHuntPoints;
+                case 81:
+                    return WiredBoxType.EffectGiveEnergy;
+                case 82:
+                    return WiredBoxType.EffectGiveArmor;
+                case 83:
+                    return WiredBoxType.ConditionHasWeapon;
+                case 84:
+                    return WiredBoxType.EffectGiveRPItem;
+                case 85:
+                    return WiredBoxType.ConditionHasRPItem;
+                case 86:
+                    return WiredBoxType.EffectSetRotation;
+                case 87:
+                    return WiredBoxType.ConditionIsIdle;
+                case 88:
+                    return WiredBoxType.ConditionIsDancing;
             }
         }
 
@@ -212,6 +264,52 @@ namespace Polar.HabboHotel.Items.Wired
                     return 26;
                 case WiredBoxType.EffectBotCommunicatesToUserBox:
                     return 27;
+                case WiredBoxType.EffectGiveCurrency:
+                    return 28;
+                case WiredBoxType.ConditionHasJob:
+                    return 29;
+                case WiredBoxType.ConditionIsNight:
+                case WiredBoxType.ConditionIsDay:
+                    return 30;
+                case WiredBoxType.EffectExecuteCommand:
+                    return 31;
+                case WiredBoxType.EffectGiveExperience:
+                    return 32;
+                case WiredBoxType.ConditionIsJailed:
+                case WiredBoxType.ConditionIsDead:
+                    return 33;
+                case WiredBoxType.EffectApplyEffect:
+                    return 34;
+                case WiredBoxType.ConditionIsDriving:
+                    return 35;
+                case WiredBoxType.EffectDamageUser:
+                case WiredBoxType.EffectHealUser:
+                    return 36;
+                case WiredBoxType.ConditionHasVip:
+                    return 37;
+                case WiredBoxType.EffectSetMotto:
+                    return 38;
+                case WiredBoxType.EffectFreezeUser:
+                case WiredBoxType.EffectUnfreezeUser:
+                    return 39;
+                case WiredBoxType.ConditionIsSitting:
+                    return 40;
+                case WiredBoxType.EffectGiveHuntPoints:
+                    return 41;
+                case WiredBoxType.EffectGiveEnergy:
+                case WiredBoxType.EffectGiveArmor:
+                    return 42;
+                case WiredBoxType.ConditionHasWeapon:
+                    return 43;
+                case WiredBoxType.EffectGiveRPItem:
+                    return 44;
+                case WiredBoxType.ConditionHasRPItem:
+                    return 45;
+                case WiredBoxType.EffectSetRotation:
+                    return 46;
+                case WiredBoxType.ConditionIsIdle:
+                case WiredBoxType.ConditionIsDancing:
+                    return 47;
             }
             return 0;
         }
