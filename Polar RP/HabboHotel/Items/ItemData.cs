@@ -101,6 +101,12 @@ namespace Polar.HabboHotel.Items
             {
                 this.WiredType = WiredBoxType.None;
             }
+
+            if (InteractionType == InteractionType.PET && !string.IsNullOrEmpty(rawInteraction))
+            {
+                if (int.TryParse(rawInteraction.Replace("pet", ""), out int pType))
+                    this.BehaviourData = pType;
+            }
             this.IsRare = IsRare;
             this.ClothingId = ClothingId;
             this.ExtraRot = ExtraRot;

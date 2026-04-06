@@ -33,49 +33,7 @@ namespace Polar.HabboHotel.Items
         CLUB_VIP2,
         ROLLER,
         FOOTBALL_GATE,
-        pet0,
-        pet1,
-        pet2,
-        pet3,
-        pet4,
-        pet5,
-        pet6,
-        pet7,
-        pet8,
-        pet9,
-        pet10,
-        pet11,
-        pet12,
-        pet13,
-        pet14,
-        pet15,
-        pet16,
-        pet17,
-        pet18,
-        pet19,
-        pet20,
-        pet21,
-        pet22,
-        pet23,
-        pet24,
-        pet25,
-        pet26,
-        pet28,
-        pet29,
-        pet30,
-        pet31,
-        pet32,
-        pet33,
-        pet34,
-        pet35,
-        pet36,
-        pet37,
-        pet38,
-        pet39,
-        pet40,
-        pet41,
-        pet42,
-        pet43,
+        PET,
         ICE_SKATES,
         NORMAL_SKATES,
         lowpool,
@@ -257,92 +215,9 @@ namespace Polar.HabboHotel.Items
                     return InteractionType.ROLLER;
                 case "fbgate":
                     return InteractionType.FOOTBALL_GATE;
-                case "pet0":
-                    return InteractionType.pet0;
-                case "pet1":
-                    return InteractionType.pet1;
-                case "pet2":
-                    return InteractionType.pet2;
-                case "pet3":
-                    return InteractionType.pet3;
-                case "pet4":
-                    return InteractionType.pet4;
-                case "pet5":
-                    return InteractionType.pet5;
-                case "pet6":
-                    return InteractionType.pet6;
-                case "pet7":
-                    return InteractionType.pet7;
-                case "pet8":
-                    return InteractionType.pet8;
-                case "pet9":
-                    return InteractionType.pet9;
-                case "pet10":
-                    return InteractionType.pet10;
-                case "pet11":
-                    return InteractionType.pet11;
-                case "pet12":
-                    return InteractionType.pet12;
-                case "pet13": // Caballo
-                    return InteractionType.pet13;
-                case "pet14":
-                    return InteractionType.pet14;
-                case "pet15":
-                    return InteractionType.pet15;
-                case "pet16": // Mascota agregada
-                    return InteractionType.pet16;
-                case "pet17": // Mascota agregada
-                    return InteractionType.pet17;
-                case "pet18": // Mascota agregada
-                    return InteractionType.pet18;
-                case "pet19": // Mascota agregada
-                    return InteractionType.pet19;
-                case "pet20": // Mascota agregada
-                    return InteractionType.pet20;
-                case "pet21": // Mascota agregada
-                    return InteractionType.pet21;
-                case "pet22": // Mascota agregada
-                    return InteractionType.pet22;
-                case "pet23":
-                    return InteractionType.pet23;
-                case "pet24":
-                    return InteractionType.pet24;
-                case "pet25":
-                    return InteractionType.pet25;
-                case "pet26":
-                    return InteractionType.pet26;
-                case "pet28":
-                    return InteractionType.pet28;
-                case "pet29":
-                    return InteractionType.pet29;
-                case "pet30":
-                    return InteractionType.pet30;
-                case "pet31":
-                    return InteractionType.pet31;
-                case "pet32":
-                    return InteractionType.pet32;
-                case "pet33":
-                    return InteractionType.pet33;
-                case "pet34":
-                    return InteractionType.pet34;
-                case "pet35":
-                    return InteractionType.pet35;
-                case "pet36":
-                    return InteractionType.pet36;
-                case "pet37":
-                    return InteractionType.pet37;
-                case "pet38":
-                    return InteractionType.pet38;
-                case "pet39":
-                    return InteractionType.pet39;
-                case "pet40":
-                    return InteractionType.pet40;
-                case "pet41":
-                    return InteractionType.pet41;
-                case "pet42":
-                    return InteractionType.pet42;
-                case "pet43":
-                    return InteractionType.pet43;
+                case "pet":
+                case "habbo_pet":
+                    return InteractionType.PET;
                 case "iceskates":
                     return InteractionType.ICE_SKATES;
                 case "rollerskate":
@@ -488,9 +363,6 @@ namespace Polar.HabboHotel.Items
                 case "clothing":
                 case "habbo_clothing":
                     return InteractionType.PURCHASABLE_CLOTHING;
-                case "pet":
-                case "habbo_pet":
-                    return InteractionType.pet0; // Base pet type
                 case "mystery_box":
                     return InteractionType.MAGICCHEST;
                 case "guild_item":
@@ -642,6 +514,9 @@ namespace Polar.HabboHotel.Items
                     return InteractionType.CARNEW;
                 default:
                     {
+                        if (pType.StartsWith("pet") && int.TryParse(pType.Replace("pet", ""), out int _))
+                            return InteractionType.PET;
+
                         if (pType.StartsWith("wf_act_"))
                             return InteractionType.WIRED_EFFECT;
                         if (pType.StartsWith("wf_trg_"))
