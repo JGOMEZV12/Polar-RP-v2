@@ -89,8 +89,16 @@ namespace Polar.HabboHotel.Catalog
                                 ItemData Data = null;
                                 if (!ItemDataManager.GetItem(BaseId, out Data))
                                 {
-                                    log.Warn($"No se pudo cargar el artículo {ItemId} del catálogo, no se encontró ningún registro de muebles.");
-                                    continue;
+                                    if (BaseId == 0)
+                                    {
+                                        // Virtual items for NameColor and Prefix
+                                        Data = new ItemData(0, 0, Convert.ToString(Row["catalog_name"]), "", "s", 1, 1, 0, false, false, false, false, false, false, false, false, InteractionType.NONE, 0, 1, "", new List<double>(), 0, false, 0, false);
+                                    }
+                                    else
+                                    {
+                                        log.Warn($"No se pudo cargar el artículo {ItemId} del catálogo, no se encontró ningún registro de muebles.");
+                                        continue;
+                                    }
                                 }
 
                                 // Handle column name variations

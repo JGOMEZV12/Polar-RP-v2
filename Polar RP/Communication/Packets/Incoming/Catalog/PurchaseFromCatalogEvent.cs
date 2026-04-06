@@ -568,7 +568,7 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                     break;
 
                 default:
-                    if (catalogItem.Data.InteractionType == InteractionType.NAME_COLOR)
+                    if (catalogItem.Data.InteractionType == InteractionType.NAME_COLOR || (page != null && (page.Template == "name_color" || page.Template == "name_colors")))
                     {
                         session.GetHabbo().NameColor = catalogItem.Name;
                         session.GetHabbo().SaveKey("name_color", catalogItem.Name);
@@ -582,7 +582,7 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                                 session.GetHabbo().CurrentRoom.SendMessage(new UsersComposer(user));
                         }
                     }
-                    else if (catalogItem.Data.InteractionType == InteractionType.NAME_PREFIX)
+                    else if (catalogItem.Data.InteractionType == InteractionType.NAME_PREFIX || (page != null && (page.Template == "name_prefix" || page.Template == "name_prefixes")))
                     {
                         session.GetHabbo().NamePrefix = catalogItem.Name;
                         session.GetHabbo().SaveKey("prefix", catalogItem.Name);
