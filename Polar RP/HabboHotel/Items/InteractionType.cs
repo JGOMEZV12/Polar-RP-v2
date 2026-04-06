@@ -164,7 +164,62 @@ namespace Polar.HabboHotel.Items
         FARMING,
         CRAFTING,
         COMODIN,
-        CARNEW
+        CARNEW,
+
+        TELEPORT_TILE,
+        PRESSURE_PLATE,
+        COLOR_PLATE,
+        MULTI_HEIGHT,
+        COLOR_WHEEL,
+        CRACKABLE,
+        NEST,
+        PET_DRINK,
+        PET_FOOD,
+        PET_TOY,
+        PET_TREE,
+        PET_TRAMPOLINE,
+        BREEDING_NEST,
+        OBSTACLE,
+        STACK_HELPER,
+        COSTUME_HOPPER,
+        EFFECT_GATE,
+        CLUB_HOPPER,
+        CLUB_GATE,
+        CLUB_TELEPORT_TILE,
+        LOVE_LOCK,
+        FIREWORKS,
+        TALKING_FURNI,
+        WATER_ITEM,
+        VIKING_COTIE,
+        TILE_FXPROVIDER,
+        MUTE_AREA,
+        BUILD_AREA,
+        YOUTUBE,
+        SWITCH,
+        SWITCH_REMOTE,
+        FX_BOX,
+        BLACKHOLE,
+        EFFECT_TOGGLE,
+        ROOM_O_MATIC,
+        EFFECT_TILE,
+        STICKY_POLE,
+        TRAP,
+        GYM_EQUIPMENT,
+        HANDITEM,
+        HANDITEM_TILE,
+        EFFECT_GIVER,
+        EFFECT_VENDING_MACHINE,
+        EFFECT_VENDING_MACHINE_NOSIDES,
+        CRACKABLE_MONSTER,
+        SNOWBOARD_SLOPE,
+        PRESSURE_PLATE_GROUP,
+        EFFECT_TILE_GROUP,
+        SUBSCRIPTION_BOX,
+        RANDOM_STATE,
+        VENDING_MACHINE_NOSIDES,
+        TILE_WALKMAGIC,
+        GAME_TIMER,
+        GAME_UPCOUNTER
     }
 
 
@@ -220,6 +275,117 @@ namespace Polar.HabboHotel.Items
                     return InteractionType.PET;
                 case "iceskates":
                     return InteractionType.ICE_SKATES;
+                case "teleporttile":
+                    return InteractionType.TELEPORT_TILE;
+                case "pressureplate":
+                    return InteractionType.PRESSURE_PLATE;
+                case "colorplate":
+                    return InteractionType.COLOR_PLATE;
+                case "multiheight":
+                    return InteractionType.MULTI_HEIGHT;
+                case "colorwheel":
+                    return InteractionType.COLOR_WHEEL;
+                case "crackable":
+                case "crackable_master":
+                    return InteractionType.CRACKABLE;
+                case "nest":
+                    return InteractionType.NEST;
+                case "pet_drink":
+                    return InteractionType.PET_DRINK;
+                case "pet_food":
+                    return InteractionType.PET_FOOD;
+                case "pet_toy":
+                    return InteractionType.PET_TOY;
+                case "pet_tree":
+                    return InteractionType.PET_TREE;
+                case "pet_trampoline":
+                    return InteractionType.PET_TRAMPOLINE;
+                case "breeding_nest":
+                    return InteractionType.BREEDING_NEST;
+                case "obstacle":
+                    return InteractionType.OBSTACLE;
+                case "stack_helper":
+                case "stackhelper":
+                    return InteractionType.STACK_HELPER;
+                case "costume_hopper":
+                    return InteractionType.COSTUME_HOPPER;
+                case "effect_gate":
+                    return InteractionType.EFFECT_GATE;
+                case "club_hopper":
+                    return InteractionType.CLUB_HOPPER;
+                case "club_gate":
+                    return InteractionType.CLUB_GATE;
+                case "club_teleporttile":
+                    return InteractionType.CLUB_TELEPORT_TILE;
+                case "love_lock":
+                    return InteractionType.LOVE_LOCK;
+                case "fireworks":
+                    return InteractionType.FIREWORKS;
+                case "talking_furni":
+                    return InteractionType.TALKING_FURNI;
+                case "water_item":
+                    return InteractionType.WATER_ITEM;
+                case "viking_cotie":
+                    return InteractionType.VIKING_COTIE;
+                case "tile_fxprovider_nfs":
+                    return InteractionType.TILE_FXPROVIDER;
+                case "mutearea":
+                    return InteractionType.MUTE_AREA;
+                case "buildarea":
+                    return InteractionType.BUILD_AREA;
+                case "youtube":
+                    return InteractionType.YOUTUBE;
+                case "switch":
+                    return InteractionType.SWITCH;
+                case "switch_remote_control":
+                    return InteractionType.SWITCH_REMOTE;
+                case "fx_box":
+                    return InteractionType.FX_BOX;
+                case "blackhole":
+                    return InteractionType.BLACKHOLE;
+                case "effect_toggle":
+                    return InteractionType.EFFECT_TOGGLE;
+                case "room_o_matic":
+                    return InteractionType.ROOM_O_MATIC;
+                case "effect_tile":
+                    return InteractionType.EFFECT_TILE;
+                case "sticky_pole":
+                    return InteractionType.STICKY_POLE;
+                case "trap":
+                    return InteractionType.TRAP;
+                case "gym_equipment":
+                    return InteractionType.GYM_EQUIPMENT;
+                case "handitem":
+                    return InteractionType.HANDITEM;
+                case "handitem_tile":
+                    return InteractionType.HANDITEM_TILE;
+                case "effect_giver":
+                    return InteractionType.EFFECT_GIVER;
+                case "effect_vendingmachine":
+                    return InteractionType.EFFECT_VENDING_MACHINE;
+                case "effect_vendingmachine_no_sides":
+                    return InteractionType.EFFECT_VENDING_MACHINE_NOSIDES;
+                case "crackable_monster":
+                case "crackable_subscription_box":
+                    return InteractionType.CRACKABLE_MONSTER;
+                case "snowboard_slope":
+                    return InteractionType.SNOWBOARD_SLOPE;
+                case "pressureplate_group":
+                    return InteractionType.PRESSURE_PLATE_GROUP;
+                case "effect_tile_group":
+                    return InteractionType.EFFECT_TILE_GROUP;
+                case "crackable_subscription_box_redeem":
+                    return InteractionType.SUBSCRIPTION_BOX;
+                case "random_state":
+                    return InteractionType.RANDOM_STATE;
+                case "vendingmachine_no_sides":
+                    return InteractionType.VENDING_MACHINE_NOSIDES;
+                case "tile_walkmagic":
+                    return InteractionType.TILE_WALKMAGIC;
+                case "game_timer":
+                    return InteractionType.GAME_TIMER;
+                case "game_upcounter":
+                    return InteractionType.GAME_UPCOUNTER;
                 case "rollerskate":
                     return InteractionType.NORMAL_SKATES;
                 case "lowpool":
