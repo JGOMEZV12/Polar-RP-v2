@@ -60,6 +60,8 @@ namespace Polar.Communication.Packets.Outgoing.Catalog
         private bool ShouldWriteItems(CatalogPage page)
         {
             return !page.Template.Equals("frontpage", StringComparison.OrdinalIgnoreCase)
+                && !page.Template.Equals("frontpage4", StringComparison.OrdinalIgnoreCase)
+                && !page.Template.Equals("frontpage_featured", StringComparison.OrdinalIgnoreCase)
                 && !page.Template.Equals("club_buy", StringComparison.OrdinalIgnoreCase);
         }
 

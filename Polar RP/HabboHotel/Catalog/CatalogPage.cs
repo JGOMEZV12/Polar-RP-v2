@@ -121,9 +121,12 @@ namespace Polar.HabboHotel.Catalog
                 // and layouts might need specific splits.
                 char separator = pageStrings.Contains('|') ? '|' : (pageStrings.Contains(';') ? ';' : ',');
 
-                foreach (string str in pageStrings.Split(separator))
+                // Some Arcturus layouts use | but the last part might be empty or specific.
+                // We split while keeping empty entries as the client packet index matters.
+                string[] split = pageStrings.Split(separator);
+
+                foreach (string str in split)
                 {
-                    // No omitir vacíos si es un layout que espera un número fijo de strings
                     result.Add(str);
                 }
             }

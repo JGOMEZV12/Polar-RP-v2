@@ -485,6 +485,28 @@ namespace Polar.HabboHotel.Items
                     return InteractionType.WIRED_HIGHSCORE;
                 case "wf_highscore":
                     return InteractionType.WIRED_HIGHSCORE;
+                case "clothing":
+                case "habbo_clothing":
+                    return InteractionType.PURCHASABLE_CLOTHING;
+                case "pet":
+                case "habbo_pet":
+                    return InteractionType.pet0; // Base pet type
+                case "mystery_box":
+                    return InteractionType.MAGICCHEST;
+                case "guild_item":
+                case "guild_furni":
+                    return InteractionType.GUILD_ITEM;
+                case "guild_forum":
+                    return InteractionType.GUILD_FORUM;
+                case "guild_gate":
+                    return InteractionType.GUILD_GATE;
+                case "roomads":
+                case "external_image":
+                    return InteractionType.BACKGROUND;
+                case "totem":
+                    return InteractionType.NONE; // Generic
+                case "monsterplant_seed":
+                    return InteractionType.MONSTERPLANT_SEED;
 
                 case "floor":
                     return InteractionType.FLOOR;
