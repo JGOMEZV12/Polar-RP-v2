@@ -532,6 +532,24 @@ namespace Polar.HabboHotel.Users
             set { this._nameColor = value; }
         }
 
+        public string GetDisplayName()
+        {
+            string name = this.Username;
+            if (!string.IsNullOrEmpty(this.NameColor))
+            {
+                name = (this.NameColor.ToLower() == "rainbow")
+                    ? CommandManager.GenerateRainbowText(this.Username)
+                    : $"<font color='#{this.NameColor}'>{this.Username}</font>";
+            }
+
+            if (!string.IsNullOrEmpty(this.NamePrefix))
+            {
+                name = $"{this.NamePrefix} {name}";
+            }
+
+            return name;
+        }
+
         public string Gender
         {
             get { return this._gender; }

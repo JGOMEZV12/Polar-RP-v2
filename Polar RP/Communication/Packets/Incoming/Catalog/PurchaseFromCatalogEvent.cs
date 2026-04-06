@@ -587,6 +587,14 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                         session.GetHabbo().NamePrefix = catalogItem.Name;
                         session.GetHabbo().SaveKey("prefix", catalogItem.Name);
                         session.SendWhisper($"Has cambiado tu prefijo de nombre a: {catalogItem.Name}", 1);
+
+                        // Update in room
+                        if (session.GetHabbo().InRoom)
+                        {
+                            var user = session.GetHabbo().CurrentRoom.GetRoomUserManager().GetRoomUserByHabbo(session.GetHabbo().Id);
+                            if (user != null)
+                                session.GetHabbo().CurrentRoom.SendMessage(new UsersComposer(user));
+                        }
                     }
                     else
                     {

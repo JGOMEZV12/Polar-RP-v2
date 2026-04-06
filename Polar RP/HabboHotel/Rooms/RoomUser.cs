@@ -370,10 +370,6 @@ namespace Polar.HabboHotel.Rooms
             }
 
             string finalMessage = message;
-            if (!string.IsNullOrEmpty(habbo.NamePrefix))
-            {
-                finalMessage = $"{habbo.NamePrefix} {message}";
-            }
 
             if (habbo.Translating)
             {
@@ -457,38 +453,21 @@ namespace Polar.HabboHotel.Rooms
         {
             if (IsBot || GetClient()?.GetHabbo() == null) return;
             var habbo = GetClient().GetHabbo();
-            if (string.IsNullOrEmpty(habbo.Colour) || habbo.ChatPreference) return;
-            if (!habbo.GetClubManager().HasSubscription("habbo_vip") || habbo.VIPRank <= 0) return;
-
-            string username = habbo.Colour.ToLower() == "rainbow"
-                ? CommandManager.GenerateRainbowText(habbo.Username)
-                : $"<font color='#{habbo.Colour}'>{habbo.Username}</font>";
-
-            GetRoom()?.SendMessage(new UserNameChangeComposer(RoomId, VirtualId, username));
+            GetRoom()?.SendMessage(new UserNameChangeComposer(RoomId, VirtualId, habbo.GetDisplayName()));
         }
 
         public void SendMeCommandPacket()
         {
             if (IsBot || GetClient()?.GetHabbo() == null) return;
             var habbo = GetClient().GetHabbo();
-            if (!habbo.GetClubManager().HasSubscription("habbo_vip") || habbo.VIPRank <= 0) return;
-
-            string username = "*" + habbo.Username;
-            if (!habbo.ChatPreference && !string.IsNullOrEmpty(habbo.Colour))
-            {
-                username = habbo.Colour.ToLower() == "rainbow"
-                    ? "*" + CommandManager.GenerateRainbowText(habbo.Username)
-                    : $"*<font color='#{habbo.Colour}'>{habbo.Username}</font>";
-            }
-            GetRoom()?.SendMessage(new UserNameChangeComposer(RoomId, VirtualId, username));
+            GetRoom()?.SendMessage(new UserNameChangeComposer(RoomId, VirtualId, "*" + habbo.GetDisplayName()));
         }
 
         public void SendNamePacket()
         {
             if (IsBot || GetClient()?.GetHabbo() == null) return;
             var habbo = GetClient().GetHabbo();
-            if (!habbo.GetClubManager().HasSubscription("habbo_vip") || habbo.VIPRank <= 0) return;
-            GetRoom()?.SendMessage(new UserNameChangeComposer(RoomId, VirtualId, habbo.Username));
+            GetRoom()?.SendMessage(new UserNameChangeComposer(RoomId, VirtualId, habbo.GetDisplayName()));
         }
 
         // ────────────────────────────────────────────────
