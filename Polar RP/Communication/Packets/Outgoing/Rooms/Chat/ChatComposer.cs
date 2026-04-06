@@ -19,6 +19,8 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Chat
             this.Emotion = Emotion;
             this.Bubble = Bubble;
             this.Colour = Colour;
+            // Note: In some versions, the username color/prefix is handled here
+            // but in this emulator it is handled in RoomUser.OnChat by prepending to message
             Compose(this);
         }
 

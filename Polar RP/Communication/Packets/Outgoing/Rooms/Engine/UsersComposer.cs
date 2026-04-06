@@ -120,7 +120,16 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                 if (Habbo.PetId == 0)
                 {
                     base.WriteInteger(Habbo.Id);
-                    base.WriteString(Habbo.Username);
+
+                    string name = Habbo.Username;
+                    if (!string.IsNullOrEmpty(Habbo.NameColor))
+                    {
+                        name = (Habbo.NameColor.ToLower() == "rainbow")
+                            ? CommandManager.GenerateRainbowText(Habbo.Username)
+                            : $"<font color='#{Habbo.NameColor}'>{Habbo.Username}</font>";
+                    }
+
+                    base.WriteString(name);
                     base.WriteString(Habbo.Motto);
                     base.WriteInteger(Habbo.BackgroundId);
                     base.WriteInteger(Habbo.StandId);

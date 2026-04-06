@@ -568,8 +568,30 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                     break;
 
                 default:
-                    //Console.WriteLine($"Tipo desconocido: {catalogItem.Data.Type}, tratando como furniture");
-                    DeliverFurniture(session, catalogItem, extraData, amount);
+                    if (catalogItem.Data.InteractionType == InteractionType.NAME_COLOR)
+                    {
+                        session.GetHabbo().NameColor = catalogItem.Name;
+                        session.GetHabbo().SaveKey("name_color", catalogItem.Name);
+                        session.SendWhisper($"Has cambiado tu color de nombre a: {catalogItem.Name}", 1);
+
+                        // Update in room
+                        if (session.GetHabbo().InRoom)
+                        {
+                            var user = session.GetHabbo().CurrentRoom.GetRoomUserManager().GetRoomUserByHabbo(session.GetHabbo().Id);
+                            if (user != null)
+                                session.GetHabbo().CurrentRoom.SendMessage(new UsersComposer(user));
+                        }
+                    }
+                    else if (catalogItem.Data.InteractionType == InteractionType.NAME_PREFIX)
+                    {
+                        session.GetHabbo().NamePrefix = catalogItem.Name;
+                        session.GetHabbo().SaveKey("prefix", catalogItem.Name);
+                        session.SendWhisper($"Has cambiado tu prefijo de nombre a: {catalogItem.Name}", 1);
+                    }
+                    else
+                    {
+                        DeliverFurniture(session, catalogItem, extraData, amount);
+                    }
                     break;
             }
 

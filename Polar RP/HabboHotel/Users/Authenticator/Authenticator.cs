@@ -16,7 +16,9 @@ namespace Polar.HabboHotel.Users.Authenticator
                 PolarEnvironment.EnumToBool(Row["advertising_report_blocked"].ToString()), Convert.ToDouble(Row["last_change"].ToString()), Convert.ToInt32(Row["event_points"]),
                 PolarEnvironment.EnumToBool(Convert.ToString(Row["ignore_invites"])), Convert.ToDouble(Row["time_muted"]), Convert.ToDouble(UserInfo["trading_locked"]),
                 PolarEnvironment.EnumToBool(Row["allow_gifts"].ToString()), Convert.ToInt32(Row["friend_bar_state"]), PolarEnvironment.EnumToBool(Row["disable_forced_effects"].ToString()),
-                PolarEnvironment.EnumToBool(Row["allow_mimic"].ToString()), Convert.ToInt32(Row["rank_vip"]), false, Convert.ToString(Row["colour"]), Row["talent_status"].ToString(), (Row["nux_user"].ToString() == "true"), Convert.ToByte(Row["targeted_buy"]), Convert.ToInt32(Row["citizenship_level"]), Convert.ToInt32(Row["online"]), Convert.ToString(Row["client_pin"]), Convert.ToInt32(Row["uniqueToken"]), Convert.ToInt32(Row["backgroundId"]), Convert.ToInt32(Row["standId"]), Convert.ToInt32(Row["overlayId"]));
+                PolarEnvironment.EnumToBool(Row["allow_mimic"].ToString()), Convert.ToInt32(Row["rank_vip"]), false, Convert.ToString(Row["colour"]), Row["talent_status"].ToString(), (Row["nux_user"].ToString() == "true"), Convert.ToByte(Row["targeted_buy"]), Convert.ToInt32(Row["citizenship_level"]), Convert.ToInt32(Row["online"]), Convert.ToString(Row["client_pin"]), Convert.ToInt32(Row["uniqueToken"]), Convert.ToInt32(Row["backgroundId"]), Convert.ToInt32(Row["standId"]), Convert.ToInt32(Row["overlayId"]),
+                Convert.ToString(Row.Table.Columns.Contains("prefix") ? Row["prefix"] : ""),
+                Convert.ToString(Row.Table.Columns.Contains("name_color") ? Row["name_color"] : ""));
         }
     }
 }

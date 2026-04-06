@@ -360,23 +360,38 @@ namespace Polar.HabboHotel.Rooms
 
             ServerPacket packet;
             var habbo = GetClient().GetHabbo();
+
+            string finalUsername = habbo.Username;
+            if (!string.IsNullOrEmpty(habbo.NameColor))
+            {
+                finalUsername = habbo.NameColor.ToLower() == "rainbow"
+                    ? CommandManager.GenerateRainbowText(habbo.Username)
+                    : $"<font color='#{habbo.NameColor}'>{habbo.Username}</font>";
+            }
+
+            string finalMessage = message;
+            if (!string.IsNullOrEmpty(habbo.NamePrefix))
+            {
+                finalMessage = $"{habbo.NamePrefix} {message}";
+            }
+
             if (habbo.Translating)
             {
                 string lg1 = habbo.FromLanguage.ToLower();
                 string lg2 = habbo.ToLanguage.ToLower();
-                string translated = PolarEnvironment.translate(message, lg1, lg2)
+                string translated = PolarEnvironment.translate(finalMessage, lg1, lg2)
                                     + $" [{lg1.ToUpper()} -> {lg2.ToUpper()}]";
-                int emotion = PolarEnvironment.GetGame().GetChatManager().GetEmotions().GetEmotionsForText(message);
+                int emotion = PolarEnvironment.GetGame().GetChatManager().GetEmotions().GetEmotionsForText(finalMessage);
                 packet = shout
                     ? new ShoutComposer(VirtualId, translated, emotion, bubble, colour)
                     : (ServerPacket)new ChatComposer(VirtualId, translated, emotion, bubble, colour);
             }
             else
             {
-                int emotion = PolarEnvironment.GetGame().GetChatManager().GetEmotions().GetEmotionsForText(message);
+                int emotion = PolarEnvironment.GetGame().GetChatManager().GetEmotions().GetEmotionsForText(finalMessage);
                 packet = shout
-                    ? new ShoutComposer(VirtualId, message, emotion, bubble, colour)
-                    : (ServerPacket)new ChatComposer(VirtualId, message, emotion, bubble, colour);
+                    ? new ShoutComposer(VirtualId, finalMessage, emotion, bubble, colour)
+                    : (ServerPacket)new ChatComposer(VirtualId, finalMessage, emotion, bubble, colour);
             }
 
             var roomUserMgr = mRoom.GetRoomUserManager();

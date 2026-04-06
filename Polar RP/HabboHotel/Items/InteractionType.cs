@@ -219,7 +219,9 @@ namespace Polar.HabboHotel.Items
         VENDING_MACHINE_NOSIDES,
         TILE_WALKMAGIC,
         GAME_TIMER,
-        GAME_UPCOUNTER
+        GAME_UPCOUNTER,
+        NAME_COLOR,
+        NAME_PREFIX
     }
 
 
@@ -386,6 +388,13 @@ namespace Polar.HabboHotel.Items
                     return InteractionType.GAME_TIMER;
                 case "game_upcounter":
                     return InteractionType.GAME_UPCOUNTER;
+                case "namecolor":
+                case "name_color":
+                    return InteractionType.NAME_COLOR;
+                case "nameprefix":
+                case "name_prefix":
+                case "prefix":
+                    return InteractionType.NAME_PREFIX;
                 case "rollerskate":
                     return InteractionType.NORMAL_SKATES;
                 case "lowpool":
