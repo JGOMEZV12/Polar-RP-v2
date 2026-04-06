@@ -62,8 +62,12 @@ namespace Polar.HabboHotel.Items
                                 bool allowInventoryStack = Row.Table.Columns.Contains("allow_inventory_stack") ? PolarEnvironment.EnumToBool(Row["allow_inventory_stack"].ToString()) : true;
 
                                 InteractionType interactionType = InteractionType.NONE;
+                                string rawInteraction = "";
                                 if (Row.Table.Columns.Contains("interaction_type"))
-                                    interactionType = InteractionTypes.GetTypeFromString(Convert.ToString(Row["interaction_type"]));
+                                {
+                                    rawInteraction = Convert.ToString(Row["interaction_type"]);
+                                    interactionType = InteractionTypes.GetTypeFromString(rawInteraction);
+                                }
 
                                 int behaviourData = Row.Table.Columns.Contains("behaviour_data") ? Convert.ToInt32(Row["behaviour_data"]) : 0;
                                 int cycleCount = Row.Table.Columns.Contains("interaction_modes_count") ? Convert.ToInt32(Row["interaction_modes_count"]) : 1;
@@ -75,10 +79,10 @@ namespace Polar.HabboHotel.Items
                                 bool ExtraRot = Row.Table.Columns.Contains("extra_rot") ? PolarEnvironment.EnumToBool(Row["extra_rot"].ToString()) : false;
 
                                 if (!this._gifts.ContainsKey(spriteID))
-                                    this._gifts.Add(spriteID, new ItemData(id, spriteID, itemName, publicname, type, width, length, height, allowStack, allowWalk, allowSit, allowRecycle, allowTrade, allowMarketplace, allowGift, allowInventoryStack, interactionType, behaviourData, cycleCount, vendingIDS, heightAdjustable, EffectId, IsRare, ClothingId, ExtraRot));
+                                    this._gifts.Add(spriteID, new ItemData(id, spriteID, itemName, publicname, type, width, length, height, allowStack, allowWalk, allowSit, allowRecycle, allowTrade, allowMarketplace, allowGift, allowInventoryStack, interactionType, behaviourData, cycleCount, vendingIDS, heightAdjustable, EffectId, IsRare, ClothingId, ExtraRot, rawInteraction));
 
                                 if (!this._items.ContainsKey(id))
-                                    this._items.Add(id, new ItemData(id, spriteID, itemName, publicname, type, width, length, height, allowStack, allowWalk, allowSit, allowRecycle, allowTrade, allowMarketplace, allowGift, allowInventoryStack, interactionType, behaviourData, cycleCount, vendingIDS, heightAdjustable, EffectId, IsRare, ClothingId, ExtraRot));
+                                    this._items.Add(id, new ItemData(id, spriteID, itemName, publicname, type, width, length, height, allowStack, allowWalk, allowSit, allowRecycle, allowTrade, allowMarketplace, allowGift, allowInventoryStack, interactionType, behaviourData, cycleCount, vendingIDS, heightAdjustable, EffectId, IsRare, ClothingId, ExtraRot, rawInteraction));
                             }
                             catch (Exception e)
                             {

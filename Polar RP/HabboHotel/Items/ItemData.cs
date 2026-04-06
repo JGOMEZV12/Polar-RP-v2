@@ -37,7 +37,7 @@ namespace Polar.HabboHotel.Items
 
         public ItemData(int Id, int Sprite, string Name, string PublicName, string Type, int Width, int Length, double Height, bool Stackable, bool Walkable, bool IsSeat,
             bool AllowRecycle, bool AllowTrade, bool AllowMarketplaceSell, bool AllowGift, bool AllowInventoryStack, InteractionType InteractionType, int behaviourData, int Modes,
-            string VendingIds, List<double> AdjustableHeights, int EffectId, bool IsRare, int ClothingId, bool ExtraRot)
+            string VendingIds, List<double> AdjustableHeights, int EffectId, bool IsRare, int ClothingId, bool ExtraRot, string rawInteraction = "")
         {
             this.Id = Id;
             this.SpriteId = Sprite;
@@ -90,9 +90,17 @@ namespace Polar.HabboHotel.Items
 
             int wiredId = 0;
             if (InteractionType == InteractionType.WIRED_CONDITION || InteractionType == InteractionType.WIRED_TRIGGER || InteractionType == InteractionType.WIRED_EFFECT)
+            {
                 wiredId = BehaviourData;
+                this.WiredType = WiredBoxTypeUtility.FromWiredId(wiredId);
 
-            this.WiredType = WiredBoxTypeUtility.FromWiredId(wiredId);
+                if (this.WiredType == WiredBoxType.None && !string.IsNullOrEmpty(rawInteraction))
+                    this.WiredType = WiredBoxTypeUtility.FromInteractionType(rawInteraction);
+            }
+            else
+            {
+                this.WiredType = WiredBoxType.None;
+            }
             this.IsRare = IsRare;
             this.ClothingId = ClothingId;
             this.ExtraRot = ExtraRot;

@@ -483,6 +483,8 @@ namespace Polar.HabboHotel.Items
                     return InteractionType.WIRED_CONDITION;
                 case "wiredhighscore":
                     return InteractionType.WIRED_HIGHSCORE;
+                case "wf_highscore":
+                    return InteractionType.WIRED_HIGHSCORE;
 
                 case "floor":
                     return InteractionType.FLOOR;
@@ -618,6 +620,15 @@ namespace Polar.HabboHotel.Items
                     return InteractionType.CARNEW;
                 default:
                     {
+                        if (pType.StartsWith("wf_act_"))
+                            return InteractionType.WIRED_EFFECT;
+                        if (pType.StartsWith("wf_trg_"))
+                            return InteractionType.WIRED_TRIGGER;
+                        if (pType.StartsWith("wf_cnd_"))
+                            return InteractionType.WIRED_CONDITION;
+                        if (pType.StartsWith("wf_xtra_"))
+                            return InteractionType.WIRED_EFFECT; // Usually addons/effects
+
                         //Logging.WriteLine("Unknown interaction type in parse code: " + pType, ConsoleColor.Yellow);
                         return InteractionType.NONE;
                     }
