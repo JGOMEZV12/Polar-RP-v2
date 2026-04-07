@@ -299,6 +299,10 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                 case InteractionType.PINATATRIGGERED:
                 case InteractionType.MAGICEGG:
                 case InteractionType.MAGICCHEST:
+                case InteractionType.WIRED_CONDITION:
+                case InteractionType.WIRED_EFFECT:
+                case InteractionType.WIRED_TRIGGER:
+                case InteractionType.WIRED_HIGHSCORE:
                     extraData = "0";
                     break;
 

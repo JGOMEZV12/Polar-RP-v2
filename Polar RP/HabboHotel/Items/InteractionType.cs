@@ -535,6 +535,11 @@ namespace Polar.HabboHotel.Items
                     return InteractionType.WIRED_HIGHSCORE;
                 case "wf_highscore":
                     return InteractionType.WIRED_HIGHSCORE;
+                case "wf_blob":
+                case "wf_blob_invis":
+                case "wf_blob2":
+                case "wf_blob2_vis":
+                    return InteractionType.WIRED_EFFECT;
                 case "clothing":
                 case "habbo_clothing":
                     return InteractionType.PURCHASABLE_CLOTHING;

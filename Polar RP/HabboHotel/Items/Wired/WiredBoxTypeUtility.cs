@@ -186,24 +186,41 @@ namespace Polar.HabboHotel.Items.Wired
             {
                 // Triggers
                 case "wf_trg_enter_room": return WiredBoxType.TriggerRoomEnter;
+                case "wf_trg_leave_room":
+                case "wf_trg_exit_room":
+                    return WiredBoxType.TriggerRoomEnter;
                 case "wf_trg_says_something":
                 case "wf_trg_says_something_contains":
                 case "wf_trg_says_something_equal":
+                case "wf_trg_says_smth_show":
+                case "wf_trg_says_not_something":
+                case "wf_trg_not_says_thing":
                     return WiredBoxType.TriggerUserSays;
                 case "wf_trg_periodically":
                 case "wf_trg_period_long":
                 case "wf_trg_repeat_short":
                 case "wf_trg_idk":
                 case "wf_trg_idk_seg":
+                case "wf_trg_anti_afk":
+                case "wf_trg_afkkkdormeur":
+                case "wf_trg_at_given_time":
+                case "wf_trg_at_time_long":
+                case "wf_trg_clock_counter":
                     return WiredBoxType.TriggerRepeat;
                 case "wf_trg_state_changed":
                 case "wf_trg_double_click_furni":
+                case "wf_trg_stuff_state":
                     return WiredBoxType.TriggerStateChanges;
                 case "wf_trg_walks_on_furni": return WiredBoxType.TriggerWalkOnFurni;
                 case "wf_trg_walks_off_furni": return WiredBoxType.TriggerWalkOffFurni;
                 case "wf_trg_game_starts": return WiredBoxType.TriggerGameStarts;
                 case "wf_trg_game_ends": return WiredBoxType.TriggerGameEnds;
-                case "wf_trg_collision": return WiredBoxType.TriggerUserFurniCollision;
+                case "wf_trg_collision":
+                case "wf_trg_colision_user_other":
+                case "wf_trg_colision_other_user":
+                case "wf_trg_colision_team_user_other":
+                case "wf_trg_colision_team_other_user":
+                    return WiredBoxType.TriggerUserFurniCollision;
                 case "wf_trg_chat_cmd_user":
                 case "wf_trg_chat_cmd_other":
                     return WiredBoxType.TriggerUserSaysCommand;
@@ -211,40 +228,80 @@ namespace Polar.HabboHotel.Items.Wired
                 // Effects
                 case "wf_act_show_message":
                 case "wf_act_show_message_room":
+                case "wf_act_deux_message":
+                case "wf_act_alertbuble":
                     return WiredBoxType.EffectShowMessage;
                 case "wf_act_teleport_to":
                 case "wf_act_teleport_to_furni_habbo":
                 case "wf_act_tp_furni_to_habbo":
+                case "wf_act_toroom":
+                case "wf_act_teportoroom":
+                case "wf_act_toroom_staff":
+                case "wf_act_furni_to_furni":
+                case "wf_act_furni_to_user":
+                case "wf_act_teleport_yellow":
+                case "wf_act_teleport_red":
+                case "wf_act_teleport_blue":
+                case "wf_act_teleport_green":
                     return WiredBoxType.EffectTeleportToFurni;
                 case "wf_act_toggle_state":
                 case "wf_act_toggle_state_random":
                 case "wf_act_toggle_state_down":
+                case "wf_act_toggle_to_rnd":
+                case "wf_act_toggle_random":
+                case "wf_act_toggle_nega":
+                case "wf_act_toggle_negat":
+                case "wf_act_close_dice":
+                case "wf_act_closes_dices":
+                case "wf_act_toggle_moodlight":
                     return WiredBoxType.EffectToggleFurniState;
                 case "wf_act_kick_user": return WiredBoxType.EffectKickUser;
                 case "wf_act_match_to_sshot":
                 case "wf_act_match_to_sshot_xyz":
+                case "wf_act_plus_match_furni_state":
                     return WiredBoxType.EffectMatchPosition;
                 case "wf_act_move_rotate":
                 case "wf_act_move_rotate_instant":
+                case "wf_act_move_to_dir":
+                case "wf_act_move_furni_xyz":
+                case "wf_act_move_furni_xyz_slide":
+                case "wf_act_effect_mpu":
                     return WiredBoxType.EffectMoveAndRotate;
-                case "wf_act_chase": return WiredBoxType.EffectMoveFurniToNearestUser;
+                case "wf_act_chase":
+                case "wf_act_super_chase":
+                case "wf_act_furni_super_chase":
+                    return WiredBoxType.EffectMoveFurniToNearestUser;
                 case "wf_act_flee": return WiredBoxType.EffectMoveFurniFromNearestUser;
                 case "wf_act_mute_triggerer": return WiredBoxType.EffectMuteTriggerer;
                 case "wf_act_give_reward": return WiredBoxType.EffectGiveReward;
                 case "wf_act_call_stacks":
                 case "wf_act_call_stk_wc":
                 case "wf_act_exe_condicion":
+                case "wf_act_exe_flawless":
+                case "wf_act_exe_super":
+                case "wf_act_control":
+                case "wf_act_control_id":
+                case "wf_act_neg_call_stacks":
                     return WiredBoxType.EffectExecuteWiredStacks;
                 case "wf_act_give_score":
                 case "wf_act_give_score_tm":
+                case "wf_act_points":
+                case "wf_act_set_points":
+                case "wf_act_give_score_pp":
+                case "wf_act_custom_addhighscore":
+                case "wf_act_counter_points":
+                case "wf_act_add_tag":
                     return WiredBoxType.EffectAddScore;
                 case "wf_act_join_team": return WiredBoxType.EffectAddActorToTeam;
                 case "wf_act_leave_team": return WiredBoxType.EffectRemoveActorFromTeam;
                 case "wf_act_roller":
                 case "wf_act_roller_speed":
+                case "wf_act_set_roller_spd":
                     return WiredBoxType.EffectSetRollerSpeed;
                 case "wf_act_regenerate_map": return WiredBoxType.EffectRegenerateMaps;
-                case "wf_act_give_userbadge": return WiredBoxType.EffectGiveUserBadge;
+                case "wf_act_give_userbadge":
+                case "wf_act_give_badge":
+                    return WiredBoxType.EffectGiveUserBadge;
                 case "wf_act_execute_command": return WiredBoxType.EffectExecuteCommand;
                 case "wf_act_progress_achievement": return WiredBoxType.EffectGiveExperience;
 
@@ -258,10 +315,13 @@ namespace Polar.HabboHotel.Items.Wired
                 case "wf_cnd_not_hv_avtrs": return WiredBoxType.ConditionFurniHasNoUsers;
                 case "wf_cnd_habbo_owns_badge":
                 case "wf_cnd_wearing_badge":
+                case "wf_cnd_wearing_badg":
+                case "wf_cnd_has_badge_or_mission":
                     return WiredBoxType.ConditionIsWearingBadge;
                 case "wf_cnd_wearing_effect": return WiredBoxType.ConditionIsWearingFX;
                 case "wf_cnd_not_wearing_b":
                 case "wf_cnd_not_habbo_owns_badge":
+                case "wf_cnd_not_wringbdg":
                     return WiredBoxType.ConditionIsNotWearingBadge;
                 case "wf_cnd_not_wearing_fx": return WiredBoxType.ConditionIsNotWearingFX;
                 case "wf_cnd_match_snapshot":
@@ -269,14 +329,19 @@ namespace Polar.HabboHotel.Items.Wired
                     return WiredBoxType.ConditionMatchStateAndPosition;
                 case "wf_cnd_not_match_snap":
                 case "wf_cnd_not_match_snap_xyz":
+                case "wf_cnd_match_snap_no_xyz":
                     return WiredBoxType.ConditionDontMatchStateAndPosition;
                 case "wf_cnd_user_count_in": return WiredBoxType.ConditionUserCountInRoom;
                 case "wf_cnd_not_user_count": return WiredBoxType.ConditionUserCountDoesntInRoom;
                 case "wf_cnd_stuff_is": return WiredBoxType.ConditionFurniTypeMatches;
                 case "wf_cnd_not_stuff_is": return WiredBoxType.ConditionFurniTypeDoesntMatch;
                 case "wf_cnd_not_furni_on": return WiredBoxType.ConditionFurniHasNoFurni;
-                case "wf_cnd_has_handitem": return WiredBoxType.ConditionActorHasHandItemBox;
-                case "wf_cnd_actor_in_team": return WiredBoxType.ConditionActorIsInTeamBox;
+                case "wf_cnd_has_handitem":
+                case "wf_cnd_handitem":
+                    return WiredBoxType.ConditionActorHasHandItemBox;
+                case "wf_cnd_actor_in_team":
+                case "wf_cnd_super_wiredequipo":
+                    return WiredBoxType.ConditionActorIsInTeamBox;
 
                 // RP Wireds
                 case "wf_cnd_has_job": return WiredBoxType.ConditionHasJob;
@@ -287,10 +352,21 @@ namespace Polar.HabboHotel.Items.Wired
                 case "wf_act_enable_cstm": return WiredBoxType.EffectApplyEffect;
                 case "wf_act_damage_user": return WiredBoxType.EffectDamageUser;
                 case "wf_act_heal_user": return WiredBoxType.EffectHealUser;
-                case "wf_cnd_has_rank": return WiredBoxType.ConditionHasVip;
+                case "wf_cnd_has_rank":
+                case "wf_cnd_user_hasrights":
+                case "wf_cnd_habbo_has_rank":
+                    return WiredBoxType.ConditionHasVip;
                 case "wf_act_sign_cstm": return WiredBoxType.EffectSetMotto;
-                case "wf_act_freeze_cstm": return WiredBoxType.EffectFreezeUser;
-                case "wf_act_unfreeze_cstm": return WiredBoxType.EffectUnfreezeUser;
+                case "wf_act_freeze_cstm":
+                case "wf_act_freeze":
+                case "wf_act_freeze_delay":
+                case "wf_cstm_freeze":
+                    return WiredBoxType.EffectFreezeUser;
+                case "wf_act_unfreeze_cstm":
+                case "wf_act_unfreez":
+                case "wf_act_unfreeze_delay":
+                case "wf_cstm_ufreez":
+                    return WiredBoxType.EffectUnfreezeUser;
                 case "wf_cnd_is_sitting": return WiredBoxType.ConditionIsSitting;
                 case "wf_act_give_hunt_points": return WiredBoxType.EffectGiveHuntPoints;
                 case "wf_act_give_energy": return WiredBoxType.EffectGiveEnergy;
@@ -298,12 +374,20 @@ namespace Polar.HabboHotel.Items.Wired
                 case "wf_cnd_has_weapon": return WiredBoxType.ConditionHasWeapon;
                 case "wf_act_give_rp_item": return WiredBoxType.EffectGiveRPItem;
                 case "wf_cnd_has_rp_item": return WiredBoxType.ConditionHasRPItem;
-                case "wf_act_rotationhabbo": return WiredBoxType.EffectSetRotation;
+                case "wf_act_rotationhabbo":
+                case "wf_act_rotate_user":
+                case "wf_act_tour_ne_ava":
+                    return WiredBoxType.EffectSetRotation;
                 case "wf_cnd_is_afk": return WiredBoxType.ConditionIsIdle;
                 case "wf_cnd_is_dancingbb": return WiredBoxType.ConditionIsDancing;
 
                 // Add-ons
-                case "wf_xtra_random": return WiredBoxType.AddonRandomEffect;
+                case "wf_xtra_random":
+                case "wf_xtra_unseen":
+                case "wf_xtra_unseenrandom":
+                case "wf_xtra_unseen_random":
+                case "wf_xtra_pt_unseenrandom":
+                    return WiredBoxType.AddonRandomEffect;
 
                 // Bot Wireds
                 case "wf_act_bot_teleport": return WiredBoxType.EffectTeleportBotToFurniBox;

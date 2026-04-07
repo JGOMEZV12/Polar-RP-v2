@@ -304,7 +304,8 @@ namespace Polar.HabboHotel.Items
                 var t = GetBaseItem()?.InteractionType;
                 return t == InteractionType.WIRED_EFFECT
                     || t == InteractionType.WIRED_TRIGGER
-                    || t == InteractionType.WIRED_CONDITION;
+                    || t == InteractionType.WIRED_CONDITION
+                    || t == InteractionType.WIRED_HIGHSCORE;
             }
         }
 

@@ -55,6 +55,8 @@ public class WiredComponent
     public IWiredItem LoadWiredBox(Item item)
     {
         var newBox = GenerateNewBox(item);
+        if (newBox == null) return null;
+
         DataRow row = null;
         using (var dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
         {

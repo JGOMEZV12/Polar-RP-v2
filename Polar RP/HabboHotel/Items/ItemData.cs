@@ -89,7 +89,7 @@ namespace Polar.HabboHotel.Items
             this.EffectId = EffectId;
 
             int wiredId = 0;
-            if (InteractionType == InteractionType.WIRED_CONDITION || InteractionType == InteractionType.WIRED_TRIGGER || InteractionType == InteractionType.WIRED_EFFECT)
+            if (InteractionType == InteractionType.WIRED_CONDITION || InteractionType == InteractionType.WIRED_TRIGGER || InteractionType == InteractionType.WIRED_EFFECT || InteractionType == InteractionType.WIRED_HIGHSCORE)
             {
                 wiredId = BehaviourData;
                 this.WiredType = WiredBoxTypeUtility.FromWiredId(wiredId);
