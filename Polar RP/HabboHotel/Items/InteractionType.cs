@@ -540,6 +540,10 @@ namespace Polar.HabboHotel.Items
                 case "wf_blob2":
                 case "wf_blob2_vis":
                     return InteractionType.WIRED_EFFECT;
+                case "irinc_xtra_or":
+                case "irinc_hideable_barrier":
+                case "bsstonino_furni1479":
+                    return InteractionType.WIRED_EFFECT;
                 case "clothing":
                 case "habbo_clothing":
                     return InteractionType.PURCHASABLE_CLOTHING;

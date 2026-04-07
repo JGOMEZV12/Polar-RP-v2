@@ -387,6 +387,33 @@ namespace Polar.HabboHotel.Items.Wired
                 case "wf_xtra_unseenrandom":
                 case "wf_xtra_unseen_random":
                 case "wf_xtra_pt_unseenrandom":
+                case "wf_xtra_comment":
+                case "wf_xtra_diagonalcollision":
+                case "wf_xtra_fleche":
+                case "wf_xtra_moveitemwithusers":
+                case "wf_xtra_sequence":
+                case "wf_xtra_usability":
+                case "wf_xtra_usabilitycond":
+                case "wf_xtra_useraround":
+                case "wf_xtra_userbehind":
+                case "wf_xtra_userinfront":
+                case "wf_xtra_xixixi":
+                case "wf_xtra_all_eval":
+                case "wf_xtra_all_eval_not":
+                case "wf_xtra_and_eval":
+                case "wf_xtra_and_eval_not":
+                case "wf_xtra_not_animate_furni":
+                case "wf_xtra_not_animate_user":
+                case "wf_xtra_not_effect_teleport":
+                case "wf_xtra_noteffecttp":
+                case "wf_xtra_notfreezetp":
+                case "wf_xtra_notteam":
+                case "wf_xtra_execution_limit":
+                case "wf_xtra_mov_carry_users":
+                case "wf_xtra_mov_no_animation":
+                case "wf_xtra_mov_physics":
+                case "wf_xtra_or_eval":
+                case "wf_xtra_one_condition":
                     return WiredBoxType.AddonRandomEffect;
 
                 // Bot Wireds
