@@ -201,6 +201,19 @@ public class WiredComponent
         WiredBoxType.EffectSetRotation             => new SetRotationBox(_room, item),
         WiredBoxType.ConditionIsIdle               => new IsIdleBox(_room, item),
         WiredBoxType.ConditionIsDancing            => new IsDancingBox(_room, item),
+        WiredBoxType.AddonAnimationTime            => new AddonAnimationTimeBox(_room, item),
+        WiredBoxType.AddonExecuteInOrder           => new AddonExecuteInOrderBox(_room, item),
+        WiredBoxType.AddonExecutionLimit           => new AddonExecutionLimitBox(_room, item),
+        WiredBoxType.AddonFilterFurni              => new AddonFilterFurniBox(_room, item),
+        WiredBoxType.AddonFilterUser               => new AddonFilterUserBox(_room, item),
+        WiredBoxType.AddonMoveCarryUsers           => new AddonMoveCarryUsersBox(_room, item),
+        WiredBoxType.AddonMoveNoAnimation          => new AddonMoveNoAnimationBox(_room, item),
+        WiredBoxType.AddonMovePhysics              => new AddonMovePhysicsBox(_room, item),
+        WiredBoxType.AddonOrEval                   => new AddonOrEvalBox(_room, item),
+        WiredBoxType.AddonRandom                   => new AddonRandomBox(_room, item),
+        WiredBoxType.AddonTextOutputFurniName      => new AddonTextOutputFurniNameBox(_room, item),
+        WiredBoxType.AddonTextOutputUsername       => new AddonTextOutputUsernameBox(_room, item),
+        WiredBoxType.AddonUnseen                   => new AddonUnseenBox(_room, item),
         _                                          => null
     };
 

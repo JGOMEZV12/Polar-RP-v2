@@ -94,6 +94,19 @@ namespace Polar.HabboHotel.Items.Wired
         ConditionIsIdle,
         ConditionIsDancing,
 
-        AddonRandomEffect
+        AddonRandomEffect,
+        AddonAnimationTime,
+        AddonExecuteInOrder,
+        AddonExecutionLimit,
+        AddonFilterFurni,
+        AddonFilterUser,
+        AddonMoveCarryUsers,
+        AddonMoveNoAnimation,
+        AddonMovePhysics,
+        AddonOrEval,
+        AddonRandom,
+        AddonTextOutputFurniName,
+        AddonTextOutputUsername,
+        AddonUnseen
     }
 }

@@ -382,8 +382,20 @@ namespace Polar.HabboHotel.Items.Wired
                 case "wf_cnd_is_dancingbb": return WiredBoxType.ConditionIsDancing;
 
                 // Add-ons
-                case "wf_xtra_random":
-                case "wf_xtra_unseen":
+                case "wf_xtra_random": return WiredBoxType.AddonRandom;
+                case "wf_xtra_unseen": return WiredBoxType.AddonUnseen;
+                case "wf_xtra_animation_time": return WiredBoxType.AddonAnimationTime;
+                case "wf_xtra_execute_in_order": return WiredBoxType.AddonExecuteInOrder;
+                case "wf_xtra_execution_limit": return WiredBoxType.AddonExecutionLimit;
+                case "wf_xtra_filter_furni": return WiredBoxType.AddonFilterFurni;
+                case "wf_xtra_filter_user": return WiredBoxType.AddonFilterUser;
+                case "wf_xtra_mov_carry_users": return WiredBoxType.AddonMoveCarryUsers;
+                case "wf_xtra_mov_no_animation": return WiredBoxType.AddonMoveNoAnimation;
+                case "wf_xtra_mov_physics": return WiredBoxType.AddonMovePhysics;
+                case "wf_xtra_or_eval": return WiredBoxType.AddonOrEval;
+                case "wf_xtra_text_output_furni_name": return WiredBoxType.AddonTextOutputFurniName;
+                case "wf_xtra_text_output_username": return WiredBoxType.AddonTextOutputUsername;
+
                 case "wf_xtra_unseenrandom":
                 case "wf_xtra_unseen_random":
                 case "wf_xtra_pt_unseenrandom":
@@ -408,11 +420,6 @@ namespace Polar.HabboHotel.Items.Wired
                 case "wf_xtra_noteffecttp":
                 case "wf_xtra_notfreezetp":
                 case "wf_xtra_notteam":
-                case "wf_xtra_execution_limit":
-                case "wf_xtra_mov_carry_users":
-                case "wf_xtra_mov_no_animation":
-                case "wf_xtra_mov_physics":
-                case "wf_xtra_or_eval":
                 case "wf_xtra_one_condition":
                     return WiredBoxType.AddonRandomEffect;
 
@@ -559,6 +566,20 @@ namespace Polar.HabboHotel.Items.Wired
                 case WiredBoxType.ConditionIsIdle:
                 case WiredBoxType.ConditionIsDancing:
                     return 47;
+                case WiredBoxType.AddonAnimationTime:
+                case WiredBoxType.AddonExecuteInOrder:
+                case WiredBoxType.AddonExecutionLimit:
+                case WiredBoxType.AddonFilterFurni:
+                case WiredBoxType.AddonFilterUser:
+                case WiredBoxType.AddonMoveCarryUsers:
+                case WiredBoxType.AddonMoveNoAnimation:
+                case WiredBoxType.AddonMovePhysics:
+                case WiredBoxType.AddonOrEval:
+                case WiredBoxType.AddonRandom:
+                case WiredBoxType.AddonTextOutputFurniName:
+                case WiredBoxType.AddonTextOutputUsername:
+                case WiredBoxType.AddonUnseen:
+                    return 48;
             }
             return 0;
         }
