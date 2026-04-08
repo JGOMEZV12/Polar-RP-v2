@@ -10,7 +10,7 @@ using Polar.HabboHotel.Rooms;
 
 namespace Polar.HabboHotel.Items.Wired.Boxes.Add_ons
 {
-    class AddonFilterUserBox: IWiredItem
+    class AddonFilterUserBox : IWiredItem
     {
         public Room Instance { get; set; }
         public Item Item { get; set; }
@@ -20,21 +20,25 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Add_ons
         public bool BoolData { get; set; }
         public string ItemsData { get; set; }
 
+
         public AddonFilterUserBox(Room instance, Item item)
         {
             this.Instance = instance;
             this.Item = item;
             this.SetItems = new();
-
-            if (this.SetItems.Count > 0)
-                this.SetItems.Clear();
+            this.StringData = "";
         }
 
         public void HandleSave(ClientPacket Packet)
         {
-
+            int unknown = Packet.PopInt();
+            int mode = Packet.PopInt();
+            this.StringData = mode.ToString();
         }
 
-        public bool Execute(params object[] @params) => true;
+        public bool Execute(params object[] @params)
+        {
+            return true;
+        }
     }
 }
