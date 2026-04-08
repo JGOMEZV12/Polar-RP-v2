@@ -1,3 +1,4 @@
+using Polar.Communication.Packets.Outgoing;
 using System;
 using System.Linq;
 using System.Text;
@@ -72,6 +73,27 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Effects
             return true;
         }
 
+
+        public void Serialize(ServerPacket Packet)
+        {
+            Packet.WriteBoolean(false);
+            Packet.WriteInteger(100);
+            Packet.WriteInteger(SetItems.Count);
+            foreach (Item Item in SetItems.Values.ToList())
+            {
+                Packet.WriteInteger(Item.Id);
+            }
+            Packet.WriteInteger(Item.GetBaseItem().SpriteId);
+            Packet.WriteInteger(Item.Id);
+            Packet.WriteString(StringData);
+            if (String.IsNullOrEmpty(StringData)) StringData = "1;1";
+            Packet.WriteInteger(2);
+            Packet.WriteInteger(int.Parse(StringData.Split(';')[0]));
+            Packet.WriteInteger(int.Parse(StringData.Split(';')[1]));
+            Packet.WriteInteger(0);
+            Packet.WriteInteger(WiredBoxTypeUtility.GetWiredId(Type));
+            Packet.WriteInteger(0);
+        }
         public bool Execute(params object[] Params)
         {
             if (Params == null || Params.Length == 0)

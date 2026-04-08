@@ -1,3 +1,4 @@
+using Polar.Communication.Packets.Outgoing;
 using System;
 using System.Linq;
 using System.Text;
@@ -33,6 +34,23 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Conditions
             string Unknown2 = Packet.PopString();
         }
 
+
+        public void Serialize(ServerPacket Packet)
+        {
+            Packet.WriteBoolean(false);
+            Packet.WriteInteger(100);
+            Packet.WriteInteger(SetItems.Count);
+            foreach (Item Item in SetItems.Values.ToList())
+            {
+                Packet.WriteInteger(Item.Id);
+            }
+            Packet.WriteInteger(Item.GetBaseItem().SpriteId);
+            Packet.WriteInteger(Item.Id);
+            Packet.WriteString(StringData);
+            Packet.WriteInteger(0);
+            Packet.WriteInteger(0);
+            Packet.WriteInteger(WiredBoxTypeUtility.GetWiredId(Type));
+        }
         public bool Execute(params object[] Params)
         {
             if (Params.Length == 0)

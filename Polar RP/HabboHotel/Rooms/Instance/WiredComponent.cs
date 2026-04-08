@@ -221,6 +221,12 @@ public class WiredComponent
     public bool IsEffect(Item item)    => item.GetBaseItem().InteractionType == InteractionType.WIRED_EFFECT;
     public bool IsCondition(Item item) => item.GetBaseItem().InteractionType == InteractionType.WIRED_CONDITION;
 
+    public bool IsAddon(Item item)
+    {
+        var box = GenerateNewBox(item);
+        return box != null && box.Type.ToString().StartsWith("Addon");
+    }
+
     public bool OtherBoxHasItem(IWiredItem box, int itemId)
     {
         if (box == null) return false;
