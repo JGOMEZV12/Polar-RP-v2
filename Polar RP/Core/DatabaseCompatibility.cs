@@ -16,6 +16,26 @@ namespace Polar.Core
         public static string FurniSpriteIdColumn { get; private set; } = "sprite_id";
         public static string FurniItemNameColumn { get; private set; } = "item_name";
         public static string FurniTypeColumn { get; private set; } = "type";
+        public static string FurniWidthColumn { get; private set; } = "width";
+        public static string FurniLengthColumn { get; private set; } = "length";
+        public static string FurniStackHeightColumn { get; private set; } = "stack_height";
+        public static string FurniAllowStackColumn { get; private set; } = "can_stack";
+        public static string FurniAllowSitColumn { get; private set; } = "can_sit";
+        public static string FurniAllowLayColumn { get; private set; } = "can_lay";
+        public static string FurniAllowWalkColumn { get; private set; } = "is_walkable";
+        public static string FurniAllowGiftColumn { get; private set; } = "allow_gift";
+        public static string FurniAllowTradeColumn { get; private set; } = "allow_trade";
+        public static string FurniAllowRecycleColumn { get; private set; } = "allow_recycle";
+        public static string FurniAllowMarketplaceSellColumn { get; private set; } = "allow_marketplace_sell";
+        public static string FurniAllowInventoryStackColumn { get; private set; } = "allow_inventory_stack";
+        public static string FurniInteractionTypeColumn { get; private set; } = "interaction_type";
+        public static string FurniInteractionModesCountColumn { get; private set; } = "interaction_modes_count";
+        public static string FurniVendingIdsColumn { get; private set; } = "vending_ids";
+        public static string FurniHeightAdjustableColumn { get; private set; } = "height_adjustable";
+        public static string FurniEffectIdColumn { get; private set; } = "effect_id";
+        public static string FurniIsRareColumn { get; private set; } = "is_rare";
+        public static string FurniClothingIdColumn { get; private set; } = "clothing_id";
+        public static string FurniExtraRotColumn { get; private set; } = "extra_rot";
 
         // Mappings for Catalog
         public static string CatalogItemIdColumn { get; private set; } = "id";
@@ -62,6 +82,133 @@ namespace Polar.Core
                     if (dbClient.findsResult())
                         FurniItemNameColumn = "item_name";
                 }
+
+                // Detect SpriteId
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'sprite_id'");
+                if (dbClient.findsResult())
+                    FurniSpriteIdColumn = "sprite_id";
+                else
+                    FurniSpriteIdColumn = "id";
+
+                // Detect StackHeight
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'stack_height'");
+                if (dbClient.findsResult())
+                    FurniStackHeightColumn = "stack_height";
+                else
+                    FurniStackHeightColumn = "height";
+
+                // Detect AllowStack
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'allow_stack'");
+                if (dbClient.findsResult())
+                    FurniAllowStackColumn = "allow_stack";
+                else
+                    FurniAllowStackColumn = "can_stack";
+
+                // Detect AllowSit
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'allow_sit'");
+                if (dbClient.findsResult())
+                    FurniAllowSitColumn = "allow_sit";
+                else
+                    FurniAllowSitColumn = "can_sit";
+
+                // Detect AllowLay
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'allow_lay'");
+                if (dbClient.findsResult())
+                    FurniAllowLayColumn = "allow_lay";
+                else
+                    FurniAllowLayColumn = "can_lay";
+
+                // Detect AllowWalk
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'allow_walk'");
+                if (dbClient.findsResult())
+                    FurniAllowWalkColumn = "allow_walk";
+                else
+                    FurniAllowWalkColumn = "is_walkable";
+
+                // Detect HeightAdjustable / Multiheight
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'variable_heights'");
+                if (dbClient.findsResult())
+                    FurniHeightAdjustableColumn = "variable_heights";
+                else
+                {
+                    dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'multiheight'");
+                    if (dbClient.findsResult())
+                        FurniHeightAdjustableColumn = "multiheight";
+                    else
+                        FurniHeightAdjustableColumn = "height_adjustable";
+                }
+
+                // Detect IsRare / Rare
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'rare'");
+                if (dbClient.findsResult())
+                    FurniIsRareColumn = "rare";
+                else
+                    FurniIsRareColumn = "is_rare";
+
+                // Detect InteractionModesCount
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'interaction_modes_count'");
+                if (dbClient.findsResult())
+                    FurniInteractionModesCountColumn = "interaction_modes_count";
+                else
+                    FurniInteractionModesCountColumn = "interaction_modes_count";
+
+                // Detect VendingIds
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'vending_ids'");
+                if (dbClient.findsResult())
+                    FurniVendingIdsColumn = "vending_ids";
+                else
+                    FurniVendingIdsColumn = "vending_ids";
+
+                // Detect AllowGift
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'allow_gift'");
+                if (dbClient.findsResult())
+                    FurniAllowGiftColumn = "allow_gift";
+
+                // Detect AllowTrade
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'allow_trade'");
+                if (dbClient.findsResult())
+                    FurniAllowTradeColumn = "allow_trade";
+
+                // Detect AllowRecycle
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'allow_recycle'");
+                if (dbClient.findsResult())
+                    FurniAllowRecycleColumn = "allow_recycle";
+
+                // Detect AllowMarketplaceSell
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'allow_marketplace_sell'");
+                if (dbClient.findsResult())
+                    FurniAllowMarketplaceSellColumn = "allow_marketplace_sell";
+
+                // Detect AllowInventoryStack
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'allow_inventory_stack'");
+                if (dbClient.findsResult())
+                    FurniAllowInventoryStackColumn = "allow_inventory_stack";
+
+                // Detect InteractionType
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'interaction_type'");
+                if (dbClient.findsResult())
+                    FurniInteractionTypeColumn = "interaction_type";
+
+                // Detect EffectId
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'effect_id'");
+                if (dbClient.findsResult())
+                    FurniEffectIdColumn = "effect_id";
+
+                // Detect ClothingId
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'clothing_id'");
+                if (dbClient.findsResult())
+                    FurniClothingIdColumn = "clothing_id";
+
+                // Detect ExtraRot
+                dbClient.SetQuery($"SHOW COLUMNS FROM `{FurnitureTable}` LIKE 'extra_rot'");
+                if (dbClient.findsResult())
+                    FurniExtraRotColumn = "extra_rot";
+
+                // Confirm standard columns
+                FurniIdColumn = "id";
+                FurniTypeColumn = "type";
+                FurniWidthColumn = "width";
+                FurniLengthColumn = "length";
 
                 // Detect Catalog Items Columns
                 dbClient.SetQuery("SHOW COLUMNS FROM `catalog_items` LIKE 'cost_duckets'");
