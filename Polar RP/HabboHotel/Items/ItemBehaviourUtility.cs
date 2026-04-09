@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
@@ -11,6 +11,7 @@ using Polar.HabboHotel.Items.Interactor;
 using Polar.Communication.Packets.Outgoing;
 using Polar.HabboHotel.Cache;
 using Polar.HabboHotel.Rooms;
+using Polar.HabboHotel.Items.Wired;
 
 namespace Polar.HabboHotel.Items
 {
@@ -28,15 +29,11 @@ namespace Polar.HabboHotel.Items
             if (Message == null)
                 throw new ArgumentNullException(nameof(Message), "El objeto Message es null.");
 
-            switch (Item.GetBaseItem().InteractionType)
+            // FIX: Identify wireds by WiredType instead of InteractionType.WIRED_*
+            if (Item.IsWired)
             {
-                default:
-                    Message.WriteInteger(1);
-                    Message.WriteInteger(0);
-                    Message.WriteString(Item.GetBaseItem().InteractionType != InteractionType.FOOTBALL_GATE ? Item.ExtraData : string.Empty);
-                    break;
-
-                case InteractionType.WIRED_HIGHSCORE:
+                if (Item.GetBaseItem().WiredType == WiredBoxType.EffectAddScore || Item.GetBaseItem().WiredType == WiredBoxType.SpecialHighscore)
+                {
                     string username;
                     string name = Item.GetBaseItem().ItemName;
                     string type = name?.Split('*').ElementAtOrDefault(1);
@@ -104,9 +101,19 @@ namespace Polar.HabboHotel.Items
                                 Message.WriteString(string.IsNullOrEmpty(username) ? string.Empty : username);
                             }
                         }
+                        return;
                     }
-                    break;
+                }
 
+                // Default wired extradata
+                Message.WriteInteger(1);
+                Message.WriteInteger(0);
+                Message.WriteString(Item.GetBaseItem().InteractionType != InteractionType.FOOTBALL_GATE ? Item.ExtraData : string.Empty);
+                return;
+            }
+
+            switch (Item.GetBaseItem().InteractionType)
+            {
                 case InteractionType.MUSIC_DISC:
                     if (!int.TryParse(Item.ExtraData, out int issx))
                         issx = 0;
@@ -210,7 +217,6 @@ namespace Polar.HabboHotel.Items
                     }
                     else
                     {
-                        // FIX: int.Parse reemplazado por TryParse para evitar FormatException
                         if (!int.TryParse(extraData[6], out int giftStyle))
                             giftStyle = 0;
                         int style = giftStyle * 1000 + giftStyle;
@@ -281,7 +287,6 @@ namespace Polar.HabboHotel.Items
                     Message.WriteInteger(0);
                     Message.WriteInteger(1);
                     Message.WriteInteger(3);
-                    // FIX: null-check antes de .Contains()
                     if (!string.IsNullOrEmpty(Item.ExtraData) && Item.ExtraData.Contains(Convert.ToChar(5).ToString()))
                     {
                         string[] Stuff = Item.ExtraData.Split(Convert.ToChar(5));
@@ -330,7 +335,6 @@ namespace Polar.HabboHotel.Items
                     Message.WriteInteger(2);
                     Message.WriteInteger(4);
 
-                    // FIX: null-check antes de Split y Contains
                     string[] BadgeData = string.IsNullOrEmpty(Item.ExtraData)
                         ? Array.Empty<string>()
                         : Item.ExtraData.Split(Convert.ToChar(9));
@@ -357,14 +361,12 @@ namespace Polar.HabboHotel.Items
                     Message.WriteInteger(1);
                     Message.WriteString("THUMBNAIL_URL");
 
-                    // FIX: FirstOrDefault() puede ser null si la lista está vacía
                     var tv = PolarEnvironment.GetGame().GetTelevisionManager().TelevisionList
                         .OrderBy(x => Guid.NewGuid()).FirstOrDefault();
                     Message.WriteString("/youtubethumbnail.php?img=" + (tv?.YouTubeId ?? string.Empty));
                     break;
 
                 case InteractionType.LOVELOCK:
-                    // FIX: null-check antes de .Contains()
                     if (!string.IsNullOrEmpty(Item.ExtraData) && Item.ExtraData.Contains(Convert.ToChar(5).ToString()))
                     {
                         var EData = Item.ExtraData.Split((char)5);
@@ -393,6 +395,12 @@ namespace Polar.HabboHotel.Items
                     Message.WriteString("rarity");
                     Message.WriteString("1");
                     break;
+
+                default:
+                    Message.WriteInteger(1);
+                    Message.WriteInteger(0);
+                    Message.WriteString(Item.GetBaseItem().InteractionType != InteractionType.FOOTBALL_GATE ? Item.ExtraData : string.Empty);
+                    break;
             }
         }
 
@@ -405,7 +413,6 @@ namespace Polar.HabboHotel.Items
                     break;
 
                 case InteractionType.POSTIT:
-                    // FIX: null-check antes de Split
                     Message.WriteString(string.IsNullOrEmpty(Item.ExtraData) ? string.Empty : Item.ExtraData.Split(' ')[0]);
                     break;
             }

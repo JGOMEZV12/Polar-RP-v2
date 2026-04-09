@@ -107,6 +107,7 @@ namespace Polar.HabboHotel.Items.Wired
         AddonRandom,
         AddonTextOutputFurniName,
         AddonTextOutputUsername,
-        AddonUnseen
+        AddonUnseen,
+        SpecialHighscore
     }
 }
