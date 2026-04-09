@@ -91,7 +91,7 @@ namespace Polar.HabboHotel.Items
             if (!string.IsNullOrEmpty(rawInteraction))
                 this.WiredType = WiredBoxTypeUtility.FromInteractionType(rawInteraction);
 
-            if (this.WiredType == WiredBoxType.None && (InteractionType == InteractionType.WIRED_CONDITION || InteractionType == InteractionType.WIRED_TRIGGER || InteractionType == InteractionType.WIRED_EFFECT || InteractionType == InteractionType.WIRED_HIGHSCORE))
+            if (this.WiredType == WiredBoxType.None && (InteractionType == InteractionType.WIRED_CONDITION || InteractionType == InteractionType.WIRED_TRIGGER || InteractionType == InteractionType.WIRED_EFFECT || InteractionType == InteractionType.WIRED_HIGHSCORE || InteractionType == InteractionType.WIRED_ADDON))
             {
                 this.WiredType = WiredBoxTypeUtility.FromWiredId(BehaviourData);
             }
