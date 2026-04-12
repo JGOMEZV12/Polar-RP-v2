@@ -29,6 +29,7 @@ using Polar.HabboRoleplay.Web.Util.ChatRoom;
 using Newtonsoft.Json;
 using Polar.HabboRoleplay.Timers.Types;
 using System.Drawing;
+using Polar.HabboHotel.BattlePass;
 using Polar.HabboRoleplay.PhoneOwned;
 using Polar.HabboRoleplay.PhoneAppOwned;
 using Polar.HabboRoleplay.PhonesApps;
@@ -436,6 +437,9 @@ namespace Polar.HabboRoleplay.RoleplayUsers
 
         // Saved Cooldowns
         public ConcurrentDictionary<string, int> SpecialCooldowns = new ConcurrentDictionary<string, int>();
+
+        // BattlePass Data
+        public BattlePassUserData BattlePassData;
 
         // Manages the offers for the user
         public OfferManager OfferManager;
@@ -1313,6 +1317,12 @@ namespace Polar.HabboRoleplay.RoleplayUsers
 
             if (user.Table.Columns.Contains("wchat_making_banned"))
                 this.BannedFromMakingChat = PolarEnvironment.EnumToBool(Convert.ToString(user["wchat_making_banned"]));
+
+            // Load BattlePass Data
+            using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+            {
+                this.BattlePassData = PolarEnvironment.GetGame().GetBattlePassManager().GetUserData((int)this.mId, dbClient);
+            }
         }
         #endregion
 

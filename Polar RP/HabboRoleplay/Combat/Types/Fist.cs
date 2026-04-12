@@ -125,6 +125,9 @@ namespace Polar.HabboRoleplay.Combat.Types
             {
                 PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Client, "ACH_Punching", 1);
                 PolarEnvironment.GetGame().GetQuestManager().ProgressUserQuest(Client, QuestType.PUNCH_USER, 1);
+
+                // BattlePass Challenge Integration
+                PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Client, "punch_user", 1);
             }
 
 
@@ -199,6 +202,9 @@ namespace Polar.HabboRoleplay.Combat.Types
 
             PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Client, "ACH_Punching", 1);
             PolarEnvironment.GetGame().GetQuestManager().ProgressUserQuest(Client, QuestType.PUNCH_USER, 1);
+
+            // BattlePass Challenge Integration
+            PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Client, "punch_user", 1);
 
             if ((Client.GetRoleplay().CurEnergy - 2) <= 0)
                 Client.GetRoleplay().CurEnergy = 0;
@@ -679,6 +685,9 @@ namespace Polar.HabboRoleplay.Combat.Types
                     Client.GetRoleplay().LastKilled = TargetClient.GetHabbo().Id;
                     Client.GetRoleplay().Kills++;
                     Client.GetRoleplay().HitKills++;
+
+                    // BattlePass Challenge Integration
+                    PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Client, "kill_user", 1);
 
                     if (GroupManager.HasJobCommand(TargetClient, "guide") && TargetClient.GetRoleplay().IsWorking)
                         TargetClient.GetRoleplay().CopDeaths++;

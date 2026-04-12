@@ -379,6 +379,9 @@ namespace Polar.HabboRoleplay.Timers.Types
                     
                     PolarEnvironment.GetGame().GetQuestManager().ProgressUserQuest(Client, QuestType.WORK_CYCLE);
 
+                    // BattlePass Challenge Integration
+                    PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(base.Client, "work_cycle", 1);
+
                     #region Timer Restart Calculation
 
                     double TimeDivisible2 = Math.Floor(Convert.ToDouble(base.Client.GetRoleplay().TimeWorked) / 5);
