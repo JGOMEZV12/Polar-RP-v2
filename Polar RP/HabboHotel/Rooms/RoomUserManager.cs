@@ -1155,10 +1155,18 @@ namespace Polar.HabboHotel.Rooms
                 else
                     newZ = Model.SqFloorHeight[User.X, User.Y];
 
-                if (newZ != User.Z && !User.IsWalking && !User.isSitting && !User.isLying)
+                if (newZ != User.Z && !User.IsWalking)
                 {
-                    User.Z = newZ;
-                    User.UpdateNeeded = true;
+                    if (User.isSitting && User.Statusses.ContainsKey("sit") && User.Statusses["sit"] == "1.0")
+                    {
+                        User.Z = newZ - 0.35;
+                        User.UpdateNeeded = true;
+                    }
+                    else if (!User.isSitting && !User.isLying)
+                    {
+                        User.Z = newZ;
+                        User.UpdateNeeded = true;
+                    }
                 }
 
                 if (Model.SqState[User.X, User.Y] == SquareState.SEAT)
@@ -1205,6 +1213,7 @@ namespace Polar.HabboHotel.Rooms
                                 User.UpdateNeeded = true;
                             }
                             foundFurniture = true;
+                            break;
                         }
 
                         switch (Item.GetBaseItem().InteractionType)

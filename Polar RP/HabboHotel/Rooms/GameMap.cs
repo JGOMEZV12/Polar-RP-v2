@@ -949,6 +949,7 @@ namespace Polar.HabboHotel.Rooms
                         highestStack = item.TotalHeight;
                         bool isBedSeat = item.GetBaseItem().IsSeat ||
                                          item.GetBaseItem().InteractionType == InteractionType.BED ||
+                                         item.GetBaseItem().InteractionType == InteractionType.BEDEFFECT ||
                                          item.GetBaseItem().InteractionType == InteractionType.TENT_SMALL;
                         if (isBedSeat)
                         {
