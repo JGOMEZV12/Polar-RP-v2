@@ -129,6 +129,10 @@ namespace Polar.HabboHotel.Items.Interactor
                         Item.GetRoom().GetRoomItemHandler().RemoveFurniture(null, Item.Id);
                         FarmingManager.AddEXP(Session, Random.Next(FarmingItem.MaxExp, (FarmingItem.MaxExp + 4)));
                         FarmingManager.IncreaseSatchelCount(Session, FarmingItem, 1, true);
+
+                        // BattlePass Challenge Integration
+                        PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Session, "harvest_plant", 1);
+
                         Session.Shout("*Cosecha el " + Item.GetBaseItem().PublicName + " y lo coloca en su mochila*", 4);
                         PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Session, "ACH_Farming", 1);
 
@@ -145,6 +149,9 @@ namespace Polar.HabboHotel.Items.Interactor
                     Item.FarmingData.BeingFarmed = true;
                     Session.Shout("*Pura un poco de agua en el " + Item.GetBaseItem().PublicName + " y espera a que crezca*", 4);
                     FarmingManager.AddEXP(Session, Random.Next(FarmingItem.MinExp, (FarmingItem.MaxExp + 1)));
+
+                    // BattlePass Challenge Integration
+                    PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Session, "water_plant", 1);
 
                     Session.GetRoleplay().CooldownManager.CreateCooldown("farming", 500);
 

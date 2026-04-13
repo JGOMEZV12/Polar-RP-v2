@@ -141,6 +141,9 @@ namespace Polar.HabboRoleplay.Misc
 
                 if (PolarEnvironment.GetUnixTimestamp() < Junk.ExpiryTimeStamp)
                 {
+                    // BattlePass Challenge Integration
+                    PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Session, "claim_bounty", 1);
+
                     Session.Shout("*Reclamaciones $" + String.Format("{0:N0}", Junk.Reward) + " de " + PolarEnvironment.GetHabboById(UserId).Username + "'s recompensa*", 4);
                     Session.SendWhisper("Has reclamado con éxito $" + String.Format("{0:N0}", Junk.Reward) + " de " + PolarEnvironment.GetHabboById(UserId).Username + "'s recompensa!", 1);
 

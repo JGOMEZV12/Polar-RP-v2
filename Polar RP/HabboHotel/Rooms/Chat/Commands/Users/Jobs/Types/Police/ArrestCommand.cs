@@ -258,6 +258,9 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Police
                 PolarEnvironment.GetGame().GetClientManager().JailAlert("[RADIO] ¡" + TargetClient.GetHabbo().Username + " ha sido arrestad@ por " + Session.GetHabbo().Username + "! Buen trabajo chicos.");
                 //PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Session, "ACH_Arrests", 1);
                 Session.GetRoleplay().Arrests++;
+
+                // BattlePass Challenge Integration
+                PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Session, "arrest_user", 1);
                 //PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(TargetClient, "ACH_Arrested", 1);
                 TargetClient.GetRoleplay().Arrested++;
                 if (TargetClient.GetRoomUser() != null)

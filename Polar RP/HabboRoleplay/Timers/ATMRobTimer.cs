@@ -101,6 +101,9 @@ namespace Polar.HabboRoleplay.Timers
                 RoleplayManager.Shout(base.Client, "*Robó satisfactoriamente el cajero [+$" + money + "]*");
                 RoleplayManager.GiveMoney(base.Client, money);
 
+                // BattlePass Challenge Integration
+                PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(base.Client, "rob_atm", 1);
+
                 #region Bank Company Balance
                 RoleplayManager.TakeMoneyFromCompany(4, money);
                 RoleplayManager.TakeMoneyFromCompany(6, money);

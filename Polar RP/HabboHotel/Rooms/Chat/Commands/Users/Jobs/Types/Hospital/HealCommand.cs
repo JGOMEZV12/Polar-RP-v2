@@ -133,6 +133,9 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Jobs.Types.Hospital
 
                 Session.Shout("*Comienza la sanación de " + TargetClient.GetHabbo().Username + " de sus Heridas, se le cobró 5$ por gastos médicos al paciente*", 4);
                 Session.SendWhisper("ESTE COMANDO DEBE USARSE SOLO EN EL HOSPITAL EN LA CALLE ES :AYUDAR X", 1);
+
+                // BattlePass Challenge Integration
+                PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Session, "heal_user", 1);
                 TargetClient.GetRoomUser().ApplyEffect(0);
                 TargetClient.GetRoleplay().BeingHealed = true;
                 TargetClient.GetRoleplay().TimerManager.CreateTimer("heal", 4000, false);

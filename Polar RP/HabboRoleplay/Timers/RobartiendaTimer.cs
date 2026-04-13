@@ -74,6 +74,9 @@ namespace Polar.HabboRoleplay.Timers
 
                 RoleplayManager.GiveMoney(base.Client, money);
 
+                // BattlePass Challenge Integration
+                PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(base.Client, "rob_store", 1);
+
                 #region Bank Company Balance
                 if (base.Client.GetHabbo().CurrentRoom.SupermarketEnabled)
                 {

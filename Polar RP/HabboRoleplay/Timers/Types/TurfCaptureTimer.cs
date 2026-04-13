@@ -146,6 +146,9 @@ namespace Polar.HabboRoleplay.Timers.Types
             base.Client.SendWhisper("Ganaste 50+ paquetes de medicina para la pandilla y [1+] dinamita para ti");
             base.Client.GetRoleplay().Dynamite += 1;
 
+            // BattlePass Challenge Integration
+            PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(base.Client, "capture_turf", 1);
+
             // Actualizar la banda con los nuevos recursos
             Gang.MediPacks += 50;
 
