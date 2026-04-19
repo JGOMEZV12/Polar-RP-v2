@@ -357,6 +357,12 @@ namespace Polar.HabboHotel.BattlePass
                 case "badge":
                     session.GetHabbo().GetBadgeComponent().GiveBadge(value, true, session);
                     break;
+                case "exp":
+                    if (int.TryParse(value, out int exp))
+                    {
+                        Polar.HabboRoleplay.RoleplayUsers.LevelManager.AddLevelEXP(session, exp);
+                    }
+                    break;
                 case "vip":
                     if (int.TryParse(value, out int days))
                     {

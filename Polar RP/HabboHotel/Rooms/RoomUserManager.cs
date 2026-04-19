@@ -988,9 +988,11 @@ namespace Polar.HabboHotel.Rooms
             if (nextX == user.X && nextY == user.Y) return;
 
             bool isFinalStep = (user.GoalX == nextX && user.GoalY == nextY);
+            bool isDiagonal = (user.X != nextX && user.Y != nextY);
+
             if (!_room.GetGameMap().IsValidStep(user,
                     new Vector2D(user.X, user.Y), new Vector2D(nextX, nextY),
-                    isFinalStep, user.AllowOverride)) return;
+                    isFinalStep, user.AllowOverride, false, false, isDiagonal)) return;
 
             double nextZ = _room.GetGameMap().SqAbsoluteHeight(nextX, nextY);
 

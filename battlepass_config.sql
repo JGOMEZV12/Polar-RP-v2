@@ -32,7 +32,7 @@ INSERT INTO `battlepass_rewards` (`level`, `normal_reward_type`, `normal_reward_
 (14, 'credits', '2500', 'credits_icon', 'diamonds', '250', 'diamonds_icon'),
 (15, 'diamonds', '50', 'diamonds_icon', 'vip', '7', 'vip_icon'),
 (16, 'credits', '3000', 'credits_icon', 'diamonds', '300', 'diamonds_icon'),
-(17, 'badge', 'BP_PRO', 'badge_icon', 'badge', 'BP_VIP_PRO', 'badge_icon'),
+(17, 'exp', '5000', 'exp_icon', 'exp', '10000', 'exp_icon'),
 (18, 'duckets', '1000', 'duckets_icon', 'credits', '5000', 'credits_icon'),
 (19, 'item', '215', 'furni_icon', 'item', '216', 'furni_icon'),
 (20, 'vip', '1', 'vip_icon', 'vip', '30', 'vip_icon');
@@ -76,4 +76,7 @@ INSERT INTO `battlepass_challenges` (`id`, `category_id`, `name`, `icon`, `descr
 (17, 4, 'Mano Verde', 'water_icon', 'Riega tus plantas 50 veces.', 400, 50, 'water_plant'),
 (18, 4, 'Cosecha Abundante', 'harvest_icon', 'Cosecha 30 plantas maduras.', 600, 30, 'harvest_plant'),
 (19, 4, 'Gran Cazador', 'hunt_pet_icon', 'Caza 10 animales salvajes en la zona de caza.', 1200, 10, 'hunt_pet'),
-(23, 4, 'Comerciante de Flores', 'sell_icon', 'Vende tus plantas cosechadas al mercado.', 500, 1, 'sell_plants');
+(23, 4, 'Comerciante de Flores', 'sell_icon', 'Vende tus plantas cosechadas al mercado.', 500, 1, 'sell_plants'),
+(24, 2, 'Minero de Corazón', 'mine_icon', 'Pica piedras en la mina 20 veces.', 800, 20, 'mine_rock'),
+(25, 2, 'Buen Provecho', 'eat_icon', 'Come algo para saciar tu hambre.', 300, 5, 'eat_food'),
+(26, 2, 'Sed Insaciable', 'drink_icon', 'Bebe algo para recuperar energía.', 300, 5, 'drink_item');
