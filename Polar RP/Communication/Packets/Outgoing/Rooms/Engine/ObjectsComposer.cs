@@ -13,11 +13,10 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
 {
     class ObjectsComposer : ServerPacket
     {
-        public ObjectsComposer(/*GameClient Session, */Item[] Objects, Room Room)
+        public ObjectsComposer(Item[] Objects, Room Room)
             : base(ServerPacketHeader.ObjectsMessageComposer)
         {
             base.WriteInteger(1);
-
             base.WriteInteger(Room.OwnerId);
             base.WriteString(Room.OwnerName);
 
@@ -146,8 +145,8 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                 ItemBehaviourUtility.GenerateExtradata(Item, this);
             }
 
-            base.WriteInteger(-1); // to-do: check
-            base.WriteInteger((Item.GetBaseItem().Modes > 1) ? 2 : 0);
+            base.WriteInteger(-1);
+            base.WriteInteger((Item.GetBaseItem().Modes > 1) ? 1 : 0);
             base.WriteInteger(UserID);
         }
     }

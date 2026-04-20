@@ -397,8 +397,7 @@ namespace Polar.HabboHotel.Items
                     break;
 
                 default:
-                    Message.WriteInteger(1);
-                    Message.WriteInteger(0);
+                    Message.WriteInteger(0); // Legacy StuffData Type
                     Message.WriteString(Item.GetBaseItem().InteractionType != InteractionType.FOOTBALL_GATE ? Item.ExtraData : string.Empty);
                     break;
             }
