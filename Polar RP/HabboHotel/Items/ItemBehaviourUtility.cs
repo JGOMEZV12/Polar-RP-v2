@@ -1,183 +1,35 @@
 using System;
 using System.Linq;
-using System.Text;
 using System.Collections.Generic;
 
-using Polar.HabboHotel.Users;
-using Polar.HabboHotel.Groups;
-using Polar.HabboHotel.Items.Data.Toner;
-using Polar.HabboHotel.Items.Data.RentableSpace;
-using Polar.HabboHotel.Items.Interactor;
-using Polar.Communication.Packets.Outgoing;
-using Polar.HabboHotel.Cache;
 using Polar.HabboHotel.Rooms;
-using Polar.HabboHotel.Items.Wired;
+using Polar.HabboHotel.Groups;
+using Polar.HabboHotel.Users;
+using Polar.Communication.Packets.Outgoing;
+using Polar.Utilities;
 
 namespace Polar.HabboHotel.Items
 {
-    static class ItemBehaviourUtility
+    class ItemBehaviourUtility
     {
         public static void GenerateExtradata(Item Item, ServerPacket Message)
         {
-            if (Item == null)
-                throw new ArgumentNullException(nameof(Item), "El objeto Item es null.");
-
-            var baseItem = Item.GetBaseItem();
-            if (baseItem == null)
-                throw new InvalidOperationException("El objeto BaseItem no puede ser null.");
-
-            if (Message == null)
-                throw new ArgumentNullException(nameof(Message), "El objeto Message es null.");
-
-            // FIX: Identify wireds by WiredType instead of InteractionType.WIRED_*
-            if (Item.IsWired)
-            {
-                if (Item.GetBaseItem().WiredType == WiredBoxType.EffectAddScore || Item.GetBaseItem().WiredType == WiredBoxType.SpecialHighscore)
-                {
-                    string username;
-                    string name = Item.GetBaseItem().ItemName;
-                    string type = name?.Split('*').ElementAtOrDefault(1);
-
-                    if (type != null)
-                    {
-                        Dictionary<int, KeyValuePair<int, string>> ScoreBordata = new Dictionary<int, KeyValuePair<int, string>>();
-                        Message.WriteInteger(0);
-                        Message.WriteInteger(6);
-                        Message.WriteString(Item.ExtraData ?? string.Empty);
-
-                        if (Item.GetBaseItem().ItemName.StartsWith("highscore_classic"))
-                            Message.WriteInteger(2);
-                        else if (Item.GetBaseItem().ItemName.StartsWith("highscore_mostwin"))
-                            Message.WriteInteger(1);
-                        else if (Item.GetBaseItem().ItemName.StartsWith("highscore_perteam"))
-                            Message.WriteInteger(0);
-
-                        var room = Item.GetRoom();
-                        if (room != null)
-                        {
-                            switch (type)
-                            {
-                                case "2":
-                                    Message.WriteInteger(1);
-                                    Message.WriteInteger(room.WiredScoreBordDay?.Count ?? 0);
-                                    ScoreBordata = room.WiredScoreBordDay ?? new Dictionary<int, KeyValuePair<int, string>>();
-                                    break;
-
-                                case "3":
-                                    Message.WriteInteger(2);
-                                    Message.WriteInteger(room.WiredScoreBordWeek?.Count ?? 0);
-                                    ScoreBordata = room.WiredScoreBordWeek ?? new Dictionary<int, KeyValuePair<int, string>>();
-                                    break;
-
-                                case "4":
-                                    Message.WriteInteger(3);
-                                    Message.WriteInteger(room.WiredScoreBordMonth?.Count ?? 0);
-                                    ScoreBordata = room.WiredScoreBordMonth ?? new Dictionary<int, KeyValuePair<int, string>>();
-                                    break;
-
-                                default:
-                                    Message.WriteInteger(1);
-                                    Message.WriteInteger(0);
-                                    ScoreBordata = null;
-                                    break;
-                            }
-                        }
-                        else
-                        {
-                            Message.WriteInteger(1);
-                            Message.WriteInteger(1);
-                            Message.WriteInteger(0);
-                            Message.WriteInteger(1);
-                            Message.WriteString("Este marcador no funciona todavía: (");
-                        }
-
-                        if (ScoreBordata?.Count > 0)
-                        {
-                            foreach (var value in ScoreBordata.OrderByDescending(i => i.Value.Key).Select(i => i.Value))
-                            {
-                                username = value.Value;
-                                Message.WriteInteger(value.Key);
-                                Message.WriteInteger(1);
-                                Message.WriteString(string.IsNullOrEmpty(username) ? string.Empty : username);
-                            }
-                        }
-                        return;
-                    }
-                }
-
-                // Default wired extradata
-                Message.WriteInteger(1);
-                Message.WriteInteger(0);
-                Message.WriteString(Item.GetBaseItem().InteractionType != InteractionType.FOOTBALL_GATE ? Item.ExtraData : string.Empty);
-                return;
-            }
-
             switch (Item.GetBaseItem().InteractionType)
             {
-                case InteractionType.MUSIC_DISC:
-                    if (!int.TryParse(Item.ExtraData, out int issx))
-                        issx = 0;
-
-                    Message.WriteInteger(issx);
-                    Message.WriteInteger(0);
-                    Message.WriteString(Item.ExtraData ?? string.Empty);
-                    break;
-
-                case InteractionType.GNOME_BOX:
-                    Message.WriteInteger(0);
-                    Message.WriteInteger(0);
-                    Message.WriteString(Item.ExtraData ?? string.Empty);
-                    break;
-
-                case InteractionType.PET_BREEDING_BOX:
-                case InteractionType.PURCHASABLE_CLOTHING:
-                    Message.WriteInteger(0);
-                    Message.WriteInteger(0);
-                    Message.WriteString("0");
-                    break;
-
-                case InteractionType.STACKTOOL:
-                    Message.WriteInteger(0);
-                    Message.WriteInteger(0);
-                    Message.WriteString("");
-                    break;
-
-                case InteractionType.WALLPAPER:
-                    Message.WriteInteger(2);
-                    Message.WriteInteger(0);
-                    Message.WriteString(Item.ExtraData ?? string.Empty);
-                    break;
-
-                case InteractionType.FLOOR:
-                    Message.WriteInteger(3);
-                    Message.WriteInteger(0);
-                    Message.WriteString(Item.ExtraData ?? string.Empty);
-                    break;
-
-                case InteractionType.LANDSCAPE:
-                    Message.WriteInteger(4);
-                    Message.WriteInteger(0);
-                    Message.WriteString(Item.ExtraData ?? string.Empty);
-                    break;
-
                 case InteractionType.GUILD_ITEM:
                 case InteractionType.GUILD_GATE:
                 case InteractionType.GUILD_FORUM:
                     Group group = null;
-                    if (Item.GroupId > 1000)
-                        group = GroupManager.GetGang(Item.GroupId);
-                    else
+                    if (Item.GroupId > 0)
                         group = GroupManager.GetJob(Item.GroupId);
 
                     if (group == null)
                     {
-                        Message.WriteInteger(1);
                         Message.WriteInteger(0);
                         Message.WriteString(Item.ExtraData ?? string.Empty);
                     }
                     else
                     {
-                        Message.WriteInteger(0);
                         Message.WriteInteger(2);
                         Message.WriteInteger(5);
                         Message.WriteString(Item.ExtraData ?? string.Empty);
@@ -190,15 +42,15 @@ namespace Polar.HabboHotel.Items
 
                 case InteractionType.BACKGROUND:
                 case InteractionType.INFORMATION_TERMINAL:
-                    Message.WriteInteger(0);
                     Message.WriteInteger(1);
-                    if (!string.IsNullOrEmpty(Item.ExtraData))
+                    if (!string.IsNullOrEmpty(Item.ExtraData) && Item.ExtraData.Contains((char)9))
                     {
-                        Message.WriteInteger(Item.ExtraData.Split(Convert.ToChar(9)).Length / 2);
+                        string[] parts = Item.ExtraData.Split((char)9);
+                        Message.WriteInteger(parts.Length / 2);
 
-                        for (int i = 0; i <= Item.ExtraData.Split(Convert.ToChar(9)).Length - 1; i++)
+                        for (int i = 0; i < parts.Length; i++)
                         {
-                            Message.WriteString(Item.ExtraData.Split(Convert.ToChar(9))[i]);
+                            Message.WriteString(parts[i]);
                         }
                     }
                     else
@@ -212,7 +64,6 @@ namespace Polar.HabboHotel.Items
                     if (extraData.Length != 7)
                     {
                         Message.WriteInteger(0);
-                        Message.WriteInteger(0);
                         Message.WriteString(Item.ExtraData ?? string.Empty);
                     }
                     else
@@ -225,7 +76,6 @@ namespace Polar.HabboHotel.Items
                         {
                             if (purchaser == null)
                             {
-                                Message.WriteInteger(0);
                                 Message.WriteInteger(0);
                                 Message.WriteString(Item.ExtraData ?? string.Empty);
                             }
@@ -252,7 +102,6 @@ namespace Polar.HabboHotel.Items
                     break;
 
                 case InteractionType.FARMING:
-                    Message.WriteInteger(0);
                     int cracks = 0;
                     int cracks_max = 4;
 
@@ -276,7 +125,6 @@ namespace Polar.HabboHotel.Items
                     break;
 
                 case InteractionType.CRACKABLE_EGG:
-                    Message.WriteInteger(0);
                     Message.WriteInteger(7);
                     Message.WriteString("8");
                     Message.WriteInteger(9);
@@ -284,7 +132,6 @@ namespace Polar.HabboHotel.Items
                     break;
 
                 case InteractionType.MANNEQUIN:
-                    Message.WriteInteger(0);
                     Message.WriteInteger(1);
                     Message.WriteInteger(3);
                     if (!string.IsNullOrEmpty(Item.ExtraData) && Item.ExtraData.Contains(Convert.ToChar(5).ToString()))
@@ -309,12 +156,11 @@ namespace Polar.HabboHotel.Items
                     break;
 
                 case InteractionType.TONER:
-                    if (Item.RoomId != 0)
+                    if (Item.RoomId != 0 && Item.GetRoom() != null)
                     {
                         if (Item.GetRoom().TonerData == null)
                             Item.GetRoom().TonerData = new TonerData(Item.Id);
 
-                        Message.WriteInteger(0);
                         Message.WriteInteger(5);
                         Message.WriteInteger(4);
                         Message.WriteInteger(Item.GetRoom().TonerData.Enabled);
@@ -325,13 +171,11 @@ namespace Polar.HabboHotel.Items
                     else
                     {
                         Message.WriteInteger(0);
-                        Message.WriteInteger(0);
                         Message.WriteString(string.Empty);
                     }
                     break;
 
                 case InteractionType.BADGE_DISPLAY:
-                    Message.WriteInteger(0);
                     Message.WriteInteger(2);
                     Message.WriteInteger(4);
 
@@ -356,7 +200,6 @@ namespace Polar.HabboHotel.Items
                     break;
 
                 case InteractionType.TELEVISION:
-                    Message.WriteInteger(0);
                     Message.WriteInteger(1);
                     Message.WriteInteger(1);
                     Message.WriteString("THUMBNAIL_URL");
@@ -370,26 +213,21 @@ namespace Polar.HabboHotel.Items
                     if (!string.IsNullOrEmpty(Item.ExtraData) && Item.ExtraData.Contains(Convert.ToChar(5).ToString()))
                     {
                         var EData = Item.ExtraData.Split((char)5);
-                        int I = 0;
-                        Message.WriteInteger(0);
                         Message.WriteInteger(2);
                         Message.WriteInteger(EData.Length);
-                        while (I < EData.Length)
+                        for (int i = 0; i < EData.Length; i++)
                         {
-                            Message.WriteString(EData[I]);
-                            I++;
+                            Message.WriteString(EData[i]);
                         }
                     }
                     else
                     {
-                        Message.WriteInteger(0);
                         Message.WriteInteger(0);
                         Message.WriteString("0");
                     }
                     break;
 
                 case InteractionType.MONSTERPLANT_SEED:
-                    Message.WriteInteger(0);
                     Message.WriteInteger(1);
                     Message.WriteInteger(1);
                     Message.WriteString("rarity");
