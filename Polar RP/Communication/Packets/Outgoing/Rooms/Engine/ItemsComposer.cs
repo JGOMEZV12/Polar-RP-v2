@@ -41,7 +41,6 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
             this.WriteInteger(Item.Data.SpriteId);
             this.WriteString(Item.wallCoord ?? string.Empty);
             ItemBehaviourUtility.GenerateWallExtradata(Item, (ServerPacket)this);
-            this.WriteInteger(-1);
             this.WriteInteger(Item.Data.Modes > 1 ? 1 : 0);
             this.WriteInteger(UserId);
         }

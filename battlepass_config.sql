@@ -2,8 +2,8 @@
 -- This script populates the BattlePass system with a sample Season, Levels, Rewards and Challenges based on server RP functions.
 
 -- 1. Create a Season
-INSERT INTO `battlepass_seasons` (`id`, `chapter`, `season`, `is_active`) VALUES
-(1, 1, 1, 1);
+INSERT INTO `battlepass_seasons` (`id`, `name`, `description`, `start_date`, `end_date`) VALUES
+(1, 'Temporada 1: El Comienzo', '¡Bienvenidos a la primera temporada del BattlePass de Polar RP!', NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY));
 
 -- 2. Define Levels (1 to 20)
 -- Level 1 starts with 0 EXP. Level 2 requires 1000, and so on.

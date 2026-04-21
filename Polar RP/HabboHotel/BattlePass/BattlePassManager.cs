@@ -230,7 +230,7 @@ namespace Polar.HabboHotel.BattlePass
 
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                SaveLevelData(userData, dbClient);
+                SaveUserData(userData, dbClient);
             }
 
             session.SendMessage(new Communication.Packets.Outgoing.BattlePass.BattlePassComposer(session, this));
@@ -253,11 +253,6 @@ namespace Polar.HabboHotel.BattlePass
                 userData.ChallengeProgress[challenge.Id] = newProgress;
                 changed = true;
 
-                using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
-                {
-                    SaveChallengeProgress(userData.UserId, challenge.Id, newProgress, dbClient);
-                }
-
                 if (newProgress >= challenge.TotalProgress)
                 {
                     session.SendWhisper("¡Has completado el desafío: " + challenge.Name + "!", 1);
@@ -267,6 +262,10 @@ namespace Polar.HabboHotel.BattlePass
 
             if (changed)
             {
+                using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+                {
+                    SaveUserData(userData, dbClient);
+                }
                 session.SendMessage(new Communication.Packets.Outgoing.BattlePass.BattlePassComposer(session, this));
             }
         }
@@ -384,31 +383,22 @@ namespace Polar.HabboHotel.BattlePass
             }
         }
 
-        public void SaveLevelData(BattlePassUserData userData, IQueryAdapter dbClient)
+        public void SaveUserData(BattlePassUserData userData, IQueryAdapter dbClient)
         {
             dbClient.SetQuery("UPDATE `battlepass_user_data` SET `level` = @lvl, `exp` = @exp WHERE `user_id` = @uid");
             dbClient.AddParameter("lvl", userData.Level);
             dbClient.AddParameter("exp", userData.Exp);
             dbClient.AddParameter("uid", userData.UserId);
             dbClient.RunQuery();
-        }
 
-        public void SaveChallengeProgress(int userId, int challengeId, int progress, IQueryAdapter dbClient)
-        {
-            dbClient.SetQuery("REPLACE INTO `battlepass_user_challenges` (`user_id`, `challenge_id`, `current_progress`) VALUES (@uid, @cid, @prog)");
-            dbClient.AddParameter("uid", userId);
-            dbClient.AddParameter("cid", challengeId);
-            dbClient.AddParameter("prog", progress);
-            dbClient.RunQuery();
-        }
-
-        public void SaveUserData(BattlePassUserData userData, IQueryAdapter dbClient)
-        {
-            SaveLevelData(userData, dbClient);
-
+            // Save progress (simplified, maybe inefficient but works for now)
             foreach (var progress in userData.ChallengeProgress)
             {
-                SaveChallengeProgress(userData.UserId, progress.Key, progress.Value, dbClient);
+                dbClient.SetQuery("REPLACE INTO `battlepass_user_challenges` (`user_id`, `challenge_id`, `current_progress`) VALUES (@uid, @cid, @prog)");
+                dbClient.AddParameter("uid", userData.UserId);
+                dbClient.AddParameter("cid", progress.Key);
+                dbClient.AddParameter("prog", progress.Value);
+                dbClient.RunQuery();
             }
         }
     }

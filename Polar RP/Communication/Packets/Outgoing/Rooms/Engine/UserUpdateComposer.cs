@@ -26,7 +26,7 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                 packet.WriteInteger(User.VirtualId);
                 packet.WriteInteger(User.X);
                 packet.WriteInteger(User.Y);
-                packet.WriteString(TextHandling.GetString(User.Z));
+                packet.WriteString(User.Z.ToString("0.00"));
                 packet.WriteInteger(User.RotHead);
                 packet.WriteInteger(User.RotBody);
 
