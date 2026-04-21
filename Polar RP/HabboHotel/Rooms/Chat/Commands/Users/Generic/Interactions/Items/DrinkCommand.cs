@@ -154,6 +154,9 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Interactions.Items
             {
                 PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Session, "ACH_Drinking", 1);
                 PolarEnvironment.GetGame().GetQuestManager().ProgressUserQuest(Session, QuestType.DRINK_DRINK);
+
+                // BattlePass Challenge Integration
+                PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Session, "drink_item", 1);
             }
 
             if (Food.Hunger > 0)

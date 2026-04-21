@@ -368,6 +368,10 @@ namespace Polar.HabboRoleplay.Farming
 
             IncreaseSatchelCount(Session, Session.GetRoleplay().FarmingItem, -1, false);
             RoleplayManager.PlaceItemToRoom(null, Furni.Id, 0, Item.GetX, Item.GetY, (Item.GetZ + 0.01), 0, false, Item.GetRoom().Id, false);
+
+            // BattlePass Challenge Integration
+            PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Session, "plant_seed", 1);
+
             Session.Shout("*Planta una " + Furni.PublicName + " Semilla en la tierra*", 4);
 
             Session.GetRoleplay().CooldownManager.CreateCooldown("farming", 500);
@@ -714,6 +718,12 @@ namespace Polar.HabboRoleplay.Farming
                 }
             }
             #endregion
+
+            if (Amount > 0)
+            {
+                // BattlePass Challenge Integration
+                PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Session, "sell_plants", 1);
+            }
 
             return Amount;
         }

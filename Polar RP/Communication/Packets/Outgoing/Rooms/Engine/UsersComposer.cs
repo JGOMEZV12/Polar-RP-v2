@@ -55,8 +55,8 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                     base.WriteInteger(User.VirtualId);
                     base.WriteInteger(User.X);
                     base.WriteInteger(User.Y);
-                    base.WriteDouble(User.Z);
-                    base.WriteInteger(0);
+                    base.WriteString(TextHandling.GetString(User.Z));
+                    base.WriteInteger(User.RotBody);
                     base.WriteInteger(2);//Pet.
 
                     base.WriteInteger(RPBot.PetInstance.Type);//pet type.
@@ -86,7 +86,8 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                     base.WriteInteger(User.VirtualId);
                     base.WriteInteger(User.X);
                     base.WriteInteger(User.Y);
-                    base.WriteDouble(User.Z);
+                    base.WriteString(TextHandling.GetString(User.Z));
+                    base.WriteInteger(User.RotBody);
 
                     base.WriteInteger(0);//2 for user, 4 for bot.
                     base.WriteInteger(1);//1 for user, 2 for pet, 3 for bot.
@@ -120,22 +121,15 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                 if (Habbo.PetId == 0)
                 {
                     base.WriteInteger(Habbo.Id);
-                    base.WriteString(Habbo.GetDisplayName());
+                    base.WriteString(Habbo.Username);
                     base.WriteString(Habbo.Motto);
-                    base.WriteInteger(Habbo.BackgroundId);
-                    base.WriteInteger(Habbo.StandId);
-                    base.WriteInteger(Habbo.OverlayId);
-                    base.WriteBoolean(Habbo.VIPRank > 0 ? true : false);
-                    base.WriteInteger(Habbo.GetClient().GetRoleplay().Level);
-                    base.WriteInteger(Habbo.GetClient().GetRoleplay().ChalecoPor);
                     base.WriteString(Habbo.Look);
                     base.WriteInteger(User.VirtualId);
                     base.WriteInteger(User.X);
                     base.WriteInteger(User.Y);
-                    base.WriteDouble(User.Z);
-
-                    base.WriteInteger(0);//2 for user, 4 for bot.
-                    base.WriteInteger(1);//1 for user, 2 for pet, 3 for bot.
+                    base.WriteString(TextHandling.GetString(User.Z));
+                    base.WriteInteger(User.RotBody);
+                    base.WriteInteger(1);
                     base.WriteString(Habbo.Gender.ToLower());
 
                     if (Group != null)
@@ -151,9 +145,9 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                         base.WriteString("");
                     }
 
-                    base.WriteString("");//Whats this?
-                    base.WriteInteger(Habbo.GetStats().AchievementPoints);//Achievement score
-                    base.WriteBoolean(true);//Builders club?
+                    base.WriteString("");
+                    base.WriteInteger(Habbo.GetStats().AchievementPoints);
+                    base.WriteBoolean(true);
                 }
                 else if (Habbo.PetId > 0 && Habbo.PetId != 100)
                 {
@@ -171,8 +165,8 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                     base.WriteInteger(User.VirtualId);
                     base.WriteInteger(User.X);
                     base.WriteInteger(User.Y);
-                    base.WriteDouble(User.Z);
-                    base.WriteInteger(0);
+                    base.WriteString(TextHandling.GetString(User.Z));
+                    base.WriteInteger(User.RotBody);
                     base.WriteInteger(2);//Pet.
 
                     base.WriteInteger(Habbo.PetId);//pet type.
@@ -200,8 +194,8 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                     base.WriteInteger(User.VirtualId);
                     base.WriteInteger(User.X);
                     base.WriteInteger(User.Y);
-                    base.WriteDouble(User.Z);
-                    base.WriteInteger(0);
+                    base.WriteString(TextHandling.GetString(User.Z));
+                    base.WriteInteger(User.RotBody);
                     base.WriteInteger(4);
 
                     base.WriteString(Habbo.Gender.ToLower()); // ?
@@ -227,8 +221,8 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                 base.WriteInteger(User.VirtualId);
                 base.WriteInteger(User.X);
                 base.WriteInteger(User.Y);
-                base.WriteDouble(User.Z);
-                base.WriteInteger(0);
+                base.WriteString(TextHandling.GetString(User.Z));
+                base.WriteInteger(User.RotBody);
                 base.WriteInteger((User.BotData.AiType == BotAIType.PET) ? 2 : 4);
                 base.WriteInteger(User.PetData.Type);
                 base.WriteInteger(User.PetData.OwnerId); // userid
@@ -256,8 +250,8 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                 base.WriteInteger(User.VirtualId);
                 base.WriteInteger(User.X);
                 base.WriteInteger(User.Y);
-                base.WriteDouble(User.Z);
-                base.WriteInteger(0);
+                base.WriteString(TextHandling.GetString(User.Z));
+                base.WriteInteger(User.RotBody);
                 base.WriteInteger((User.BotData.AiType == BotAIType.PET) ? 2 : 4);
 
                 base.WriteString(User.BotData.Gender.ToLower()); // ?

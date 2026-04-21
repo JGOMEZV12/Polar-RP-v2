@@ -155,6 +155,9 @@ namespace Polar.HabboRoleplay.RoleplayUsers
                     }
                     else
                         Session.SendWhisper("Has recibido " + String.Format("{0:N0}", amount) + " ¡Experiencia hacia su próximo nivel! Necesitas " + String.Format("{0:N0}", (Levels[Session.GetRoleplay().Level + 1] - Session.GetRoleplay().LevelEXP)) + " Llegar al nivel " + (Session.GetRoleplay().Level + 1), 1);
+
+                    // BattlePass Integration
+                    PolarEnvironment.GetGame().GetBattlePassManager().AwardExp(Session, amount / 10); // Award 10% of RP EXP to BattlePass
                 }
             }
             catch
@@ -184,6 +187,9 @@ namespace Polar.HabboRoleplay.RoleplayUsers
                     }
                     else
                         Session.SendWhisper("Aprendizaje: " + String.Format("{0:N0}", Session.GetRoleplay().IntelligenceEXP) + "/" + String.Format("{0:N0}", (IntelligenceLevels[Session.GetRoleplay().Intelligence + 1])), 1);
+
+                    // BattlePass Challenge Integration
+                    PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Session, "learn_intelligence", 1);
                 }
             }
             catch
@@ -217,6 +223,9 @@ namespace Polar.HabboRoleplay.RoleplayUsers
                     }
                     else
                         Session.SendWhisper("Entrenando: " + String.Format("{0:N0}", Session.GetRoleplay().StrengthEXP) + "/" + String.Format("{0:N0}", (StrengthLevels[Session.GetRoleplay().Strength + 1])), 1);
+
+                    // BattlePass Challenge Integration
+                    PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Session, "train_strength", 1);
                 }
             }
             catch
@@ -250,6 +259,9 @@ namespace Polar.HabboRoleplay.RoleplayUsers
                     }
                     else
                         Session.SendWhisper("Entrenando: " + String.Format("{0:N0}", Session.GetRoleplay().StaminaEXP) + "/" + String.Format("{0:N0}", (StaminaLevels[Session.GetRoleplay().Stamina + 1])), 1);
+
+                    // BattlePass Challenge Integration
+                    PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Session, "train_stamina", 1);
                 }
             }
             catch

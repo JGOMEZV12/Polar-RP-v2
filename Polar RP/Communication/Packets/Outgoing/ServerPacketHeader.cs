@@ -357,5 +357,8 @@
 
         // RP Inventory
         public const int RPItemList = 5300;
+
+        // BattlePass
+        public const int BattlePassMessageComposer = 6000;
     }
 }

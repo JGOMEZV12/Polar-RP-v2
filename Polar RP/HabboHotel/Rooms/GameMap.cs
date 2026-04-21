@@ -545,6 +545,7 @@ namespace Polar.HabboHotel.Rooms
             }
             else if (baseItem.IsSeat ||
                      baseItem.InteractionType == InteractionType.BED ||
+                     baseItem.InteractionType == InteractionType.BEDEFFECT ||
                      baseItem.InteractionType == InteractionType.TENT_SMALL)
             {
                 GameMap[coord.X, coord.Y] = 3;
@@ -813,17 +814,21 @@ namespace Polar.HabboHotel.Rooms
 
         private bool IsValidDiagonalMove(Vector2D from, Vector2D to)
         {
+            // En Arcturus y emuladores modernos, el movimiento diagonal se permite
+            // si al menos uno de los dos tiles adyacentes es caminable.
+            // Esto permite "rodear esquinas" suavemente.
             int dx = to.X - from.X;
             int dy = to.Y - from.Y;
 
-            return (dx, dy) switch
-            {
-                (-1, -1) => GameMap[to.X + 1, to.Y] == 1 || GameMap[to.X, to.Y + 1] == 1,
-                (1, -1) => GameMap[to.X - 1, to.Y] == 1 || GameMap[to.X, to.Y + 1] == 1,
-                (1, 1) => GameMap[to.X - 1, to.Y] == 1 || GameMap[to.X, to.Y - 1] == 1,
-                (-1, 1) => GameMap[to.X + 1, to.Y] == 1 || GameMap[to.X, to.Y - 1] == 1,
-                _ => true
-            };
+            if (dx == 0 || dy == 0) return true; // No es diagonal
+
+            // En Arcturus, el movimiento diagonal es más permisivo (smooth).
+            // Se permite si al menos uno de los dos tiles adyacentes es caminable.
+            // Esto evita que el usuario se "trabe" al rodear esquinas.
+            bool adj1 = ValidTile(from.X + dx, from.Y) && GameMap[from.X + dx, from.Y] != 0;
+            bool adj2 = ValidTile(from.X, from.Y + dy) && GameMap[from.X, from.Y + dy] != 0;
+
+            return adj1 || adj2;
         }
 
         private bool HandleGroupGateAccess(RoomUser user, Item gate)
@@ -949,6 +954,7 @@ namespace Polar.HabboHotel.Rooms
                         highestStack = item.TotalHeight;
                         bool isBedSeat = item.GetBaseItem().IsSeat ||
                                          item.GetBaseItem().InteractionType == InteractionType.BED ||
+                                         item.GetBaseItem().InteractionType == InteractionType.BEDEFFECT ||
                                          item.GetBaseItem().InteractionType == InteractionType.TENT_SMALL;
                         if (isBedSeat)
                         {

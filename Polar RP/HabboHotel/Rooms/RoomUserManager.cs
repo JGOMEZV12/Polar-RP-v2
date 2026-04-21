@@ -988,9 +988,11 @@ namespace Polar.HabboHotel.Rooms
             if (nextX == user.X && nextY == user.Y) return;
 
             bool isFinalStep = (user.GoalX == nextX && user.GoalY == nextY);
+            bool isDiagonal = (user.X != nextX && user.Y != nextY);
+
             if (!_room.GetGameMap().IsValidStep(user,
                     new Vector2D(user.X, user.Y), new Vector2D(nextX, nextY),
-                    isFinalStep, user.AllowOverride)) return;
+                    isFinalStep, user.AllowOverride, false, false, isDiagonal)) return;
 
             double nextZ = _room.GetGameMap().SqAbsoluteHeight(nextX, nextY);
 
@@ -1137,16 +1139,6 @@ namespace Polar.HabboHotel.Rooms
                     User.UpdateNeeded = true;
                 }
 
-                if ((User.Statusses.ContainsKey("lay") && !User.isLying) ||
-                    (User.Statusses.ContainsKey("sit") && !User.isSitting))
-                {
-                    User.Statusses.Remove("lay");
-                    User.Statusses.Remove("sit");
-                    User.UpdateNeeded = true;
-                }
-                else if (User.isLying || User.isSitting)
-                    return;
-
                 double newZ;
                 List<Item> ItemsOnSquare = _room.GetGameMap().GetAllRoomItemForSquare(User.X, User.Y);
 
@@ -1165,24 +1157,39 @@ namespace Polar.HabboHotel.Rooms
                 else
                     newZ = Model.SqFloorHeight[User.X, User.Y];
 
-                if (newZ != User.Z)
+                if (newZ != User.Z && !User.IsWalking)
                 {
-                    User.Z = newZ;
-                    User.UpdateNeeded = true;
+                    if (User.isSitting && User.Statusses.ContainsKey("sit") && User.Statusses["sit"] == "1.0")
+                    {
+                        User.Z = newZ - 0.35;
+                        User.UpdateNeeded = true;
+                    }
+                    else if (!User.isSitting && !User.isLying)
+                    {
+                        User.Z = newZ;
+                        User.UpdateNeeded = true;
+                    }
                 }
 
                 if (Model.SqState[User.X, User.Y] == SquareState.SEAT)
                 {
-                    if (!User.Statusses.ContainsKey("sit"))
+                    if (!User.isSitting || User.Z != Model.SqFloorHeight[User.X, User.Y] || User.RotBody != Model.SqSeatRot[User.X, User.Y] || !User.Statusses.ContainsKey("sit"))
+                    {
+                        User.Statusses.Remove("sit");
+                        User.Statusses.Remove("lay");
                         User.Statusses.Add("sit", "1.0");
 
-                    User.isSitting = true;
-                    User.Z = Model.SqFloorHeight[User.X, User.Y];
-                    User.RotHead = Model.SqSeatRot[User.X, User.Y];
-                    User.RotBody = Model.SqSeatRot[User.X, User.Y];
-                    User.UpdateNeeded = true;
+                        User.isSitting = true;
+                        User.isLying = false;
+                        User.Z = Model.SqFloorHeight[User.X, User.Y];
+                        User.RotHead = Model.SqSeatRot[User.X, User.Y];
+                        User.RotBody = Model.SqSeatRot[User.X, User.Y];
+                        User.UpdateNeeded = true;
+                    }
+                    return;
                 }
 
+                bool foundFurniture = false;
                 if (ItemsOnSquare == null || ItemsOnSquare.Count == 0)
                 {
                     User.LastItem = null;
@@ -1193,14 +1200,22 @@ namespace Polar.HabboHotel.Rooms
                     {
                         if (Item == null) continue;
 
-                        if (Item.GetBaseItem().IsSeat && !User.Statusses.ContainsKey("sit"))
+                        if (Item.GetBaseItem().IsSeat)
                         {
-                            User.Statusses.Add("sit", TextHandling.GetString(Item.GetBaseItem().Height));
-                            User.isSitting = true;
-                            User.Z = Item.GetZ;
-                            User.RotHead = Item.Rotation;
-                            User.RotBody = Item.Rotation;
-                            User.UpdateNeeded = true;
+                            if (!User.isSitting || User.Z != Item.GetZ || User.RotBody != Item.Rotation || !User.Statusses.ContainsKey("sit"))
+                            {
+                                User.Statusses.Remove("sit");
+                                User.Statusses.Remove("lay");
+                                User.Statusses.Add("sit", TextHandling.GetString(Item.GetBaseItem().Height));
+                                User.isSitting = true;
+                                User.isLying = false;
+                                User.Z = Item.GetZ;
+                                User.RotHead = Item.Rotation;
+                                User.RotBody = Item.Rotation;
+                                User.UpdateNeeded = true;
+                            }
+                            foundFurniture = true;
+                            break;
                         }
 
                         switch (Item.GetBaseItem().InteractionType)
@@ -1326,10 +1341,20 @@ namespace Polar.HabboHotel.Rooms
                             case InteractionType.BEDEFFECT:
                             case InteractionType.TENT_SMALL:
                                 {
-                                    if (!User.Statusses.ContainsKey("lay"))
+                                    if (!User.isLying || User.Z != Item.GetZ || User.RotBody != Item.Rotation || !User.Statusses.ContainsKey("lay"))
+                                    {
+                                        User.Statusses.Remove("lay");
+                                        User.Statusses.Remove("sit");
                                         User.Statusses.Add("lay", TextHandling.GetString(Item.GetBaseItem().Height) + " null");
 
-                                    User.isLying = true;
+                                        User.isLying = true;
+                                        User.isSitting = false;
+                                        User.Z = Item.GetZ;
+                                        User.RotHead = Item.Rotation;
+                                        User.RotBody = Item.Rotation;
+                                        User.UpdateNeeded = true;
+                                    }
+                                    foundFurniture = true;
 
                                     if (Item.GetBaseItem().InteractionType == InteractionType.BEDEFFECT && !User.IsBot)
                                     {
@@ -1693,6 +1718,24 @@ namespace Polar.HabboHotel.Rooms
                             default:
                                 break;
                         }
+                    }
+                }
+
+                if (!foundFurniture && !User.IsWalking)
+                {
+                    if (User.isSitting && User.Statusses.ContainsKey("sit") && User.Statusses["sit"] != "1.0")
+                    {
+                        User.isSitting = false;
+                        User.Statusses.Remove("sit");
+                        User.Z = newZ;
+                        User.UpdateNeeded = true;
+                    }
+                    else if (User.isLying && User.Statusses.ContainsKey("lay") && !User.Statusses["lay"].StartsWith("1.0"))
+                    {
+                        User.isLying = false;
+                        User.Statusses.Remove("lay");
+                        User.Z = newZ;
+                        User.UpdateNeeded = true;
                     }
                 }
 

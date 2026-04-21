@@ -148,6 +148,10 @@ namespace Polar.HabboRoleplay.Timers.Types.Items
                     user?.ApplyEffect(0);
 
                 ChooseReward(base.Client);
+
+                // BattlePass Challenge Integration
+                PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(base.Client, "process_cocaine", 1);
+
                 bTile.ExtraData = "0";
                 bTile.UpdateState(false, true);
 

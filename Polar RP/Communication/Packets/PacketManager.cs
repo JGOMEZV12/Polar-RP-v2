@@ -59,6 +59,7 @@ using Polar.Communication.Packets.Incoming.Guides;
 using Polar.Communication.Packets.Incoming.Polls;
 using Polar.Communication.Packets.Incoming.HabboCamera;
 using Akiled.Communication.Packets.Incoming.HabboCamera;
+using Polar.Communication.Packets.Incoming.BattlePass;
 using Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Combat;
 
 namespace Polar.Communication.Packets
@@ -135,6 +136,7 @@ namespace Polar.Communication.Packets
             RegisterRoomCamera();
             RegisterNames();
             RegisterNavigator();
+            RegisterBattlePass();
         }
 
         // ── Packet Execution ───────────────────────────────────────────────────
@@ -506,6 +508,12 @@ namespace Polar.Communication.Packets
         }
 
         private void RegisterSound() { }
+
+        private void RegisterBattlePass()
+        {
+            Register(ClientPacketHeader.GetBattlePassMessageEvent, new GetBattlePassEvent());
+            Register(ClientPacketHeader.ClaimBattlePassRewardMessageEvent, new ClaimBattlePassRewardEvent());
+        }
 
         private void RegisterMisc()
         {
@@ -1003,6 +1011,8 @@ namespace Polar.Communication.Packets
             AddName(ClientPacketHeader.DeleteNavigatorSavedSearchMessageEvent, "DeleteNavigatorSavedSearchEvent");
             AddName(ClientPacketHeader.SetSoundSettingsMessageEvent, "SetSoundSettingsEvent");
             AddName(ClientPacketHeader.GetSongInfoMessageEvent, "GetSongInfoEvent");
+            AddName(ClientPacketHeader.GetBattlePassMessageEvent, "GetBattlePassEvent");
+            AddName(ClientPacketHeader.ClaimBattlePassRewardMessageEvent, "ClaimBattlePassRewardEvent");
         }
     }
 }

@@ -67,6 +67,9 @@ namespace Polar.HabboHotel.Items.Interactor
                     Session.GetHabbo().Credits -= 10;
                     Session.GetHabbo().UpdateCreditsBalance();
 
+                    // BattlePass Challenge Integration
+                    PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Session, "mine_rock", 1);
+
                     new Thread(() =>
                     {
                         User.CanWalk = false;
