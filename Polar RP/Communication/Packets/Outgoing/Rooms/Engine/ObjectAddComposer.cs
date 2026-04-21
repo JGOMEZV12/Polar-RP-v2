@@ -23,8 +23,9 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
             base.WriteInteger(Item.GetX);
             base.WriteInteger(Item.GetY);
             base.WriteInteger(Item.Rotation);
-            base.WriteString(String.Format("{0:0.00}", TextHandling.GetString(Item.GetZ)));
+            base.WriteString(TextHandling.GetString(Item.GetZ));
             base.WriteString(String.Empty);
+            base.WriteInteger(0);
 
             if (Item.LimitedNo > 0)
             {
@@ -104,8 +105,8 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                 ItemBehaviourUtility.GenerateExtradata(Item, this);
             }
 
-            base.WriteInteger(-1); // to-do: check
-            base.WriteInteger((Item.GetBaseItem().Modes > 1) ? 2 : 0);
+            base.WriteInteger(-1);
+            base.WriteInteger((Item.GetBaseItem().Modes > 1) ? 1 : 0);
             base.WriteInteger(Item.UserID);
             base.WriteString(Item.Username);
         }

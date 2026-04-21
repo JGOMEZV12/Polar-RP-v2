@@ -12,15 +12,26 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
         public ItemsComposer(Item[] Objects, Room Room)
             : base(ServerPacketHeader.ItemsMessageComposer)
         {
-            WriteInteger(1);
-            WriteInteger(Room.RoomData.OwnerId);
-            WriteString(Room.RoomData.OwnerName);
+            var owners = new Dictionary<int, string>();
+            foreach (var item in Objects)
+            {
+                if (item == null) continue;
+                if (!owners.ContainsKey(item.UserID))
+                    owners.Add(item.UserID, item.Username);
+            }
 
-            WriteInteger(Objects.Length);
+            base.WriteInteger(owners.Count);
+            foreach (var owner in owners)
+            {
+                base.WriteInteger(owner.Key);
+                base.WriteString(owner.Value);
+            }
+
+            base.WriteInteger(Objects.Length);
 
             foreach (Item Item in Objects)
             {
-                WriteWallItem(Item, Room.OwnerId);
+                WriteWallItem(Item, Item.UserID);
             }
         }
 
@@ -28,14 +39,7 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
         {
             this.WriteString(Item.Id.ToString());
             this.WriteInteger(Item.Data.SpriteId);
-            try
-            {
-                this.WriteString(Item.wallCoord);
-            }
-            catch
-            {
-                this.WriteString("");
-            }
+            this.WriteString(Item.wallCoord ?? string.Empty);
             ItemBehaviourUtility.GenerateWallExtradata(Item, (ServerPacket)this);
             this.WriteInteger(-1);
             this.WriteInteger(Item.Data.Modes > 1 ? 1 : 0);

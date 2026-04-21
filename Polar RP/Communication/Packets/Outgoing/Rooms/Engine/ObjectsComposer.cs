@@ -16,45 +16,31 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
         public ObjectsComposer(Item[] Objects, Room Room)
             : base(ServerPacketHeader.ObjectsMessageComposer)
         {
-            base.WriteInteger(1);
-            base.WriteInteger(Room.OwnerId);
-            base.WriteString(Room.OwnerName);
+            var owners = new Dictionary<int, string>();
+            var filteredItems = new List<Item>();
 
-            if (Room.HideWired)
+            foreach (var item in Objects)
             {
-                // Filtrar objetos válidos y no wired
-                List<Item> l = new List<Item>();
-                foreach (var it in Objects)
-                {
-                    if (it == null)
-                        continue;
+                if (item == null) continue;
+                if (Room.HideWired && item.IsWired) continue;
 
-                    if (it.IsWired)
-                        continue;
+                filteredItems.Add(item);
 
-                    l.Add(it);
-                }
-
-                Objects = l.ToArray();
-
-                // Escribir la cantidad
-                base.WriteInteger(Objects.Length);
-
-                // Enviar cada ítem
-                foreach (var item in Objects)
-                {
-                    WriteFloorItem(item, Convert.ToInt32(item.UserID));
-                }
-
+                if (!owners.ContainsKey(item.UserID))
+                    owners.Add(item.UserID, item.Username);
             }
-            else
-            {
-                base.WriteInteger(Objects.Length);
 
-                foreach (var item in Objects)
-                {
-                    WriteFloorItem(item, Convert.ToInt32(item.UserID));
-                }
+            base.WriteInteger(owners.Count);
+            foreach (var owner in owners)
+            {
+                base.WriteInteger(owner.Key);
+                base.WriteString(owner.Value);
+            }
+
+            base.WriteInteger(filteredItems.Count);
+            foreach (var item in filteredItems)
+            {
+                WriteFloorItem(item, item.UserID);
             }
         }
 
@@ -65,8 +51,9 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
             base.WriteInteger(Item.GetX);
             base.WriteInteger(Item.GetY);
             base.WriteInteger(Item.Rotation);
-            base.WriteString(String.Format("{0:0.00}", TextHandling.GetString(Item.GetZ)));
+            base.WriteString(TextHandling.GetString(Item.GetZ));
             base.WriteString(String.Empty);
+            base.WriteInteger(0);
 
             if (Item.LimitedNo > 0)
             {

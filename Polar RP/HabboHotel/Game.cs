@@ -309,7 +309,10 @@ namespace Polar.HabboHotel
 
             Progress(bar, wait, end, "Cargando BattlePass...");
             _battlePassManager = new BattlePassManager();
-            _battlePassManager.Initialize(PolarEnvironment.GetDatabaseManager().GetQueryReactor());
+            using (var dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+            {
+                _battlePassManager.Initialize(dbClient);
+            }
         }
 
         public async Task InitializeAsync()
