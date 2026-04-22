@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Polar.Core;
 using Polar.HabboHotel.Items;
@@ -139,11 +139,16 @@ namespace Polar.Communication.Packets.Outgoing.Catalog
 
             // Escribir datos del item
             WriteItemData(item);
+
+            WriteInteger(0); // club_level
+            WriteBoolean(ItemUtility.CanSelectAmount(item));
+            WriteBoolean(true); // unknown, usualmente true
+            WriteString(""); // extra data 2 (previewImage)
         }
 
         private void WriteItemData(CatalogItem item)
         {
-            string itemType = item.Data.Type.ToString();
+            string itemType = item.Data.Type.ToString().ToLower();
             WriteString(itemType);
 
             if (itemType.Equals("b", StringComparison.OrdinalIgnoreCase))
@@ -168,11 +173,6 @@ namespace Polar.Communication.Packets.Outgoing.Catalog
                     WriteInteger(Math.Max(0, item.LimitedEditionStack - item.LimitedEditionSells));
                 }
             }
-
-            WriteInteger(0); // club_level
-            WriteBoolean(ItemUtility.CanSelectAmount(item));
-            WriteBoolean(true); // unknown, usualmente true
-            WriteString(""); // extra data 2
         }
 
         private string GetItemExtraData(CatalogItem item)
