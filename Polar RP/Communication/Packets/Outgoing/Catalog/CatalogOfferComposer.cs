@@ -1,4 +1,4 @@
-using Polar.Core;
+﻿using Polar.Core;
 using Polar.HabboHotel.Catalog;
 using Polar.HabboHotel.Catalog.Utilities;
 using Polar.HabboHotel.Items;
@@ -14,6 +14,7 @@ namespace Polar.Communication.Packets.Outgoing.Catalog
         public CatalogOfferComposer(CatalogItem Item)
             : base(ServerPacketHeader.CatalogOfferMessageComposer)
         {
+            //Logging.WriteLine($"Creando CatalogOfferComposer para item: {Item.Id}, Tipo: {Item.Data.Type}");
             WriteInteger(Item.OfferId);
             WriteString(Item.Name);
             WriteBoolean(false); // IsRentable
@@ -22,12 +23,12 @@ namespace Polar.Communication.Packets.Outgoing.Catalog
             if (Item.CostDiamonds > 0)
             {
                 WriteInteger(Item.CostDiamonds);
-                WriteInteger(5); // Currency: Diamonds
+                WriteInteger(105); // Tipo de moneda: Diamantes
             }
             else
             {
                 WriteInteger(Item.CostPixels);
-                WriteInteger(0); // Currency: Duckets/Pixels
+                WriteInteger(0); // Tipo de moneda: Duckets/Pixels
             }
 
             WriteBoolean(ItemUtility.CanGiftItem(Item));
@@ -92,7 +93,7 @@ namespace Polar.Communication.Packets.Outgoing.Catalog
 
             WriteInteger(0); // club_level (0 = no requiere HC)
             WriteBoolean(ItemUtility.CanSelectAmount(Item));
-            WriteBoolean(false); // purchaseAsGift
+            WriteBoolean(false); // "purchaseAsGift" (siempre false por ahora)
             WriteString(""); // previewImage
         }
     }

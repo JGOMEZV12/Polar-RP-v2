@@ -876,7 +876,7 @@ namespace Polar.HabboHotel.Rooms
         public void SendObjects(GameClient Session)
         {
             Room Room = Session.GetHabbo().CurrentRoom;
-            Session.SendMessage(new HeightMapComposer(Room.GetGameMap().Model.Heightmap));
+            Session.SendMessage(new HeightMapComposer(Room.GetGameMap().Model));
             Session.SendMessage(new FloorHeightMapComposer(Room, Room.GetGameMap().Model.GetRelativeHeightmap(), Room.GetGameMap().StaticModel.WallHeight));
 
             foreach (RoomUser RoomUser in _roomUserManager.GetUserList().ToList())
