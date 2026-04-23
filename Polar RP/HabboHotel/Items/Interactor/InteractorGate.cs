@@ -59,6 +59,20 @@ namespace Polar.HabboHotel.Items.Interactor
             Item.UpdateState();
 
             Item.GetRoom().GetGameMap().UpdateMapForItem(Item);
+
+            var usersOnTiles = new List<RoomUser>();
+            foreach (var tile in Item.GetAffectedTiles)
+            {
+                var user = Item.GetRoom().GetRoomUserManager().GetUserForSquare(tile.X, tile.Y);
+                if (user != null && !usersOnTiles.Contains(user))
+                    usersOnTiles.Add(user);
+            }
+
+            foreach (var user in usersOnTiles)
+            {
+                Item.GetRoom().GetRoomUserManager().UpdateUserStatus(user, false);
+            }
+
             Item.GetRoom().GetWired().TriggerEvent(WiredBoxType.TriggerStateChanges, Session.GetHabbo(), Item);
             //Item.GetRoom().GenerateMaps();
         }
@@ -97,6 +111,19 @@ namespace Polar.HabboHotel.Items.Interactor
             Item.UpdateState();
 
             Item.GetRoom().GetGameMap().UpdateMapForItem(Item);
+
+            var usersOnTiles = new List<RoomUser>();
+            foreach (var tile in Item.GetAffectedTiles)
+            {
+                var user = Item.GetRoom().GetRoomUserManager().GetUserForSquare(tile.X, tile.Y);
+                if (user != null && !usersOnTiles.Contains(user))
+                    usersOnTiles.Add(user);
+            }
+
+            foreach (var user in usersOnTiles)
+            {
+                Item.GetRoom().GetRoomUserManager().UpdateUserStatus(user, false);
+            }
             //Item.GetRoom().GenerateMaps();
         }
     }

@@ -444,6 +444,7 @@ namespace Polar.HabboHotel.Items
                         return new InteractorDice();
                     case InteractionType.CRACKABLE:
                     case InteractionType.CRACKABLE_MONSTER:
+                    case InteractionType.CRACKABLE_EGG:
                         return new InteractorGenericSwitch(); // Fallback for now
                     case InteractionType.GATE:
                     case InteractionType.ONE_WAY_GATE:
@@ -456,9 +457,13 @@ namespace Polar.HabboHotel.Items
                     case InteractionType.HOPPER:
                     case InteractionType.COSTUME_HOPPER:
                     case InteractionType.CLUB_HOPPER:
+                    case InteractionType.TELEPORT_TILE:
                         return new InteractorTeleport();
                     case InteractionType.NONE:
-                    default: return new InteractorGenericSwitch();
+                    default:
+                        if (GetBaseItem().IsSeat) return new InteractorGenericSwitch(); // or chair interactor
+                        if (GetBaseItem().InteractionType == InteractionType.BED || GetBaseItem().InteractionType == InteractionType.BEDEFFECT) return new InteractorGenericSwitch(); // or bed interactor
+                        return new InteractorGenericSwitch();
                 }
             }
         }

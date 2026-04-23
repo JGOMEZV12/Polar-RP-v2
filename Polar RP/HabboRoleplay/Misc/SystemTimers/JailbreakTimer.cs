@@ -127,6 +127,10 @@ namespace Polar.HabboRoleplay.Timers.Types
 
                     RoleplayManager.Shout(Client, "*El escape se ha completado*", 4);
                     PolarEnvironment.GetGame().GetAchievementManager().ProgressAchievement(Client, "ACH_Jailbreak", 1);
+
+                    // BattlePass Challenge Integration
+                    PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Client, "jailbreak", 1);
+
                     Client.GetRoleplay().Jailbroken = false;
                     Client.GetRoleplay().IsWanted = false;
                     Client.GetRoleplay().IsJailed = false;

@@ -378,5 +378,9 @@
         public const int RequestInventoryRP = 5300;
         public const int EquipRPInventory = 5301;
         public const int DesequipRPInventory = 5302;
+
+        // BattlePass
+        public const int GetBattlePassMessageEvent = 6000;
+        public const int ClaimBattlePassRewardMessageEvent = 6001;
     }
 }

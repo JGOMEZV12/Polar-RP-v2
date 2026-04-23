@@ -50,6 +50,10 @@ namespace Polar.HabboRoleplay.Bots.PetBots
                 Client.GetRoleplay().AddHuntSkin(this.GetBotRoleplay().PetInstance.Type, Pieles);
 
                 RoleplayManager.ShoutSay(Client, "*Ha cazado a " + this.GetBotRoleplay().Name + " y obtiene " + Puntos + " puntos y " + Pieles + " pieles*", 4, "black", true);
+
+                // BattlePass Challenge Integration
+                PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Client, "hunt_pet", 1);
+
                 Client.SendWhisper("Has ganado " + Puntos + " puntos de caza y " + Pieles + " pieles. Total: " + Client.GetRoleplay().HuntPoints + " puntos, " + Client.GetRoleplay().HuntSkins, 1);
 
                 // Desplegar de nuevo después de un tiempo o simplemente eliminarlo

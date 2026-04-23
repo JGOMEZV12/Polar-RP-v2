@@ -101,6 +101,9 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Gangs
             Session.Shout("*Saca un medipack de su almacenamiento de pandillas y aplica algunas vendas en " + TargetClient.GetHabbo().Username + " para curarlo*", 4);
             Gang.MediPacks -= 1;
 
+            // BattlePass Challenge Integration
+            PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Session, "gang_heal", 1);
+
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                 dbClient.RunQuery("UPDATE `rp_gangs` SET `medipacks` = '" + Gang.MediPacks + "' WHERE `id` = '" + Gang.Id + "'");
 

@@ -1,5 +1,6 @@
-﻿using Polar.HabboHotel.Catalog;
+using Polar.HabboHotel.Catalog;
 using Polar.HabboHotel.Items;
+using Polar.HabboHotel.Catalog.Utilities;
 
 namespace Polar.Communication.Packets.Outgoing.Catalog
 {
@@ -44,51 +45,50 @@ namespace Polar.Communication.Packets.Outgoing.Catalog
 
         private void WritePurchase(CatalogItem item, ItemData baseItem)
         {
-            // 1. BaseItem ID (NO OfferId!)
-            WriteInteger(baseItem.Id);
-
-            // 2. BaseItem ItemName (NO CatalogItem.Name!)
-            WriteString(baseItem.ItemName);
-
-            // 3. Is rentable (always false)
-            WriteBoolean(false);
-
-            // 4. Cost in credits
+            WriteInteger(item.Id);
+            WriteString(item.Name);
+            WriteBoolean(false); // rentable
             WriteInteger(item.CostCredits);
 
-            // 5. Cost in pixels/duckets
-            WriteInteger(item.CostPixels);
+            if (item.CostDiamonds > 0)
+            {
+                WriteInteger(item.CostDiamonds);
+                WriteInteger(5); // diamonds
+            }
+            else
+            {
+                WriteInteger(item.CostPixels);
+                WriteInteger(0); // pixels
+            }
 
-            // 6. Currency type (0 = duckets, 5 = diamonds)
-            // IMPORTANTE: Tu versión siempre usa 0 aquí, incluso para diamantes
-            WriteInteger(0);
+            WriteBoolean(ItemUtility.CanGiftItem(item));
 
-            // 7. Can gift (siempre true en tu versión)
-            WriteBoolean(true);
+            int itemCount = string.IsNullOrEmpty(item.Badge) ? 1 : 2;
+            WriteInteger(itemCount);
 
-            // 8. Number of items (siempre 1 en tu versión)
-            WriteInteger(1);
-
-            // 9. Item type
+            // Item Data
             WriteString(baseItem.Type.ToString().ToLower());
-
-            // 10. Sprite ID
             WriteInteger(baseItem.SpriteId);
+            WriteString(""); // extra data
+            WriteInteger(item.Amount);
+            WriteBoolean(item.IsLimited);
+            if (item.IsLimited)
+            {
+                WriteInteger(item.LimitedEditionStack);
+                WriteInteger(item.LimitedEditionStack - item.LimitedEditionSells);
+            }
 
-            // 11. Extra data (siempre vacío en tu versión)
-            WriteString("");
+            // Badge if any
+            if (!string.IsNullOrEmpty(item.Badge))
+            {
+                WriteString("b");
+                WriteString(item.Badge);
+            }
 
-            // 12. Amount (siempre 1 en tu versión)
-            WriteInteger(1);
-
-            // 13. Unknown integer (0 en tu versión)
-            WriteInteger(0);
-
-            // 14. Unknown string (vacío en tu versión)
-            WriteString("");
-
-            // 15. Unknown integer (1 en tu versión)
-            WriteInteger(1);
+            WriteInteger(0); // club level
+            WriteBoolean(ItemUtility.CanSelectAmount(item));
+            WriteBoolean(true);
+            WriteString(""); // preview image
         }
     }
 }

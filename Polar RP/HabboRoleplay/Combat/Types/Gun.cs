@@ -1345,6 +1345,9 @@ Client.GetRoleplay().OpenUsersDialogue(TargetClient);
             Client.GetRoleplay().Kills++;
             Client.GetRoleplay().HitKills++;
 
+            // BattlePass Challenge Integration
+            PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Client, "kill_user", 1);
+
             CryptoRandom Random = new CryptoRandom();
 
 

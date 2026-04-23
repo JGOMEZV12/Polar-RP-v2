@@ -20,10 +20,8 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
 
             ItemBehaviourUtility.GenerateWallExtradata(Item, this);
 
-            base.WriteInteger(-1);
-            base.WriteInteger((Item.GetBaseItem().Modes > 1) ? 2 : 0); // Type New R63 ('use bottom')
+            base.WriteInteger((Item.GetBaseItem().Modes > 1) ? 1 : 0);
             base.WriteInteger(Item.UserID);
-           base.WriteString(Item.Username);
         }
     }
 }

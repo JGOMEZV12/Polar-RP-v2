@@ -444,10 +444,13 @@ namespace Polar.HabboHotel.Items
                 case "default":
                     return InteractionType.NONE;
                 case "gate":
+                case "door":
                     return InteractionType.GATE;
                 case "postit":
+                case "sticky_note":
                     return InteractionType.POSTIT;
                 case "dimmer":
+                case "moodlight":
                     return InteractionType.MOODLIGHT;
                 case "trophy":
                     return InteractionType.TROPHY;
@@ -458,10 +461,12 @@ namespace Polar.HabboHotel.Items
                 case "scoreboard":
                     return InteractionType.SCOREBOARD;
                 case "vendingmachine":
+                case "vending_machine":
                     return InteractionType.VENDING_MACHINE;
                 case "alert":
                     return InteractionType.ALERT;
                 case "onewaygate":
+                case "one_way_gate":
                     return InteractionType.ONE_WAY_GATE;
                 case "loveshuffler":
                     return InteractionType.LOVE_SHUFFLER;
@@ -502,8 +507,10 @@ namespace Polar.HabboHotel.Items
                 case "nest":
                     return InteractionType.NEST;
                 case "pet_drink":
+                case "pet_water":
                     return InteractionType.PET_DRINK;
                 case "pet_food":
+                case "pet_food_bowl":
                     return InteractionType.PET_FOOD;
                 case "pet_toy":
                     return InteractionType.PET_TOY;
@@ -755,11 +762,14 @@ namespace Polar.HabboHotel.Items
                     return InteractionType.WIRED_EFFECT;
                 case "clothing":
                 case "habbo_clothing":
+                case "purchasable_clothing":
                     return InteractionType.PURCHASABLE_CLOTHING;
                 case "mystery_box":
                     return InteractionType.MAGICCHEST;
                 case "guild_item":
                 case "guild_furni":
+                case "guild_furni_wallpaper":
+                case "guild_furni_floor":
                     return InteractionType.GUILD_ITEM;
                 case "guild_forum":
                     return InteractionType.GUILD_FORUM;
@@ -767,6 +777,7 @@ namespace Polar.HabboHotel.Items
                     return InteractionType.GUILD_GATE;
                 case "roomads":
                 case "external_image":
+                case "ads_bg":
                     return InteractionType.BACKGROUND;
                 case "totem":
                     return InteractionType.NONE; // Generic
@@ -785,6 +796,7 @@ namespace Polar.HabboHotel.Items
 
                 case "crackable":
                 case "crackable_egg":
+                case "crackable_furni":
                     return InteractionType.CRACKABLE_EGG;
                 case "effect":
                     return InteractionType.EFFECT;

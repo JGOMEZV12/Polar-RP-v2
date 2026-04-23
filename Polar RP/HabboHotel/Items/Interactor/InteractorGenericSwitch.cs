@@ -40,29 +40,22 @@ namespace Polar.HabboHotel.Items.Interactor
             Item.ExtraData = NewMode.ToString();
             Item.UpdateState();
 
-            var RoomUser = Item.GetRoom().GetRoomUserManager().GetRoomUserByHabbo(Session.GetHabbo().Id);
-
+            // Handle items with adjustable heights (like pyramids or stacking tools)
             if (Item.GetBaseItem().AdjustableHeights.Count > 0)
             {
-                if (RoomUser.Z != RoomUser.GetRoom().GetGameMap().GetHeightForSquare(RoomUser.Coordinate))
+                Item.GetRoom().GetGameMap().UpdateMapForItem(Item);
+
+                var usersOnTiles = new List<RoomUser>();
+                foreach (var tile in Item.GetAffectedTiles)
                 {
-                    RoomUser.Z = RoomUser.GetRoom().GetGameMap().GetHeightForSquare(RoomUser.Coordinate);
-                    RoomUser.ClearMovement(true);
+                    var user = Item.GetRoom().GetRoomUserManager().GetUserForSquare(tile.X, tile.Y);
+                    if (user != null && !usersOnTiles.Contains(user))
+                        usersOnTiles.Add(user);
                 }
 
-                if (RoomUser.Z < Item.TotalHeight)
+                foreach (var user in usersOnTiles)
                 {
-                    List<Point> PointList = Item.GetAffectedTiles;
-                    Item.GetRoom().GetGameMap().UpdateMapForItem(Item);
-
-                    foreach (Point point in PointList)
-                    {
-                        if (point.X == RoomUser.X && point.Y == RoomUser.Y)
-                        {
-                            RoomUser.Z = Item.TotalHeight;
-                            RoomUser.ClearMovement(true);
-                        }
-                    }
+                    Item.GetRoom().GetRoomUserManager().UpdateUserStatus(user, false);
                 }
             }
         }

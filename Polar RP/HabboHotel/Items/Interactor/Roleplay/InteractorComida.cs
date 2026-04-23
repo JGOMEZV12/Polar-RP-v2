@@ -41,6 +41,9 @@ namespace Polar.HabboHotel.Items.Interactor
                 Session.GetRoleplay().Hunger -= 30;
                 Session.GetHabbo().Credits -= 100;
                 Session.GetHabbo().UpdateCreditsBalance();
+
+                // BattlePass Challenge Integration
+                PolarEnvironment.GetGame().GetBattlePassManager().ProgressChallenge(Session, "eat_food", 1);
                 User.MoveTo(Item.SquareInFront);
                 User.CarryItem(71);
             }

@@ -447,6 +447,11 @@ namespace Polar.HabboRoleplay.RoleplayUsers
             RoleplayManager.UpdateMyProductExtrada(Client, RoleplayManager.MecPartsID, RoleplayUser.MecParts.ToString());
             RoleplayManager.UpdateMyProductExtrada(Client, RoleplayManager.ArmMatID, RoleplayUser.ArmMat.ToString());
             RoleplayManager.UpdateMyProductExtrada(Client, RoleplayManager.ArmPiecesID, RoleplayUser.ArmPieces.ToString());
+
+            if (RoleplayUser.BattlePassData != null)
+            {
+                PolarEnvironment.GetGame().GetBattlePassManager().SaveUserData(RoleplayUser.BattlePassData, DB);
+            }
         }
     }
 }

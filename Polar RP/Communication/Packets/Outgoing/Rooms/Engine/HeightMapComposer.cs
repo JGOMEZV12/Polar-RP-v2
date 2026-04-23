@@ -1,48 +1,27 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System;
+using Polar.HabboHotel.Rooms;
 
 namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
 {
     internal class HeightMapComposer : ServerPacket
     {
-        public HeightMapComposer(string Map)
+        public HeightMapComposer(DynamicRoomModel model)
             : base(ServerPacketHeader.HeightMapMessageComposer)
         {
-            Map = Map.Replace("\n", "");
-            string[] Split = Map.Split('\r');
-            base.WriteInteger(Split[0].Length);
-            base.WriteInteger((Split.Length - 1) * Split[0].Length);
-            int x = 0;
-            int y = 0;
-            for (y = 0; y < Split.Length - 1; y++)
+            WriteInteger(model.MapSizeX);
+            WriteInteger(model.MapSizeX * model.MapSizeY);
+
+            for (int y = 0; y < model.MapSizeY; y++)
             {
-                for (x = 0; x < Split[0].Length; x++)
+                for (int x = 0; x < model.MapSizeX; x++)
                 {
-                    char pos;
-
-                    try
+                    if (model.SqState[x, y] == SquareState.BLOCKED)
                     {
-                        pos = Split[y][x];
+                        WriteShort(-1);
                     }
-                    catch { pos = 'x'; }
-
-                    if (pos == 'x')
-                        base.WriteShort(-1);
                     else
                     {
-                        int Height = 0;
-                        if (int.TryParse(pos.ToString(), out Height))
-                        {
-                            Height = Height * 256;
-                        }
-                        else
-                        {
-                            Height = ((Convert.ToInt32(pos) - 87) * 256);
-                        }
-                        base.WriteShort(Height);
+                        WriteShort((short)(model.SqFloorHeight[x, y] * 256));
                     }
                 }
             }

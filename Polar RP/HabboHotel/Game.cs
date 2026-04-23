@@ -6,6 +6,7 @@ using Polar.Database.Interfaces;
 using Polar.HabboHotel.Achievements;
 using Polar.HabboHotel.Animations;
 using Polar.HabboHotel.Badges;
+using Polar.HabboHotel.BattlePass;
 using Polar.HabboHotel.Bots;
 using Polar.HabboHotel.Cache;
 using Polar.HabboHotel.Catalog;
@@ -106,6 +107,7 @@ namespace Polar.HabboHotel
         private HouseManager          _houseManager;
         private ApartmentOwnedManager _apartmentownedManager;
         private WebEventManager       _webEventManager;
+        private BattlePassManager     _battlePassManager;
         private CrackableManager      _crackableManager;
         private TargetedOffersManager _targetedoffersManager;
         private FurniMaticRewardsManager _furniMaticRewardsManager;
@@ -305,6 +307,12 @@ namespace Polar.HabboHotel
             _apartmentownedManager = new ApartmentOwnedManager();
             _apartmentownedManager.Init();
 
+            Progress(bar, wait, end, "Cargando BattlePass...");
+            _battlePassManager = new BattlePassManager();
+            using (var dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
+            {
+                _battlePassManager.Initialize(dbClient);
+            }
         }
 
         public async Task InitializeAsync()
@@ -479,6 +487,7 @@ namespace Polar.HabboHotel
         public TurfManager            GetGangTurfsManager()       => _gangturfsManager;
         public HallOfFame             GetHallOfFame()             => _hallOfFame;
         public RPRoomManager          GetRPRoomManager()          => _rproomManager;
+        public BattlePassManager      GetBattlePassManager()      => _battlePassManager;
         public TargetedOffersManager  GetTargetedOffersManager()  => _targetedoffersManager;
         public CrackableManager       GetPinataManager()          => _crackableManager;
         public FurniMaticRewardsManager GetFurniMaticRewardsMnager() => _furniMaticRewardsManager;
