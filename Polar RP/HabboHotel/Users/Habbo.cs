@@ -160,6 +160,8 @@ namespace Polar.HabboHotel.Users
         private int _backgroundId;
         private int _standId;
         private int _overlayId;
+        private string _namePrefix;
+        private string _nameColor;
 
 
         //Fastfood
@@ -223,7 +225,7 @@ namespace Polar.HabboHotel.Users
         public Habbo(int Id, string Username, int Rank, string Motto, string Look, string Gender, int Credits, int ActivityPoints, int HomeRoom,
             bool HasFriendRequestsDisabled, int LastOnline, bool AppearOffline, bool HideInRoom, double CreateDate, int Diamonds,
             string machineID, string clientVolume, bool ChatPreference, bool FocusPreference, bool PetsMuted, bool BotsMuted, bool AdvertisingReportBlocked, double LastNameChange,
-            int EventPoints, bool IgnoreInvites, double TimeMuted, double TradingLock, bool AllowGifts, int FriendBarState, bool DisableForcedEffects, bool AllowMimic, int VIPRank, bool IsBot, string Colour, string citizenShip, bool nux, byte TargetedBuy, int citizenshipLevel, int onLine, string PinCliente, int UniqueId, int backgroundId, int standId, int overlayId)
+            int EventPoints, bool IgnoreInvites, double TimeMuted, double TradingLock, bool AllowGifts, int FriendBarState, bool DisableForcedEffects, bool AllowMimic, int VIPRank, bool IsBot, string Colour, string citizenShip, bool nux, byte TargetedBuy, int citizenshipLevel, int onLine, string PinCliente, int UniqueId, int backgroundId, int standId, int overlayId, string namePrefix = "", string nameColor = "")
         {
             this._id = Id;
             this._uniqueId = UniqueId;
@@ -250,6 +252,8 @@ namespace Polar.HabboHotel.Users
             this._backgroundId = backgroundId;
             this._standId = standId;
             this._overlayId = overlayId;
+            this._namePrefix = namePrefix;
+            this._nameColor = nameColor;
 
             if (!IsBot)
             {
@@ -514,6 +518,36 @@ namespace Polar.HabboHotel.Users
         {
             get { return this._overlayId; }
             set { this._overlayId = value; }
+        }
+
+        public string NamePrefix
+        {
+            get { return this._namePrefix; }
+            set { this._namePrefix = value; }
+        }
+
+        public string NameColor
+        {
+            get { return this._nameColor; }
+            set { this._nameColor = value; }
+        }
+
+        public string GetDisplayName()
+        {
+            string name = this.Username;
+            if (!string.IsNullOrEmpty(this.NameColor))
+            {
+                name = (this.NameColor.ToLower() == "rainbow")
+                    ? CommandManager.GenerateRainbowText(this.Username)
+                    : $"<font color='#{this.NameColor}'>{this.Username}</font>";
+            }
+
+            if (!string.IsNullOrEmpty(this.NamePrefix))
+            {
+                name = $"{this.NamePrefix} {name}";
+            }
+
+            return name;
         }
 
         public string Gender

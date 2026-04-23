@@ -104,17 +104,17 @@ namespace Polar.HabboHotel.Users.Inventory
 
                 if (fromRoom)
                 {
-                    dbClient.RunQuery($"UPDATE `items` SET `room_id` = '0', `user_id` = '{_userId}' WHERE `id` = '{id}' LIMIT 1");
+                    dbClient.RunQuery($"UPDATE `{Polar.Core.DatabaseCompatibility.ItemsTable}` SET `room_id` = '0', `user_id` = '{_userId}' WHERE `id` = '{id}' LIMIT 1");
                 }
                 else
                 {
                     if (id > 0)
                     {
-                        dbClient.RunQuery($"INSERT INTO `items` (`id`,`base_item`,`user_id`,`limited_number`,`limited_stack`) VALUES ('{id}','{baseItem}','{_userId}','{limitedNumber}','{limitedStack}')");
+                        dbClient.RunQuery($"INSERT INTO `{Polar.Core.DatabaseCompatibility.ItemsTable}` (`id`,`{Polar.Core.DatabaseCompatibility.ItemsBaseItemColumn}`,`user_id`,`limited_number`,`limited_stack`) VALUES ('{id}','{baseItem}','{_userId}','{limitedNumber}','{limitedStack}')");
                     }
                     else
                     {
-                        dbClient.SetQuery($"INSERT INTO `items` (`base_item`,`user_id`,`limited_number`,`limited_stack`) VALUES ('{baseItem}','{_userId}','{limitedNumber}','{limitedStack}')");
+                        dbClient.SetQuery($"INSERT INTO `{Polar.Core.DatabaseCompatibility.ItemsTable}` (`{Polar.Core.DatabaseCompatibility.ItemsBaseItemColumn}`,`user_id`,`limited_number`,`limited_stack`) VALUES ('{baseItem}','{_userId}','{limitedNumber}','{limitedStack}')");
                         id = Convert.ToInt32(dbClient.InsertQuery());
                     }
 
@@ -125,7 +125,7 @@ namespace Polar.HabboHotel.Users.Inventory
 
                     if (!string.IsNullOrEmpty(extraData))
                     {
-                        dbClient.SetQuery($"UPDATE `items` SET `extra_data` = @extradata WHERE `id` = '{id}' LIMIT 1");
+                        dbClient.SetQuery($"UPDATE `{Polar.Core.DatabaseCompatibility.ItemsTable}` SET `extra_data` = @extradata WHERE `id` = '{id}' LIMIT 1");
                         dbClient.AddParameter("extradata", extraData);
                         dbClient.RunQuery();
                     }
@@ -202,15 +202,16 @@ namespace Polar.HabboHotel.Users.Inventory
 
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
+                string table = Polar.Core.DatabaseCompatibility.ItemsTable;
                 dbClient.runFastQuery(
-                    "DELETE items, wired_items, user_presents, room_items_moodlight, room_items_tele_links, room_items_toner, items_groups FROM items " +
-                    "LEFT JOIN wired_items              ON (wired_items.id = items.id) " +
-                    "LEFT JOIN user_presents            ON (user_presents.item_id = items.id) " +
-                    "LEFT JOIN room_items_moodlight     ON (room_items_moodlight.item_id = items.id) " +
-                    "LEFT JOIN room_items_tele_links    ON (room_items_tele_links.tele_one_id = items.id OR room_items_tele_links.tele_two_id = items.id) " +
-                    "LEFT JOIN room_items_toner         ON (room_items_toner.id = items.id) " +
-                    "LEFT JOIN items_groups             ON (items_groups.id = items.id) " +
-                    $"WHERE items.room_id = '0' AND items.user_id = '{_userId}'");
+                    $"DELETE i, wired_items, user_presents, room_items_moodlight, room_items_tele_links, room_items_toner, items_groups FROM `{table}` i " +
+                    "LEFT JOIN wired_items              ON (wired_items.id = i.id) " +
+                    "LEFT JOIN user_presents            ON (user_presents.item_id = i.id) " +
+                    "LEFT JOIN room_items_moodlight     ON (room_items_moodlight.item_id = i.id) " +
+                    "LEFT JOIN room_items_tele_links    ON (room_items_tele_links.tele_one_id = i.id OR room_items_tele_links.tele_two_id = i.id) " +
+                    "LEFT JOIN room_items_toner         ON (room_items_toner.id = i.id) " +
+                    "LEFT JOIN items_groups             ON (items_groups.id = i.id) " +
+                    $"WHERE i.room_id = '0' AND i.user_id = '{_userId}'");
             }
 
             _floorItems.Clear();

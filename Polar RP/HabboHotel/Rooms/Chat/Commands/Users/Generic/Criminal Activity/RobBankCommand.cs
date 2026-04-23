@@ -79,10 +79,25 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands.Users.Generic.Criminal
             }
 
             if (Session.GetRoleplay().Robbery == true)
-
             {
                 Session.SendWhisper("¡Ya estás robando el banco!");
                 return;
+            }
+
+            if (Room.BankCapturing && Room.TurfUserAtackerId != Session.GetHabbo().Id)
+            {
+                Session.SendWhisper("¡Alguien más ya está robando la bóveda!");
+                return;
+            }
+
+            if (RoleplayManager.VaultCooldowns.TryGetValue(Room.RoomId, out DateTime cooldownEnd))
+            {
+                if (DateTime.Now < cooldownEnd)
+                {
+                    TimeSpan timeLeft = cooldownEnd - DateTime.Now;
+                    Session.SendWhisper("La bóveda ha sido robada recientemente. Debes esperar " + (int)timeLeft.TotalHours + " hora(s) y " + timeLeft.Minutes + " minuto(s) más.");
+                    return;
+                }
             }
 
             if (Session.GetRoleplay().GangId <= 0)

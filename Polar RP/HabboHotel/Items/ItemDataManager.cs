@@ -35,7 +35,7 @@ namespace Polar.HabboHotel.Items
             {
                 using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                 {
-                    dbClient.SetQuery("SELECT * FROM `furniture`");
+                    dbClient.SetQuery($"SELECT * FROM `{DatabaseCompatibility.FurnitureTable}`");
                     DataTable ItemData = dbClient.getTable();
 
                     if (ItemData != null)
@@ -44,37 +44,55 @@ namespace Polar.HabboHotel.Items
                         {
                             try
                             {
-                                int id = Convert.ToInt32(Row["id"]);
-                                int spriteID = Convert.ToInt32(Row["sprite_id"]);
-                                string itemName = Convert.ToString(Row["item_name"]);
-                                string publicname = Convert.ToString(Row["public_name"]);
-                                string type = Row["type"].ToString();
-                                int width = Convert.ToInt32(Row["width"]);
-                                int length = Convert.ToInt32(Row["length"]);
-                                double height = Convert.ToDouble(Row["stack_height"]);
-                                bool allowStack = PolarEnvironment.EnumToBool(Row["can_stack"].ToString());
-                                bool allowWalk = PolarEnvironment.EnumToBool(Row["is_walkable"].ToString());
-                                bool allowSit = PolarEnvironment.EnumToBool(Row["can_sit"].ToString());
-                                bool allowRecycle = PolarEnvironment.EnumToBool(Row["allow_recycle"].ToString());
-                                bool allowTrade = PolarEnvironment.EnumToBool(Row["allow_trade"].ToString());
-                                bool allowMarketplace = Convert.ToInt32(Row["allow_marketplace_sell"]) == 1;
-                                bool allowGift = Convert.ToInt32(Row["allow_gift"]) == 1;
-                                bool allowInventoryStack = PolarEnvironment.EnumToBool(Row["allow_inventory_stack"].ToString());
-                                InteractionType interactionType = InteractionTypes.GetTypeFromString(Convert.ToString(Row["interaction_type"]));
-                                int behaviourData = Convert.ToInt32(Row["behaviour_data"]);
-                                int cycleCount = Convert.ToInt32(Row["interaction_modes_count"]);
-                                string vendingIDS = Convert.ToString(Row["vending_ids"]);
-                                List<double> heightAdjustable = Row["height_adjustable"].ToString() != String.Empty ? Row["height_adjustable"].ToString().Split(',').Select(x => Convert.ToDouble(x)).ToList() : new List<double>();
-                                int EffectId = Convert.ToInt32(Row["effect_id"]);
-                                bool IsRare = PolarEnvironment.EnumToBool(Row["is_rare"].ToString());
-                                int ClothingId = Convert.ToInt32(Row["clothing_id"]);
-                                bool ExtraRot = PolarEnvironment.EnumToBool(Row["extra_rot"].ToString());
+                                int id = Convert.ToInt32(Row[DatabaseCompatibility.FurniIdColumn]);
+                                int spriteID = Convert.ToInt32(Row[DatabaseCompatibility.FurniSpriteIdColumn]);
+                                string itemName = Convert.ToString(Row[DatabaseCompatibility.FurniItemNameColumn]);
+                                string publicname = Convert.ToString(Row.Table.Columns.Contains("public_name") ? Row["public_name"] : itemName);
+                                string type = Row[DatabaseCompatibility.FurniTypeColumn].ToString();
+                                int width = Convert.ToInt32(Row.Table.Columns.Contains(DatabaseCompatibility.FurniWidthColumn) ? Row[DatabaseCompatibility.FurniWidthColumn] : 1);
+                                int length = Convert.ToInt32(Row.Table.Columns.Contains(DatabaseCompatibility.FurniLengthColumn) ? Row[DatabaseCompatibility.FurniLengthColumn] : 1);
+                                double height = Convert.ToDouble(Row[DatabaseCompatibility.FurniStackHeightColumn]);
+
+                                bool allowStack = Row.Table.Columns.Contains(DatabaseCompatibility.FurniAllowStackColumn) ? PolarEnvironment.EnumToBool(Row[DatabaseCompatibility.FurniAllowStackColumn].ToString()) : true;
+                                bool allowWalk = Row.Table.Columns.Contains(DatabaseCompatibility.FurniAllowWalkColumn) ? PolarEnvironment.EnumToBool(Row[DatabaseCompatibility.FurniAllowWalkColumn].ToString()) : true;
+                                bool allowSit = Row.Table.Columns.Contains(DatabaseCompatibility.FurniAllowSitColumn) ? PolarEnvironment.EnumToBool(Row[DatabaseCompatibility.FurniAllowSitColumn].ToString()) : false;
+                                bool allowRecycle = Row.Table.Columns.Contains(DatabaseCompatibility.FurniAllowRecycleColumn) ? PolarEnvironment.EnumToBool(Row[DatabaseCompatibility.FurniAllowRecycleColumn].ToString()) : true;
+                                bool allowTrade = Row.Table.Columns.Contains(DatabaseCompatibility.FurniAllowTradeColumn) ? PolarEnvironment.EnumToBool(Row[DatabaseCompatibility.FurniAllowTradeColumn].ToString()) : true;
+                                bool allowMarketplace = Row.Table.Columns.Contains(DatabaseCompatibility.FurniAllowMarketplaceSellColumn) ? PolarEnvironment.EnumToBool(Row[DatabaseCompatibility.FurniAllowMarketplaceSellColumn].ToString()) : true;
+                                bool allowGift = Row.Table.Columns.Contains(DatabaseCompatibility.FurniAllowGiftColumn) ? PolarEnvironment.EnumToBool(Row[DatabaseCompatibility.FurniAllowGiftColumn].ToString()) : true;
+                                bool allowInventoryStack = Row.Table.Columns.Contains(DatabaseCompatibility.FurniAllowInventoryStackColumn) ? PolarEnvironment.EnumToBool(Row[DatabaseCompatibility.FurniAllowInventoryStackColumn].ToString()) : true;
+
+                                InteractionType interactionType = InteractionType.NONE;
+                                string rawInteraction = "";
+                                if (Row.Table.Columns.Contains(DatabaseCompatibility.FurniInteractionTypeColumn))
+                                {
+                                    rawInteraction = Convert.ToString(Row[DatabaseCompatibility.FurniInteractionTypeColumn]);
+                                    interactionType = InteractionTypes.GetTypeFromString(rawInteraction);
+                                }
+
+                                int behaviourData = Row.Table.Columns.Contains("behaviour_data") ? Convert.ToInt32(Row["behaviour_data"]) : 0;
+                                int cycleCount = Row.Table.Columns.Contains(DatabaseCompatibility.FurniInteractionModesCountColumn) ? Convert.ToInt32(Row[DatabaseCompatibility.FurniInteractionModesCountColumn]) : 1;
+                                string vendingIDS = Row.Table.Columns.Contains(DatabaseCompatibility.FurniVendingIdsColumn) ? Convert.ToString(Row[DatabaseCompatibility.FurniVendingIdsColumn]) : "";
+
+                                List<double> heightAdjustable = new List<double>();
+                                if (Row.Table.Columns.Contains(DatabaseCompatibility.FurniHeightAdjustableColumn) && !string.IsNullOrEmpty(Row[DatabaseCompatibility.FurniHeightAdjustableColumn].ToString()))
+                                {
+                                    foreach (string val in Row[DatabaseCompatibility.FurniHeightAdjustableColumn].ToString().Split(','))
+                                    {
+                                        if (double.TryParse(val, out double h)) heightAdjustable.Add(h);
+                                    }
+                                }
+
+                                int EffectId = Row.Table.Columns.Contains(DatabaseCompatibility.FurniEffectIdColumn) ? Convert.ToInt32(Row[DatabaseCompatibility.FurniEffectIdColumn]) : 0;
+                                bool IsRare = Row.Table.Columns.Contains(DatabaseCompatibility.FurniIsRareColumn) ? PolarEnvironment.EnumToBool(Row[DatabaseCompatibility.FurniIsRareColumn].ToString()) : false;
+                                int ClothingId = Row.Table.Columns.Contains(DatabaseCompatibility.FurniClothingIdColumn) ? Convert.ToInt32(Row[DatabaseCompatibility.FurniClothingIdColumn]) : 0;
+                                bool ExtraRot = Row.Table.Columns.Contains(DatabaseCompatibility.FurniExtraRotColumn) ? PolarEnvironment.EnumToBool(Row[DatabaseCompatibility.FurniExtraRotColumn].ToString()) : false;
 
                                 if (!this._gifts.ContainsKey(spriteID))
-                                    this._gifts.Add(spriteID, new ItemData(id, spriteID, itemName, publicname, type, width, length, height, allowStack, allowWalk, allowSit, allowRecycle, allowTrade, allowMarketplace, allowGift, allowInventoryStack, interactionType, behaviourData, cycleCount, vendingIDS, heightAdjustable, EffectId, IsRare, ClothingId, ExtraRot));
+                                    this._gifts.Add(spriteID, new ItemData(id, spriteID, itemName, publicname, type, width, length, height, allowStack, allowWalk, allowSit, allowRecycle, allowTrade, allowMarketplace, allowGift, allowInventoryStack, interactionType, behaviourData, cycleCount, vendingIDS, heightAdjustable, EffectId, IsRare, ClothingId, ExtraRot, rawInteraction));
 
                                 if (!this._items.ContainsKey(id))
-                                    this._items.Add(id, new ItemData(id, spriteID, itemName, publicname, type, width, length, height, allowStack, allowWalk, allowSit, allowRecycle, allowTrade, allowMarketplace, allowGift, allowInventoryStack, interactionType, behaviourData, cycleCount, vendingIDS, heightAdjustable, EffectId, IsRare, ClothingId, ExtraRot));
+                                    this._items.Add(id, new ItemData(id, spriteID, itemName, publicname, type, width, length, height, allowStack, allowWalk, allowSit, allowRecycle, allowTrade, allowMarketplace, allowGift, allowInventoryStack, interactionType, behaviourData, cycleCount, vendingIDS, heightAdjustable, EffectId, IsRare, ClothingId, ExtraRot, rawInteraction));
                             }
                             catch (Exception e)
                             {

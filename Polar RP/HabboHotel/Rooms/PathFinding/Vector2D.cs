@@ -1,20 +1,19 @@
+using System;
+
 namespace Polar.HabboHotel.Pathfinding
 {
-    public class Vector2D
+    public readonly struct Vector2D : IEquatable<Vector2D>
     {
-        // ✅ FIX #1: readonly — Zero no debe ser reasignable desde fuera.
         public static readonly Vector2D Zero = new Vector2D(0, 0);
 
-        public Vector2D() { }
+        public readonly int X;
+        public readonly int Y;
 
         public Vector2D(int x, int y)
         {
             X = x;
             Y = y;
         }
-
-        public int X { get; set; }
-        public int Y { get; set; }
 
         public int GetDistanceSquared(Vector2D point)
         {
@@ -23,25 +22,20 @@ namespace Polar.HabboHotel.Pathfinding
             return dx * dx + dy * dy;
         }
 
-        public override bool Equals(object obj)
-        {
-            if (obj is Vector2D v)
-                return v.X == X && v.Y == Y;
-            return false;
-        }
+        public override bool Equals(object? obj) => obj is Vector2D other && Equals(other);
 
-        // ✅ FIX #2: Antes: (X + " " + Y).GetHashCode()
-        //   • Aloca un string en heap en CADA llamada — GC pressure constante.
-        //   • Tiene colisiones de cadena: X=1,Y=12 → "112" == X=11,Y=2 → "112".
-        //   Ahora: combinación multiplicativa estándar sin allocaciones.
+        public bool Equals(Vector2D other) => X == other.X && Y == other.Y;
+
         public override int GetHashCode()
         {
-            unchecked { return X * 397 ^ Y; }
+            unchecked { return (X * 397) ^ Y; }
         }
 
         public override string ToString() => $"{X}, {Y}";
 
         public static Vector2D operator +(Vector2D a, Vector2D b) => new Vector2D(a.X + b.X, a.Y + b.Y);
         public static Vector2D operator -(Vector2D a, Vector2D b) => new Vector2D(a.X - b.X, a.Y - b.Y);
+        public static bool operator ==(Vector2D left, Vector2D right) => left.Equals(right);
+        public static bool operator !=(Vector2D left, Vector2D right) => !left.Equals(right);
     }
 }

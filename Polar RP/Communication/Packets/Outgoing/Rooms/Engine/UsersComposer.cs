@@ -33,7 +33,86 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
 
         private void WriteUser(RoomUser User)
         {
-            if (!User.IsPet && !User.IsBot)
+            if (User.IsBot && User.IsRoleplayBot)
+            {
+                RoleplayBot RPBot = User.GetBotRoleplay();
+                string[] Outfit = RPBot.GetOutFit();
+
+                if (RPBot.IsPet)
+                {
+                    #region Roleplay Pet Bot
+                    base.WriteInteger(RPBot.Id + 1000000);
+                    base.WriteString(RPBot.Name);
+                    base.WriteString(Outfit[1]);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
+                    base.WriteBoolean(false);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
+                    base.WriteString(Outfit[0]);
+
+                    base.WriteInteger(User.VirtualId);
+                    base.WriteInteger(User.X);
+                    base.WriteInteger(User.Y);
+                    base.WriteDouble(User.Z);
+                    base.WriteInteger(0);
+                    base.WriteInteger(2);//Pet.
+
+                    base.WriteInteger(RPBot.PetInstance.Type);//pet type.
+                    base.WriteInteger(RPBot.OwnerId);//UserId of the owner.
+                    base.WriteString(RPBot.PetInstance.OwnerName);//Username of the owner.
+                    base.WriteInteger(1);
+                    base.WriteBoolean(false);//Has saddle.
+                    base.WriteBoolean(false);//Is someone riding this horse?
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
+                    base.WriteString("");
+                    #endregion
+                }
+                else
+                {
+                    #region Roleplay Human Bot
+                    base.WriteInteger(RPBot.Id + 1000000);
+                    base.WriteString(RPBot.Name);
+                    base.WriteString(Outfit[1]);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
+                    base.WriteBoolean(false);
+                    base.WriteInteger(0);
+                    base.WriteInteger(0);
+                    base.WriteString(Outfit[0]);
+                    base.WriteInteger(User.VirtualId);
+                    base.WriteInteger(User.X);
+                    base.WriteInteger(User.Y);
+                    base.WriteDouble(User.Z);
+
+                    base.WriteInteger(0);//2 for user, 4 for bot.
+                    base.WriteInteger(1);//1 for user, 2 for pet, 3 for bot.
+                    base.WriteString(RPBot.Gender.ToLower());
+
+                    Group BotGroup = GroupManager.GetJob(RPBot.Corporation);
+                    if (BotGroup != null)
+                    {
+                        base.WriteInteger(BotGroup.Id);
+                        base.WriteInteger(0);
+                        base.WriteString(BotGroup.Name);
+                    }
+                    else
+                    {
+                        base.WriteInteger(0);
+                        base.WriteInteger(0);
+                        base.WriteString("");
+                    }
+
+                    base.WriteString("");//Whats this?
+                    base.WriteInteger(0);//Achievement score
+                    base.WriteBoolean(false);//Builders club?
+                    #endregion
+                }
+            }
+            else if (!User.IsPet && !User.IsBot)
             {
                 Habbo Habbo = User.GetClient().GetHabbo();
                 Group Group = GroupManager.GetJob(User.GetClient().GetRoleplay().JobId);
@@ -41,7 +120,7 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
                 if (Habbo.PetId == 0)
                 {
                     base.WriteInteger(Habbo.Id);
-                    base.WriteString(Habbo.Username);
+                    base.WriteString(Habbo.GetDisplayName());
                     base.WriteString(Habbo.Motto);
                     base.WriteInteger(Habbo.BackgroundId);
                     base.WriteInteger(Habbo.StandId);
@@ -163,80 +242,34 @@ namespace Polar.Communication.Packets.Outgoing.Rooms.Engine
             }
             else if (User.IsBot)
             {
-                if (User.IsRoleplayBot)
-                {
-                    string[] Outfit = User.GetBotRoleplay().GetOutFit();
+                #region BOT Profile Type 2
+                base.WriteInteger(User.BotAI.BaseId);
+                base.WriteString(User.BotData.Name);
+                base.WriteString(User.BotData.Motto);
+                base.WriteInteger(0);
+                base.WriteInteger(0);
+                base.WriteInteger(0);
+                base.WriteBoolean(false);
+                base.WriteInteger(0);
+                base.WriteInteger(0);
+                base.WriteString(User.BotData.Look.ToLower());
+                base.WriteInteger(User.VirtualId);
+                base.WriteInteger(User.X);
+                base.WriteInteger(User.Y);
+                base.WriteDouble(User.Z);
+                base.WriteInteger(0);
+                base.WriteInteger((User.BotData.AiType == BotAIType.PET) ? 2 : 4);
 
-                    #region BOT Profile Type 1
-                    base.WriteInteger(User.BotAI.BaseId + 1000000);
-                    base.WriteString(User.GetBotRoleplay().Name);
-                    base.WriteString(Outfit[1]);
-                    base.WriteInteger(0);
-                    base.WriteInteger(0);
-                    base.WriteInteger(0);
-                    base.WriteBoolean(false);
-                    base.WriteInteger(0);
-                    base.WriteInteger(0);
-                    base.WriteString(Outfit[0]);
-                    base.WriteInteger(User.VirtualId);
-                    base.WriteInteger(User.X);
-                    base.WriteInteger(User.Y);
-                    base.WriteDouble(User.Z);
-
-                    base.WriteInteger(0);//2 for user, 4 for bot.
-                    base.WriteInteger(1);//1 for user, 2 for pet, 3 for bot.
-                    base.WriteString(User.GetBotRoleplay().Gender.ToLower());
-
-                    Group BotGroup = GroupManager.GetJob(User.GetBotRoleplay().Corporation);
-                    if (BotGroup != null)
-                    {
-                        base.WriteInteger(BotGroup.Id);
-                        base.WriteInteger(0);
-                        base.WriteString(BotGroup.Name);
-                    }
-                    else
-                    {
-                        base.WriteInteger(0);
-                        base.WriteInteger(0);
-                        base.WriteString("");
-                    }
-
-                    base.WriteString("");//Whats this?
-                    base.WriteInteger(0);//Achievement score
-                    base.WriteBoolean(false);//Builders club?
-                    #endregion
-                }
-                else
-                {
-                    #region BOT Profile Type 2
-                    base.WriteInteger(User.BotAI.BaseId);
-                    base.WriteString(User.BotData.Name);
-                    base.WriteString(User.BotData.Motto);
-                    base.WriteInteger(0);
-                    base.WriteInteger(0);
-                    base.WriteInteger(0);
-                    base.WriteBoolean(false);
-                    base.WriteInteger(0);
-                    base.WriteInteger(0);
-                    base.WriteString(User.BotData.Look.ToLower());
-                    base.WriteInteger(User.VirtualId);
-                    base.WriteInteger(User.X);
-                    base.WriteInteger(User.Y);
-                    base.WriteDouble(User.Z);
-                    base.WriteInteger(0);
-                    base.WriteInteger((User.BotData.AiType == BotAIType.PET) ? 2 : 4);
-
-                    base.WriteString(User.BotData.Gender.ToLower()); // ?
-                    base.WriteInteger(User.BotData.OwnerID); //Owner Id
-                    base.WriteString(PolarEnvironment.GetUsernameById(User.BotData.OwnerID)); // Owner name
-                    base.WriteInteger(5);//Action Count
-                    base.WriteShort(1);//Copy looks
-                    base.WriteShort(2);//Setup speech
-                    base.WriteShort(3);//Relax
-                    base.WriteShort(4);//Dance
-                    base.WriteShort(5);//Change name
-                    #endregion
-                }
+                base.WriteString(User.BotData.Gender.ToLower()); // ?
+                base.WriteInteger(User.BotData.OwnerID); //Owner Id
+                base.WriteString(PolarEnvironment.GetUsernameById(User.BotData.OwnerID)); // Owner name
+                base.WriteInteger(5);//Action Count
+                base.WriteShort(1);//Copy looks
+                base.WriteShort(2);//Setup speech
+                base.WriteShort(3);//Relax
+                base.WriteShort(4);//Dance
+                base.WriteShort(5);//Change name
+                #endregion
             }
         }
 

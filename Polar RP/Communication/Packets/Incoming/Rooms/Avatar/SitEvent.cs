@@ -28,6 +28,15 @@ namespace Polar.Communication.Packets.Incoming.Rooms.Avatar
 
             if (!user.Statusses.ContainsKey("sit"))
             {
+                if (user.GetRoom()?.GetGameMap() != null)
+                {
+                    if (user.GetRoom().GetGameMap().GetHighestItemForSquare(user.Coordinate, out var item))
+                    {
+                        if (item != null && (item.GetBaseItem().IsSeat || item.GetBaseItem().InteractionType == HabboHotel.Items.InteractionType.BED))
+                            return;
+                    }
+                }
+
                 if ((user.RotBody % 2) == 0)
                 {
                     if (user == null)

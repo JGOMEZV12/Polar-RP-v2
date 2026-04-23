@@ -36,47 +36,75 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Triggers
             ICollection<IWiredItem> Effects = Instance.GetWired().GetEffects(this);
             ICollection<IWiredItem> Conditions = Instance.GetWired().GetConditions(this);
 
-            foreach (IWiredItem Condition in Conditions)
-            {
-                if (!Condition.Execute(Condition.Item))
-                    return false;
+            // Extra Addons
+            var addons = Instance.GetWired().GetTriggers(this).Where(x => x.Type.ToString().StartsWith("Addon")).ToList();
 
-                Instance.GetWired().OnEvent(Condition.Item);
+            // Execution Limit Addon
+            var limitAddon = addons.FirstOrDefault(x => x.Type == WiredBoxType.AddonExecutionLimit);
+            if (limitAddon != null && !limitAddon.Execute()) return false;
+
+            // Random Addon
+            var randomAddon = addons.FirstOrDefault(x => x.Type == WiredBoxType.AddonRandom);
+            if (randomAddon != null && !randomAddon.Execute()) return false;
+
+            // Condition Evaluation
+            bool hasOrEval = addons.Any(x => x.Type == WiredBoxType.AddonOrEval);
+            if (hasOrEval)
+            {
+                if (Conditions.Count > 0 && !Conditions.Any(c => c.Execute(Player))) return false;
+            }
+            else
+            {
+                foreach (IWiredItem Condition in Conditions.ToList())
+                {
+                    if (!Condition.Execute(Player))
+                        return false;
+
+                    Instance.GetWired().OnEvent(Condition.Item);
+                }
             }
 
-            // FIX: Any() en lugar de .Where().ToList().Count() > 0
-            bool HasRandomEffectAddon = Effects.Any(x => x.Type == WiredBoxType.AddonRandomEffect);
+            // Effect Execution
+            bool hasExecuteInOrder = addons.Any(x => x.Type == WiredBoxType.AddonExecuteInOrder);
+            bool HasRandomEffectAddon = addons.Any(x => x.Type == WiredBoxType.AddonRandomEffect);
+            bool hasUnseenAddon = addons.Any(x => x.Type == WiredBoxType.AddonUnseen);
+
             if (HasRandomEffectAddon)
             {
-                // FIX: null-check en RandomBox antes de ejecutar
-                IWiredItem RandomBox = Effects.FirstOrDefault(x => x.Type == WiredBoxType.AddonRandomEffect);
+                IWiredItem RandomBox = addons.FirstOrDefault(x => x.Type == WiredBoxType.AddonRandomEffect);
                 if (RandomBox == null || !RandomBox.Execute())
                     return false;
 
                 IWiredItem SelectedBox = Instance.GetWired().GetRandomEffect(Effects.ToList());
-                if (SelectedBox == null || !SelectedBox.Execute())
-                    return false;
-
-                if (Instance != null)
-                {
-                    Instance.GetWired().OnEvent(RandomBox.Item);
+                if (SelectedBox != null && SelectedBox.Execute(Player))
                     Instance.GetWired().OnEvent(SelectedBox.Item);
+
+                Instance.GetWired().OnEvent(RandomBox.Item);
+            }
+            else if (hasUnseenAddon)
+            {
+                IWiredItem unseenBox = addons.FirstOrDefault(x => x.Type == WiredBoxType.AddonUnseen);
+                if (unseenBox != null && unseenBox.Execute(Effects.ToList(), Player))
+                    Instance.GetWired().OnEvent(unseenBox.Item);
+            }
+            else if (hasExecuteInOrder)
+            {
+                foreach (IWiredItem Effect in Effects.OrderBy(x => x.Item.GetZ).ToList())
+                {
+                    if (!Effect.Execute(Player)) break;
+                    Instance.GetWired().OnEvent(Effect.Item);
                 }
             }
             else
             {
-                foreach (IWiredItem Effect in Effects)
+                foreach (IWiredItem Effect in Effects.ToList())
                 {
-                    foreach (RoomUser User in Instance.GetRoomUserManager().GetRoomUsers().ToList())
-                    {
-                        if (User == null || User.GetClient() == null || User.GetClient().GetHabbo() == null)
-                            continue;
-
-                        Effect.Execute(User.GetClient().GetHabbo());
-                    }
+                    if (!Effect.Execute(Player))
+                        continue;
 
                     Instance.GetWired().OnEvent(Effect.Item);
                 }
+            }
             }
 
             return true;

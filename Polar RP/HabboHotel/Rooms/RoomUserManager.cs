@@ -530,11 +530,6 @@ namespace Polar.HabboHotel.Rooms
 
         public void RemoveRoomUser(RoomUser user)
         {
-            if (user.SetStep)
-                _room.GetGameMap().GameMap[user.SetX, user.SetY] = user.SqState;
-            else
-                _room.GetGameMap().GameMap[user.X, user.Y] = user.SqState;
-
             _room.GetGameMap().RemoveUserFromMap(user, new Point(user.X, user.Y));
             _room.SendMessage(new UserRemoveComposer(user.VirtualId));
             this._users.TryRemove(user.InternalRoomID, out _);
@@ -842,22 +837,18 @@ namespace Polar.HabboHotel.Rooms
             var to = new Vector2D(user.SetX, user.SetY);
             bool isFinalStep = (user.GoalX == user.SetX && user.GoalY == user.SetY);
 
-            if (_room.GetGameMap().IsValidStep2(user, from, to, isFinalStep, user.AllowOverride))
+            if (_room.GetGameMap().IsValidStep(user, from, to, isFinalStep, user.AllowOverride))
             {
-                if (!user.RidingHorse)
-                    _room.GetGameMap().UpdateUserMovement(
-                        new Point(user.Coordinate.X, user.Coordinate.Y),
-                        new Point(user.SetX, user.SetY), user);
+                _room.GetGameMap().UpdateUserMovement(
+                    new Point(user.Coordinate.X, user.Coordinate.Y),
+                    new Point(user.SetX, user.SetY), user);
 
                 foreach (Item item in _room.GetGameMap().GetCoordinatedItems(new Point(user.X, user.Y)))
                     item.UserWalksOffFurni(user);
 
-                if (!user.IsBot || !user.RidingHorse)
-                {
-                    user.X = user.SetX;
-                    user.Y = user.SetY;
-                    user.Z = user.SetZ;
-                }
+                user.X = user.SetX;
+                user.Y = user.SetY;
+                user.Z = user.SetZ;
 
                 if (!user.IsBot && user.RidingHorse)
                 {
@@ -890,12 +881,13 @@ namespace Polar.HabboHotel.Rooms
             int startX = user.SetStep ? user.SetX : user.X;
             int startY = user.SetStep ? user.SetY : user.Y;
 
-            user.Path?.Clear();
-            user.Path = PathFinder.FindPath(user, _room.GetGameMap().DiagonalEnabled,
-                _room.GetGameMap(), new Vector2D(startX, startY),
-                new Vector2D(user.GoalX, user.GoalY));
+            if (user.Path == null) user.Path = new List<Vector2D>();
 
-            if (user.Path != null && user.Path.Count > 1)
+            PathFinder.FindPath(user, _room.GetGameMap().DiagonalEnabled,
+                _room.GetGameMap(), new Vector2D(startX, startY),
+                new Vector2D(user.GoalX, user.GoalY), user.Path);
+
+            if (user.Path.Count > 0)
             {
                 user.PathStep = 1;
                 user.IsWalking = true;
@@ -915,9 +907,10 @@ namespace Polar.HabboHotel.Rooms
             if (user.Path == null || user.Path.Count == 0) { StopWalking(user); return; }
 
             bool atDestination = (user.X == user.GoalX && user.Y == user.GoalY);
-            if (atDestination || invalidStep || user.PathStep >= user.Path.Count) { StopWalking(user); return; }
+            if (atDestination || invalidStep || user.PathStep > user.Path.Count) { StopWalking(user); return; }
 
-            int stepIndex = (user.Path.Count - user.PathStep) - 1;
+            // Path index is reversed (0 = destination, Count-1 = first step)
+            int stepIndex = (user.Path.Count - user.PathStep);
             if (stepIndex < 0 || stepIndex >= user.Path.Count) { StopWalking(user); return; }
 
             Vector2D nextStep = user.Path[stepIndex];
@@ -931,6 +924,7 @@ namespace Polar.HabboHotel.Rooms
         {
             if (user.IsBot && user.FastWalking && user.BotData != null)
             {
+                if (!user.BotData.Name.Contains("#")) return;
                 string passengerName = user.BotData.Name.Split('#')[1];
                 var client = PolarEnvironment.GetGame().GetClientManager().GetClientByUsername(passengerName);
                 if (client != null)
@@ -942,8 +936,9 @@ namespace Polar.HabboHotel.Rooms
                         int pIdx = (passenger.Path.Count - passenger.PathStep) - 1;
                         if (pIdx >= 0 && pIdx < passenger.Path.Count)
                         {
+                            user.PathStep += (stepIndex - pIdx);
                             nextStep = passenger.Path[pIdx];
-                            user.PathStep++;
+                            stepIndex = pIdx;
                         }
                     }
                 }
@@ -956,15 +951,14 @@ namespace Polar.HabboHotel.Rooms
             if (skip <= 0) return;
 
             int newIdx = stepIndex - skip;
-            if (newIdx >= 0)
+            if (newIdx < 0) newIdx = 0;
+
+            Vector2D skipped = user.Path[newIdx];
+            if (skipped.X != nextStep.X || skipped.Y != nextStep.Y)
             {
-                Vector2D skipped = user.Path[newIdx];
-                if (skipped.X != nextStep.X || skipped.Y != nextStep.Y)
-                {
-                    nextStep = skipped;
-                    user.PathStep += (stepIndex - newIdx - 1);
-                    stepIndex = newIdx;
-                }
+                user.PathStep += (stepIndex - newIdx);
+                nextStep = skipped;
+                stepIndex = newIdx;
             }
         }
 
@@ -994,7 +988,7 @@ namespace Polar.HabboHotel.Rooms
             if (nextX == user.X && nextY == user.Y) return;
 
             bool isFinalStep = (user.GoalX == nextX && user.GoalY == nextY);
-            if (!_room.GetGameMap().IsValidStep2(user,
+            if (!_room.GetGameMap().IsValidStep(user,
                     new Vector2D(user.X, user.Y), new Vector2D(nextX, nextY),
                     isFinalStep, user.AllowOverride)) return;
 
@@ -1006,10 +1000,10 @@ namespace Polar.HabboHotel.Rooms
                 user.isSitting = false;
                 user.isLying = false;
                 user.UpdateNeeded = true;
-            }
 
-            user.Statusses.Remove("lay");
-            user.Statusses.Remove("sit");
+                user.Statusses.Remove("lay");
+                user.Statusses.Remove("sit");
+            }
 
             if (!user.IsBot && !user.IsPet && user.GetClient() != null)
             {
@@ -1181,6 +1175,8 @@ namespace Polar.HabboHotel.Rooms
                 {
                     if (!User.Statusses.ContainsKey("sit"))
                         User.Statusses.Add("sit", "1.0");
+
+                    User.isSitting = true;
                     User.Z = Model.SqFloorHeight[User.X, User.Y];
                     User.RotHead = Model.SqSeatRot[User.X, User.Y];
                     User.RotBody = Model.SqSeatRot[User.X, User.Y];
@@ -1200,6 +1196,7 @@ namespace Polar.HabboHotel.Rooms
                         if (Item.GetBaseItem().IsSeat && !User.Statusses.ContainsKey("sit"))
                         {
                             User.Statusses.Add("sit", TextHandling.GetString(Item.GetBaseItem().Height));
+                            User.isSitting = true;
                             User.Z = Item.GetZ;
                             User.RotHead = Item.Rotation;
                             User.RotBody = Item.Rotation;
@@ -1331,6 +1328,8 @@ namespace Polar.HabboHotel.Rooms
                                 {
                                     if (!User.Statusses.ContainsKey("lay"))
                                         User.Statusses.Add("lay", TextHandling.GetString(Item.GetBaseItem().Height) + " null");
+
+                                    User.isLying = true;
 
                                     if (Item.GetBaseItem().InteractionType == InteractionType.BEDEFFECT && !User.IsBot)
                                     {
@@ -1487,16 +1486,34 @@ namespace Polar.HabboHotel.Rooms
 
                                         if (!User.IsBot)
                                         {
-                                            if (User.GetClient().GetRoleplay().IsJailed && !Room.IsPrison && !Room.IsPrison2 && !User.GetClient().GetRoleplay().Jailbroken)
+                                            var rp = User.GetClient().GetRoleplay();
+                                            if (rp.IsJailed && !Room.IsPrison && !Room.IsPrison2 && !rp.Jailbroken)
                                             {
                                                 User.GetClient().SendWhisper("¡No puedes usar flechas para escapar mientras estás encarcelado!", 1);
                                                 break;
                                             }
-                                            if (User.GetClient().GetRoleplay().IsDead)
+                                            if (rp.IsDead)
                                             {
                                                 User.GetClient().SendWhisper("¡No puedes usar flechas mientras estás muerto!", 1);
                                                 break;
                                             }
+
+                                            // Finalizar captura de banco/turf si usa flechas
+                                            if (rp.BankCapturing || rp.TurfCapturing || rp.ATMRobbery || rp.Robbery)
+                                            {
+                                                if (rp.BankCapturing) { rp.BankCapturing = false; Room.BankCapturing = false; }
+                                                if (rp.TurfCapturing) { rp.TurfCapturing = false; Room.TurfCapturing = false; }
+                                                if (rp.ATMRobbery) rp.ATMRobbery = false;
+                                                if (rp.Robbery) rp.Robbery = false;
+
+                                                rp.BreakGeneralTimer = true;
+                                                rp.TimerManager.EndTimer("bankrob");
+                                                rp.TimerManager.EndTimer("turfcapture");
+                                                rp.TimerManager.EndTimer("atmrob");
+
+                                                User.GetClient().SendWhisper("¡Has abandonado la zona y la acción ha sido cancelada!", 1);
+                                            }
+
                                             User.ClearMovement(true);
                                         }
 
@@ -1577,16 +1594,34 @@ namespace Polar.HabboHotel.Rooms
 
                                         if (!User.IsBot)
                                         {
-                                            if (User.GetClient().GetRoleplay().IsJailed && !Room.IsPrison && !Room.IsPrison2 && !User.GetClient().GetRoleplay().Jailbroken)
+                                            var rp = User.GetClient().GetRoleplay();
+                                            if (rp.IsJailed && !Room.IsPrison && !Room.IsPrison2 && !rp.Jailbroken)
                                             {
                                                 User.GetClient().SendWhisper("¡No puedes usar flechas para escapar mientras estás encarcelado!", 1);
                                                 break;
                                             }
-                                            if (User.GetClient().GetRoleplay().IsDead)
+                                            if (rp.IsDead)
                                             {
                                                 User.GetClient().SendWhisper("¡No puedes usar flechas mientras estás muerto!", 1);
                                                 break;
                                             }
+
+                                            // Finalizar captura de banco/turf si usa flechas
+                                            if (rp.BankCapturing || rp.TurfCapturing || rp.ATMRobbery || rp.Robbery)
+                                            {
+                                                if (rp.BankCapturing) { rp.BankCapturing = false; Room.BankCapturing = false; }
+                                                if (rp.TurfCapturing) { rp.TurfCapturing = false; Room.TurfCapturing = false; }
+                                                if (rp.ATMRobbery) rp.ATMRobbery = false;
+                                                if (rp.Robbery) rp.Robbery = false;
+
+                                                rp.BreakGeneralTimer = true;
+                                                rp.TimerManager.EndTimer("bankrob");
+                                                rp.TimerManager.EndTimer("turfcapture");
+                                                rp.TimerManager.EndTimer("atmrob");
+
+                                                User.GetClient().SendWhisper("¡Has abandonado la zona y la acción ha sido cancelada!", 1);
+                                            }
+
                                             User.ClearMovement(true);
                                         }
 
@@ -1740,8 +1775,7 @@ namespace Polar.HabboHotel.Rooms
         public List<RoomUser> GetUserList()
         {
             if (_users == null) return new List<RoomUser>();
-            try { return _users.Values.ToList(); }
-            catch { return new List<RoomUser>(); }
+            return _users.Values.ToList();
         }
 
         public int SquareInFront(int X, int Y, int RotBody, string find)

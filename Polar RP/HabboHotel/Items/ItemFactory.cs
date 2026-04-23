@@ -20,7 +20,7 @@ namespace Polar.HabboHotel.Items
 
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("INSERT INTO `items` (base_item,user_id,room_id,x,y,z,wall_pos,rot,extra_data,`limited_number`,`limited_stack`) VALUES (@did,@uid,@rid,@x,@y,@z,@wall_pos,@rot,@extra_data, @limited_number, @limited_stack)");
+                dbClient.SetQuery($"INSERT INTO `{Polar.Core.DatabaseCompatibility.ItemsTable}` ({Polar.Core.DatabaseCompatibility.ItemsBaseItemColumn},user_id,room_id,x,y,z,wall_pos,rot,extra_data,`limited_number`,`limited_stack`) VALUES (@did,@uid,@rid,@x,@y,@z,@wall_pos,@rot,@extra_data, @limited_number, @limited_stack)");
                 dbClient.AddParameter("did", Data.Id);
                 dbClient.AddParameter("uid", Habbo.Id);
                 dbClient.AddParameter("rid", 0);
@@ -52,7 +52,7 @@ namespace Polar.HabboHotel.Items
 
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("INSERT INTO `items` (base_item,user_id,room_id,x,y,z,wall_pos,rot,extra_data,`limited_number`,`limited_stack`) VALUES (@did,@uid,@rid,@x,@y,@z,@wall_pos,@rot,@extra_data, @limited_number, @limited_stack)");
+                dbClient.SetQuery($"INSERT INTO `{Polar.Core.DatabaseCompatibility.ItemsTable}` ({Polar.Core.DatabaseCompatibility.ItemsBaseItemColumn},user_id,room_id,x,y,z,wall_pos,rot,extra_data,`limited_number`,`limited_stack`) VALUES (@did,@uid,@rid,@x,@y,@z,@wall_pos,@rot,@extra_data, @limited_number, @limited_stack)");
                 dbClient.AddParameter("did", Data.Id);
                 dbClient.AddParameter("uid", 0);
                 dbClient.AddParameter("rid", 0);
@@ -85,7 +85,7 @@ namespace Polar.HabboHotel.Items
 
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("INSERT INTO `items` (`id`,base_item,user_id,room_id,x,y,z,wall_pos,rot,extra_data,`limited_number`,`limited_stack`) VALUES (@id, @did,@uid,@rid,@x,@y,@z,@wall_pos,@rot,@extra_data, @limited_number, @limited_stack)");
+                dbClient.SetQuery($"INSERT INTO `{Polar.Core.DatabaseCompatibility.ItemsTable}` (`id`, {Polar.Core.DatabaseCompatibility.ItemsBaseItemColumn}, user_id, room_id, x, y, z, wall_pos, rot, extra_data, `limited_number`, `limited_stack`) VALUES (@id, @did,@uid,@rid,@x,@y,@z,@wall_pos,@rot,@extra_data, @limited_number, @limited_stack)");
                 dbClient.AddParameter("id", ItemId);
                 dbClient.AddParameter("did", Data.Id);
                 dbClient.AddParameter("uid", Habbo.Id);
@@ -112,7 +112,7 @@ namespace Polar.HabboHotel.Items
 
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("INSERT INTO `items` (`id`,base_item,user_id,room_id,x,y,z,wall_pos,rot,extra_data,`limited_number`,`limited_stack`) VALUES (@id, @did,@uid,@rid,@x,@y,@z,@wall_pos,@rot,@extra_data, @limited_number, @limited_stack)");
+                dbClient.SetQuery($"INSERT INTO `{Polar.Core.DatabaseCompatibility.ItemsTable}` (`id`,{Polar.Core.DatabaseCompatibility.ItemsBaseItemColumn},user_id,room_id,x,y,z,wall_pos,rot,extra_data,`limited_number`,`limited_stack`) VALUES (@id, @did,@uid,@rid,@x,@y,@z,@wall_pos,@rot,@extra_data, @limited_number, @limited_stack)");
                 dbClient.AddParameter("id", ItemId);
                 dbClient.AddParameter("did", Data.Id);
                 dbClient.AddParameter("uid", Habbo.Id);
@@ -141,7 +141,7 @@ namespace Polar.HabboHotel.Items
             {
                 for (int i = 0; i < Amount; i++)
                 {
-                    dbClient.SetQuery("INSERT INTO `items` (base_item,user_id,room_id,x,y,z,wall_pos,rot,extra_data) VALUES(@did,@uid,@rid,@x,@y,@z,@wallpos,@rot,@flags);");
+                    dbClient.SetQuery($"INSERT INTO `{Polar.Core.DatabaseCompatibility.ItemsTable}` ({Polar.Core.DatabaseCompatibility.ItemsBaseItemColumn},user_id,room_id,x,y,z,wall_pos,rot,extra_data) VALUES(@did,@uid,@rid,@x,@y,@z,@wallpos,@rot,@flags);");
                     dbClient.AddParameter("did", Data.Id);
                     dbClient.AddParameter("uid", Habbo.Id);
                     dbClient.AddParameter("rid", 0);
@@ -174,7 +174,7 @@ namespace Polar.HabboHotel.Items
 
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("INSERT INTO `items` (base_item,user_id,room_id,x,y,z,wall_pos,rot,extra_data) VALUES(@did,@uid,@rid,@x,@y,@z,@wallpos,@rot,@flags);");
+                dbClient.SetQuery($"INSERT INTO `{Polar.Core.DatabaseCompatibility.ItemsTable}` ({Polar.Core.DatabaseCompatibility.ItemsBaseItemColumn},user_id,room_id,x,y,z,wall_pos,rot,extra_data) VALUES(@did,@uid,@rid,@x,@y,@z,@wallpos,@rot,@flags);");
                 dbClient.AddParameter("did", Data.Id);
                 dbClient.AddParameter("uid", Habbo.Id);
                 dbClient.AddParameter("rid", 0);
@@ -187,7 +187,7 @@ namespace Polar.HabboHotel.Items
 
                 int Item1Id = Convert.ToInt32(dbClient.InsertQuery());
 
-                dbClient.SetQuery("INSERT INTO `items` (base_item,user_id,room_id,x,y,z,wall_pos,rot,extra_data) VALUES(@did,@uid,@rid,@x,@y,@z,@wallpos,@rot,@flags);");
+                dbClient.SetQuery($"INSERT INTO `{Polar.Core.DatabaseCompatibility.ItemsTable}` ({Polar.Core.DatabaseCompatibility.ItemsBaseItemColumn},user_id,room_id,x,y,z,wall_pos,rot,extra_data) VALUES(@did,@uid,@rid,@x,@y,@z,@wallpos,@rot,@flags);");
                 dbClient.AddParameter("did", Data.Id);
                 dbClient.AddParameter("uid", Habbo.Id);
                 dbClient.AddParameter("rid", 0);
@@ -216,7 +216,7 @@ namespace Polar.HabboHotel.Items
         {
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("INSERT INTO `room_items_moodlight` (`id`, `enabled`, `current_preset`, `preset_one`, `preset_two`, `preset_three`) VALUES (@id, '0', 1, @preset, @preset, @preset);");
+                dbClient.SetQuery("REPLACE INTO `room_items_moodlight` (`id`, `enabled`, `current_preset`, `preset_one`, `preset_two`, `preset_three`) VALUES (@id, '0', 1, @preset, @preset, @preset);");
                 dbClient.AddParameter("id", Item.Id);
                 dbClient.AddParameter("preset", "#000000,255,0");
                 dbClient.RunQuery();
@@ -227,7 +227,7 @@ namespace Polar.HabboHotel.Items
         {
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("INSERT INTO `room_items_toner` (`id`, `data1`, `data2`, `data3`, `enabled`) VALUES (@id, 0, 0, 0, '0')");
+                dbClient.SetQuery("REPLACE INTO `room_items_toner` (`id`, `data1`, `data2`, `data3`, `enabled`) VALUES (@id, 0, 0, 0, '0')");
                 dbClient.AddParameter("id", Item.Id);
                 dbClient.RunQuery();
             }

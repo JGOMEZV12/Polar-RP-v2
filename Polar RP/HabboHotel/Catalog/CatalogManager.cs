@@ -64,7 +64,8 @@ namespace Polar.HabboHotel.Catalog
             {
                 using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                 {
-                    dbClient.SetQuery("SELECT `id`,`item_id`,`catalog_name`,`cost_credits`,`cost_pixels`,`cost_diamonds`,`amount`,`page_id`,`limited_sells`,`limited_stack`,`offer_active`,`extradata`,`badge`,`offer_id` FROM `catalog_items` WHERE `offer_active` = '1' ORDER BY `id`");
+                    string offerActiveCondition = DatabaseCompatibility.CatalogItemOfferActiveColumn == "1" ? "1 = 1" : $"`{DatabaseCompatibility.CatalogItemOfferActiveColumn}` = '1'";
+                    dbClient.SetQuery($"SELECT * FROM `catalog_items` WHERE {offerActiveCondition} ORDER BY `id`");
                     DataTable CatalogueItems = dbClient.getTable();
 
                     if (CatalogueItems != null)
@@ -76,40 +77,52 @@ namespace Polar.HabboHotel.Catalog
                                 if (Convert.ToInt32(Row["amount"]) <= 0)
                                     continue;
 
-                                int ItemId = Convert.ToInt32(Row["id"]);
+                                int ItemId = Convert.ToInt32(Row[DatabaseCompatibility.CatalogItemIdColumn]);
                                 int PageId = Convert.ToInt32(Row["page_id"]);
-                                int BaseId = Convert.ToInt32(Row["item_id"]);
-                                int OfferId = Convert.ToInt32(Row["offer_id"]);
+                                int BaseId = Convert.ToInt32(Row[DatabaseCompatibility.CatalogItemBaseIdColumn]);
+                                int OfferId = Row.Table.Columns.Contains("offer_id") ? Convert.ToInt32(Row["offer_id"]) : ItemId;
 
-                                // Solo procesar si tiene OfferId válido
-                                if (OfferId <= 0)
+                                // Solo procesar si tiene OfferId válido (o fallback a Id)
+                                if (OfferId <= 0 && ItemId <= 0)
                                     continue;
 
                                 ItemData Data = null;
                                 if (!ItemDataManager.GetItem(BaseId, out Data))
                                 {
-                                    log.Warn($"No se pudo cargar el artículo {ItemId} del catálogo, no se encontró ningún registro de muebles.");
-                                    continue;
+                                    if (BaseId == 0)
+                                    {
+                                        // Virtual items for NameColor and Prefix
+                                        Data = new ItemData(0, 0, Convert.ToString(Row["catalog_name"]), "", "s", 1, 1, 0, false, false, false, false, false, false, false, false, InteractionType.NONE, 0, 1, "", new List<double>(), 0, false, 0, false);
+                                    }
+                                    else
+                                    {
+                                        log.Warn($"No se pudo cargar el artículo {ItemId} del catálogo, no se encontró ningún registro de muebles.");
+                                        continue;
+                                    }
                                 }
+
+                                // Handle column name variations
+                                int costPixels = Row.Table.Columns.Contains(DatabaseCompatibility.CatalogItemCostDucketsColumn) ? Convert.ToInt32(Row[DatabaseCompatibility.CatalogItemCostDucketsColumn]) : 0;
+                                int costDiamonds = Row.Table.Columns.Contains(DatabaseCompatibility.CatalogItemCostDiamondsColumn) ? Convert.ToInt32(Row[DatabaseCompatibility.CatalogItemCostDiamondsColumn]) : 0;
 
                                 // Crear el CatalogItem
                                 var catalogItem = new CatalogItem(
-    Convert.ToInt32(Row["id"]),
-    Convert.ToInt32(Row["item_id"]),
-    Data,
-    Convert.ToString(Row["catalog_name"]),
-    Convert.ToInt32(Row["page_id"]),
-    Convert.ToInt32(Row["cost_credits"]),
-    Convert.ToInt32(Row["cost_pixels"]),
-    Convert.ToInt32(Row["cost_diamonds"]),
-    Convert.ToInt32(Row["amount"]),
-    Convert.ToInt32(Row["limited_sells"]),
-    Convert.ToInt32(Row["limited_stack"]),
-    Convert.ToString(Row["offer_active"]).ToLower() == "1",
-    Convert.ToString(Row["extradata"]),
-    Convert.ToString(Row["badge"]),
-    Convert.ToInt32(Row["offer_id"])
-);
+                                    ItemId,
+                                    BaseId,
+                                    Data,
+                                    Convert.ToString(Row["catalog_name"]),
+                                    PageId,
+                                    Convert.ToInt32(Row["cost_credits"]),
+                                    costPixels,
+                                    costDiamonds,
+                                    Convert.ToInt32(Row["amount"]),
+                                    Row.Table.Columns.Contains("limited_sells") ? Convert.ToInt32(Row["limited_sells"]) : 0,
+                                    Row.Table.Columns.Contains("limited_stack") ? Convert.ToInt32(Row["limited_stack"]) : 0,
+                                    DatabaseCompatibility.CatalogItemOfferActiveColumn == "1" || Convert.ToString(Row[DatabaseCompatibility.CatalogItemOfferActiveColumn]).ToLower() == "1",
+                                    Row.Table.Columns.Contains("extradata") ? Convert.ToString(Row["extradata"]) : "",
+                                    Row.Table.Columns.Contains("badge") ? Convert.ToString(Row["badge"]) : "",
+                                    OfferId
+                                );
 
                                 // Agregar a la página
                                 if (!_items.ContainsKey(PageId))
@@ -136,7 +149,7 @@ namespace Polar.HabboHotel.Catalog
                     }
 
                     // Cargar páginas
-                    dbClient.SetQuery("SELECT `id`,`parent_id`,`caption`,`page_link`,`visible`,`enabled`,`min_rank`,`min_vip`,`icon_image`,`page_layout`,`page_strings_1`,`page_strings_2` FROM `catalog_pages` ORDER BY `order_num`");
+                    dbClient.SetQuery("SELECT * FROM `catalog_pages` ORDER BY `order_num`");
                     DataTable CatalogPages = dbClient.getTable();
 
                     if (CatalogPages != null)
@@ -157,20 +170,25 @@ namespace Polar.HabboHotel.Catalog
                                     .Where(x => x.Value.OfferId > 0 && x.Value.OfferActive)
                                     .ToDictionary(x => x.Value.OfferId, x => x.Value);
                                 
+                                // Handle column name variations for pages
+                                string layout = Row.Table.Columns.Contains(DatabaseCompatibility.CatalogPageLayoutColumn) ? Convert.ToString(Row[DatabaseCompatibility.CatalogPageLayoutColumn]) : "default_3x3";
+                                string strings1 = Row.Table.Columns.Contains(DatabaseCompatibility.CatalogPageStrings1Column) ? Convert.ToString(Row[DatabaseCompatibility.CatalogPageStrings1Column]) : "";
+                                string strings2 = Row.Table.Columns.Contains(DatabaseCompatibility.CatalogPageStrings2Column) ? Convert.ToString(Row[DatabaseCompatibility.CatalogPageStrings2Column]) : "";
+
                                 // Crear la página
                                 var page = new CatalogPage(
                                     pageId,
                                     Convert.ToInt32(Row["parent_id"]),
-                                    Row["enabled"].ToString(),
+                                    Row.Table.Columns.Contains(DatabaseCompatibility.CatalogPageEnabledColumn) ? Row[DatabaseCompatibility.CatalogPageEnabledColumn].ToString() : "1",
                                     Convert.ToString(Row["caption"]),
-                                    Convert.ToString(Row["page_link"]),
-                                    Convert.ToInt32(Row["icon_image"]),
-                                    Convert.ToInt32(Row["min_rank"]),
-                                    Convert.ToInt32(Row["min_vip"]),
-                                    Row["visible"].ToString(),
-                                    Convert.ToString(Row["page_layout"]),
-                                    Convert.ToString(Row["page_strings_1"]),
-                                    Convert.ToString(Row["page_strings_2"]),
+                                    Row.Table.Columns.Contains("page_link") ? Convert.ToString(Row["page_link"]) : "",
+                                    Row.Table.Columns.Contains("icon_image") ? Convert.ToInt32(Row["icon_image"]) : 1,
+                                    Row.Table.Columns.Contains("min_rank") ? Convert.ToInt32(Row["min_rank"]) : 1,
+                                    Row.Table.Columns.Contains("min_vip") ? Convert.ToInt32(Row["min_vip"]) : 0,
+                                    Row.Table.Columns.Contains(DatabaseCompatibility.CatalogPageVisibleColumn) ? Row[DatabaseCompatibility.CatalogPageVisibleColumn].ToString() : "1",
+                                    layout,
+                                    strings1,
+                                    strings2,
                                     pageItems,
                                     pageItemOffers
                                 );
@@ -185,7 +203,7 @@ namespace Polar.HabboHotel.Catalog
                     }
 
                     // Cargar bots
-                    dbClient.SetQuery("SELECT `id`,`name`,`figure`,`motto`,`gender`,`ai_type` FROM `catalog_bot_presets`");
+                    dbClient.SetQuery($"SELECT * FROM `{DatabaseCompatibility.CatalogBotPresetsTable}`");
                     DataTable bots = dbClient.getTable();
 
                     if (bots != null)

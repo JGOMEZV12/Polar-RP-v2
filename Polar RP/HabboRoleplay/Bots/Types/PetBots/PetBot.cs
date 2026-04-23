@@ -1,4 +1,4 @@
-﻿using Polar.Communication.Packets.Outgoing.Rooms.Engine;
+using Polar.Communication.Packets.Outgoing.Rooms.Engine;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Items;
 using Polar.HabboHotel.Quests;
@@ -39,15 +39,18 @@ namespace Polar.HabboRoleplay.Bots.PetBots
         {
             if (this.GetBotRoleplay().Motto.Contains("[CAZA]"))
             {
+                if (this.GetBotRoleplay().ActiveTimers.ContainsKey("attack"))
+                    this.GetBotRoleplay().ActiveTimers["attack"].EndTimer();
+
                 CryptoRandom Random = new CryptoRandom();
                 int Puntos = Random.Next(1, 5);
                 int Pieles = Random.Next(1, 3);
 
                 Client.GetRoleplay().HuntPoints += Puntos;
-                Client.GetRoleplay().HuntSkins += Pieles;
+                Client.GetRoleplay().AddHuntSkin(this.GetBotRoleplay().PetInstance.Type, Pieles);
 
-                RoleplayManager.Shout(Client, "*Ha cazado a " + this.GetBotRoleplay().Name + " y obtiene " + Puntos + " puntos y " + Pieles + " pieles*", 4);
-                Client.SendWhisper("Has ganado " + Puntos + " puntos de caza y " + Pieles + " pieles. Total: " + Client.GetRoleplay().HuntPoints + " puntos, " + Client.GetRoleplay().HuntSkins + " pieles.", 1);
+                RoleplayManager.ShoutSay(Client, "*Ha cazado a " + this.GetBotRoleplay().Name + " y obtiene " + Puntos + " puntos y " + Pieles + " pieles*", 4, "black", true);
+                Client.SendWhisper("Has ganado " + Puntos + " puntos de caza y " + Pieles + " pieles. Total: " + Client.GetRoleplay().HuntPoints + " puntos, " + Client.GetRoleplay().HuntSkins, 1);
 
                 // Desplegar de nuevo después de un tiempo o simplemente eliminarlo
                 RoleplayBotManager.EjectDeployedBot(this.GetRoomUser(), this.GetRoom());
@@ -61,13 +64,21 @@ namespace Polar.HabboRoleplay.Bots.PetBots
 
         public override void OnAttacked(GameClient Client)
         {
+
             if (this.GetBotRoleplay().Motto.Contains("[CAZA]"))
             {
-                GetBotRoleplay().UserAttacking = Client;
-
                 if (!GetBotRoleplay().ActiveTimers.ContainsKey("attack"))
                 {
-                    GetBotRoleplay().ActiveTimers.TryAdd("attack", GetBotRoleplay().TimerManager.CreateTimer("attack", GetBotRoleplay(), 10, true, Client.GetHabbo().Id));
+                    GetBotRoleplay().UserAttacking = Client;
+                    GetBotRoleplay().ActiveTimers.TryAdd("attack", GetBotRoleplay().TimerManager.CreateTimer("attack", GetBotRoleplay(), 1000, true, Client.GetHabbo().Id));
+
+                    GetRoomUser().Chat("¡Bastardo! te voy a agarrar " + Client.GetHabbo().Username + "!", true, 4);
+                }
+                else
+                {
+                    if (GetBotRoleplay().ActiveTimers["attack"] == null)
+                        GetBotRoleplay().ActiveTimers["attack"] = GetBotRoleplay().TimerManager.CreateTimer("attack", GetBotRoleplay(), 1000, true, Client.GetHabbo().Id);
+
                     GetRoomUser().Chat("*Gruñe agresivamente hacia " + Client.GetHabbo().Username + "*", true, 4);
                 }
             }
@@ -127,13 +138,36 @@ namespace Polar.HabboRoleplay.Bots.PetBots
 
         private RoomUser FindNearbyTarget()
         {
-            if (this.GetRoomUser() == null || this.GetRoom() == null) return null;
+            var user = this.GetRoomUser();
+            var room = this.GetRoom();
+            if (user == null || room == null) return null;
 
-            return this.GetRoom().GetRoomUserManager().GetRoomUsers()
-                .Where(u => !u.IsBot && u.GetClient() != null && u.GetClient().GetRoleplay() != null && !u.GetClient().GetRoleplay().IsDead && !u.GetClient().GetRoleplay().IsNoob)
-                .Where(u => RoleplayManager.GetDistanceBetweenPoints2D(this.GetRoomUser().Coordinate, u.Coordinate) <= 2)
-                .OrderBy(u => RoleplayManager.GetDistanceBetweenPoints2D(this.GetRoomUser().Coordinate, u.Coordinate))
-                .FirstOrDefault();
+            RoomUser bestTarget = null;
+            double minDistanceSq = 9.0; // 3^2 to allow up to distance 2.x
+
+            var users = room.GetRoomUserManager()._users.Values;
+            foreach (var target in users)
+            {
+                if (target == null || target.IsBot) continue;
+
+                var rp = target.GetClient()?.GetRoleplay();
+                if (rp == null || rp.IsDead || rp.IsNoob) continue;
+
+                int dx = user.X - target.X;
+                int dy = user.Y - target.Y;
+                int distSq = dx * dx + dy * dy;
+
+                if (distSq <= 4) // Exact distance 2 (2^2)
+                {
+                    if (distSq < minDistanceSq)
+                    {
+                        minDistanceSq = distSq;
+                        bestTarget = target;
+                    }
+                }
+            }
+
+            return bestTarget;
         }
 
         public override void StopActivities()

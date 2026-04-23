@@ -212,6 +212,7 @@ namespace Polar
                 //log.Info("Conectado con la base de datos");
                 Out.WriteLine("¡CONECTADO A LA BASE DE DATOS CORRECTAMENTE!", "Polar.Boot", ConsoleColor.Green);
 
+                DatabaseCompatibility.Initialize();
                 #endregion Database Connection
 
                 //Reset our statistics first.

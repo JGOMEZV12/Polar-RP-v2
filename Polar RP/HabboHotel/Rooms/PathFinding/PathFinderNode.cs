@@ -1,11 +1,15 @@
+using System;
+using System.Collections.Generic;
+using Polar.HabboHotel.Rooms;
+
 namespace Polar.HabboHotel.Pathfinding
 {
     public sealed class PathFinderNode : IComparable<PathFinderNode>
     {
         public Vector2D Position;
         public PathFinderNode? Next;
-        public int  Cost     = int.MaxValue;
-        public bool InOpen   = false;
+        public int Cost = int.MaxValue;
+        public bool InOpen = false;
         public bool InClosed = false;
 
         public PathFinderNode(Vector2D position)
@@ -13,13 +17,12 @@ namespace Polar.HabboHotel.Pathfinding
             Position = position;
         }
 
-        // ✅ FIX #11: Reset permite reusar nodos si en el futuro se hace pooling
-        //   de PathFinderNode (complemento natural del PathFinderMapPool).
-        public void Reset()
+        public void Reset(Vector2D position)
         {
-            Next     = null;
-            Cost     = int.MaxValue;
-            InOpen   = false;
+            Position = position;
+            Next = null;
+            Cost = int.MaxValue;
+            InOpen = false;
             InClosed = false;
         }
 
@@ -35,9 +38,36 @@ namespace Polar.HabboHotel.Pathfinding
         public bool Equals(PathFinderNode? node) =>
             node != null && node.Position.Equals(Position);
 
-        // ✅ FIX #12: GetHashCode delegaba en Position.GetHashCode(), que a su vez
-        //   usaba string allocation. Ahora Vector2D.GetHashCode() es correcto y barato
-        //   (fix #2), pero se hace explícito aquí para claridad.
         public override int GetHashCode() => Position.GetHashCode();
+    }
+
+    internal static class PathFinderNodePool
+    {
+        private static readonly Stack<PathFinderNode> _pool = new Stack<PathFinderNode>(1024);
+
+        public static PathFinderNode Get(Vector2D position)
+        {
+            lock (_pool)
+            {
+                if (_pool.Count > 0)
+                {
+                    var node = _pool.Pop();
+                    node.Reset(position);
+                    return node;
+                }
+            }
+            return new PathFinderNode(position);
+        }
+
+        public static void Release(PathFinderNode node)
+        {
+            lock (_pool)
+            {
+                if (_pool.Count < 2048) // Limit pool size
+                {
+                    _pool.Push(node);
+                }
+            }
+        }
     }
 }

@@ -12,11 +12,7 @@ namespace Polar.HabboHotel.Items.Utilities
     {
         public static bool IsPet(InteractionType Type)
         {
-            if (Type == InteractionType.pet0 || Type == InteractionType.pet1 || Type == InteractionType.pet2 || Type == InteractionType.pet3 || Type == InteractionType.pet4 || Type == InteractionType.pet5 || Type == InteractionType.pet6 ||
-               Type == InteractionType.pet7 || Type == InteractionType.pet8 || Type == InteractionType.pet9 || Type == InteractionType.pet10 || Type == InteractionType.pet11 || Type == InteractionType.pet12 ||
-               Type == InteractionType.pet13 || Type == InteractionType.pet14 || Type == InteractionType.pet15 || Type == InteractionType.pet16 || Type == InteractionType.pet17 || Type == InteractionType.pet18 || Type == InteractionType.pet19 || Type == InteractionType.pet20 || Type == InteractionType.pet21 || Type == InteractionType.pet22 || Type == InteractionType.pet23 || Type == InteractionType.pet24 || Type == InteractionType.pet25 || Type == InteractionType.pet26 || Type == InteractionType.pet28 || Type == InteractionType.pet29 || Type == InteractionType.pet30 || Type == InteractionType.pet31 || Type == InteractionType.pet32 || Type == InteractionType.pet33 || Type == InteractionType.pet34 || Type == InteractionType.pet36 || Type == InteractionType.pet37 || Type == InteractionType.pet38 || Type == InteractionType.pet39 || Type == InteractionType.pet40 || Type == InteractionType.pet41 || Type == InteractionType.pet42 || Type == InteractionType.pet43)
-                return true;
-            return false;
+            return Type == InteractionType.PET;
         }
 
         public static bool CheckPetName(string PetName)

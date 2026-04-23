@@ -28,7 +28,14 @@ namespace Polar.HabboHotel.Rooms.TraxMachine
 
         public static TraxMusicData Parse(DataRow row)
         {
-            return new TraxMusicData(int.Parse(row["id"].ToString()), row["codename"].ToString(), row["name"].ToString(), row["artist"].ToString(), row["song_data"].ToString(), int.Parse(row["length"].ToString()));
+            int id = Convert.ToInt32(row["id"]);
+            string codename = row.Table.Columns.Contains("codename") ? row["codename"].ToString() : "track_" + id;
+            string name = row.Table.Columns.Contains("name") ? row["name"].ToString() : "Unknown Track";
+            string artist = row.Table.Columns.Contains("artist") ? row["artist"].ToString() : "Unknown Artist";
+            string data = row.Table.Columns.Contains("song_data") ? row["song_data"].ToString() : (row.Table.Columns.Contains("data") ? row["data"].ToString() : "");
+            int length = row.Table.Columns.Contains("length") ? Convert.ToInt32(row["length"]) : 0;
+
+            return new TraxMusicData(id, codename, name, artist, data, length);
         }
     }
 }

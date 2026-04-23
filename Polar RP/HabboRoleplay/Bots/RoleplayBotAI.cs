@@ -146,8 +146,26 @@ namespace Polar.HabboRoleplay.Bots
             #endregion
 
             #region Roaming
-            if (this.GetBotRoleplay().RoamBot)
+            if (this.GetBotRoleplay().RoamBot && !this.GetBotRoleplay().Attacking)
                 this.GetBotRoleplay().HandleRoaming();
+            #endregion
+
+            #region Attacking
+            if (this.GetBotRoleplay().Attacking)
+            {
+                if (this.GetBotRoleplay().ActiveHandlers.ContainsKey(Handlers.ATTACK))
+                {
+                    IBotHandler Attack = this.GetBotRoleplay().ActiveHandlers[Handlers.ATTACK];
+                    if (Attack.Active)
+                    {
+                        Attack.ExecuteHandler();
+                        return;
+                    }
+                }
+                else
+                    this.GetBotRoleplay().Attacking = false;
+                return;
+            }
             #endregion
         }
 

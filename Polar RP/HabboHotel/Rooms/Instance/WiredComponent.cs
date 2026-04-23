@@ -55,6 +55,8 @@ public class WiredComponent
     public IWiredItem LoadWiredBox(Item item)
     {
         var newBox = GenerateNewBox(item);
+        if (newBox == null) return null;
+
         DataRow row = null;
         using (var dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
         {
@@ -173,6 +175,45 @@ public class WiredComponent
         WiredBoxType.EffectSetRollerSpeed          => new SetRollerSpeedBox(_room, item),
         WiredBoxType.EffectRegenerateMaps          => new RegenerateMapsBox(_room, item),
         WiredBoxType.EffectGiveUserBadge           => new GiveUserBadgeBox(_room, item),
+        WiredBoxType.EffectGiveCurrency            => new GiveCurrencyBox(_room, item),
+        WiredBoxType.ConditionHasJob               => new HasJobBox(_room, item),
+        WiredBoxType.ConditionIsNight              => new IsNightBox(_room, item),
+        WiredBoxType.ConditionIsDay                => new IsDayBox(_room, item),
+        WiredBoxType.EffectExecuteCommand          => new ExecuteCommandBox(_room, item),
+        WiredBoxType.EffectGiveExperience          => new GiveExperienceBox(_room, item),
+        WiredBoxType.ConditionIsJailed             => new IsJailedBox(_room, item),
+        WiredBoxType.ConditionIsDead               => new IsDeadBox(_room, item),
+        WiredBoxType.EffectApplyEffect             => new ApplyEffectBox(_room, item),
+        WiredBoxType.ConditionIsDriving            => new IsDrivingBox(_room, item),
+        WiredBoxType.EffectDamageUser              => new DamageUserBox(_room, item),
+        WiredBoxType.EffectHealUser                => new HealUserBox(_room, item),
+        WiredBoxType.ConditionHasVip               => new HasVipBox(_room, item),
+        WiredBoxType.EffectSetMotto                => new SetMottoBox(_room, item),
+        WiredBoxType.EffectFreezeUser              => new FreezeUserBox(_room, item),
+        WiredBoxType.EffectUnfreezeUser            => new UnfreezeUserBox(_room, item),
+        WiredBoxType.ConditionIsSitting            => new IsSittingBox(_room, item),
+        WiredBoxType.EffectGiveHuntPoints          => new GiveHuntPointsBox(_room, item),
+        WiredBoxType.EffectGiveEnergy              => new GiveEnergyBox(_room, item),
+        WiredBoxType.EffectGiveArmor               => new GiveArmorBox(_room, item),
+        WiredBoxType.ConditionHasWeapon            => new HasWeaponBox(_room, item),
+        WiredBoxType.EffectGiveRPItem              => new GiveRPItemBox(_room, item),
+        WiredBoxType.ConditionHasRPItem            => new HasRPItemBox(_room, item),
+        WiredBoxType.EffectSetRotation             => new SetRotationBox(_room, item),
+        WiredBoxType.ConditionIsIdle               => new IsIdleBox(_room, item),
+        WiredBoxType.ConditionIsDancing            => new IsDancingBox(_room, item),
+        WiredBoxType.AddonAnimationTime            => new AddonAnimationTimeBox(_room, item),
+        WiredBoxType.AddonExecuteInOrder           => new AddonExecuteInOrderBox(_room, item),
+        WiredBoxType.AddonExecutionLimit           => new AddonExecutionLimitBox(_room, item),
+        WiredBoxType.AddonFilterFurni              => new AddonFilterFurniBox(_room, item),
+        WiredBoxType.AddonFilterUser               => new AddonFilterUserBox(_room, item),
+        WiredBoxType.AddonMoveCarryUsers           => new AddonMoveCarryUsersBox(_room, item),
+        WiredBoxType.AddonMoveNoAnimation          => new AddonMoveNoAnimationBox(_room, item),
+        WiredBoxType.AddonMovePhysics              => new AddonMovePhysicsBox(_room, item),
+        WiredBoxType.AddonOrEval                   => new AddonOrEvalBox(_room, item),
+        WiredBoxType.AddonRandom                   => new AddonRandomBox(_room, item),
+        WiredBoxType.AddonTextOutputFurniName      => new AddonTextOutputFurniNameBox(_room, item),
+        WiredBoxType.AddonTextOutputUsername       => new AddonTextOutputUsernameBox(_room, item),
+        WiredBoxType.AddonUnseen                   => new AddonUnseenBox(_room, item),
         _                                          => null
     };
 

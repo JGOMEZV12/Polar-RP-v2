@@ -54,6 +54,7 @@ namespace Polar.HabboRoleplay.Misc
         /// </summary>
         /// 
         public static int VaultRobbery = 130000;
+        public static ConcurrentDictionary<int, DateTime> VaultCooldowns = new ConcurrentDictionary<int, DateTime>();
         public static int VehiclesOwnedID = 10000000;// Para Autos CORP
         public static int ChatsID = 0;
         private static readonly object itemobj = new object();
@@ -301,6 +302,12 @@ namespace Polar.HabboRoleplay.Misc
                     UpdateMyProductExtrada(Client, Product.ID, newCant.ToString());
                 }
             }
+        }
+
+        public static void Say(GameClient Session, string Speech, int Bubble = 0, bool isSystemMessage = false)
+        {
+            if (Session?.GetRoomUser() == null) return;
+            Session.GetRoomUser().OnChat(Bubble, Speech, false, string.Empty, isSystemMessage);
         }
 
         public static void AddPhoneAppOwned(GameClient Client, int AppId, string Extradata = "")
@@ -1106,7 +1113,7 @@ namespace Polar.HabboRoleplay.Misc
         {
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.RunQuery("UPDATE `items` SET `room_id` = '0' WHERE `id` = '" + furni_id + "' LIMIT 1");
+                dbClient.RunQuery($"UPDATE `{Polar.Core.DatabaseCompatibility.ItemsTable}` SET `room_id` = '0' WHERE `id` = '" + furni_id + "' LIMIT 1");
             }
 
             if (Client != null && Client.GetRoomUser() != null && newroom <= 0)
@@ -1525,10 +1532,10 @@ namespace Polar.HabboRoleplay.Misc
             {
                 using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                 {
-                    dbClient.SetQuery("SELECT id FROM items WHERE id = '" + ItemId + "'");
+                    dbClient.SetQuery($"SELECT id FROM `{Polar.Core.DatabaseCompatibility.ItemsTable}` WHERE id = '" + ItemId + "'");
                     if (dbClient.getInteger() <= 0)
                     {
-                        dbClient.SetQuery("INSERT INTO items (id,user_id,room_id,base_item) VALUES (" + ItemId + ", 0, " + roomid + ", " + BaseItem + ")");
+                        dbClient.SetQuery($"INSERT INTO `{Polar.Core.DatabaseCompatibility.ItemsTable}` (id,user_id,room_id,{Polar.Core.DatabaseCompatibility.ItemsBaseItemColumn}) VALUES (" + ItemId + ", 0, " + roomid + ", " + BaseItem + ")");
                         dbClient.RunQuery();
                     }
                 }
@@ -2062,6 +2069,12 @@ namespace Polar.HabboRoleplay.Misc
                 }
                 User.SendNamePacket();
             }
+        }
+
+        public static void ShoutSay(GameClient Session, string Speech, int Bubble = 0, string Colour = "black", bool isSystemMessage = false)
+        {
+            if (Session?.GetRoomUser() == null) return;
+            Session.GetRoomUser().OnChat(Bubble, Speech, true, Colour, isSystemMessage);
         }
 
 
@@ -3736,9 +3749,9 @@ namespace Polar.HabboRoleplay.Misc
                     {
                         try
                         {
-                            dbClient.SetQuery("INSERT INTO items (user_id, base_item, room_id) VALUES (1, " + BaseId + ", " + roomid + ")");
+                            dbClient.SetQuery($"INSERT INTO `{Polar.Core.DatabaseCompatibility.ItemsTable}` (user_id, {Polar.Core.DatabaseCompatibility.ItemsBaseItemColumn}, room_id) VALUES (1, " + BaseId + ", " + roomid + ")");
                             dbClient.RunQuery();
-                            dbClient.SetQuery("SELECT id FROM items WHERE user_id = '1' AND room_id = '" + roomid + "' AND base_item = '" + BaseId + "' ORDER BY id DESC LIMIT 1");
+                            dbClient.SetQuery($"SELECT id FROM `{Polar.Core.DatabaseCompatibility.ItemsTable}` WHERE user_id = '1' AND room_id = '" + roomid + "' AND {Polar.Core.DatabaseCompatibility.ItemsBaseItemColumn} = '" + BaseId + "' ORDER BY id DESC LIMIT 1");
                             ItDemId = dbClient.getInteger();
                             ItemId = ItDemId;
                         }
@@ -3922,7 +3935,7 @@ namespace Polar.HabboRoleplay.Misc
             {
                 Deviation = new Point(User.Coordinate.X - 2, User.Coordinate.Y);
 
-                if (!User.GetRoom().GetGameMap().IsValidStep(new Vector2D(User.X, User.Y), new Vector2D(Deviation.X, Deviation.Y),
+                if (!User.GetRoom().GetGameMap().IsValidStep(User, new Vector2D(User.X, User.Y), new Vector2D(Deviation.X, Deviation.Y),
                     (User.GoalX == Deviation.X && User.GoalY == User.SetY), User.AllowOverride))
                 {
                     Deviation = new Point(User.Coordinate.X - 1, User.Coordinate.Y);
@@ -3933,7 +3946,7 @@ namespace Polar.HabboRoleplay.Misc
             else if (Direction == WalkDirections.Down)
             {
                 Deviation = new Point(User.Coordinate.X + 2, User.Coordinate.Y);
-                if (!User.GetRoom().GetGameMap().IsValidStep(new Vector2D(User.X, User.Y), new Vector2D(Deviation.X, Deviation.Y),
+                if (!User.GetRoom().GetGameMap().IsValidStep(User, new Vector2D(User.X, User.Y), new Vector2D(Deviation.X, Deviation.Y),
                      (User.GoalX == Deviation.X && User.GoalY == User.SetY), User.AllowOverride))
                 {
                     Deviation = new Point(User.Coordinate.X + 1, User.Coordinate.Y);
@@ -3943,7 +3956,7 @@ namespace Polar.HabboRoleplay.Misc
             else if (Direction == WalkDirections.Right)
             {
                 Deviation = new Point(User.Coordinate.X, User.Coordinate.Y - 2);
-                if (!User.GetRoom().GetGameMap().IsValidStep(new Vector2D(User.X, User.Y), new Vector2D(Deviation.X, Deviation.Y),
+                if (!User.GetRoom().GetGameMap().IsValidStep(User, new Vector2D(User.X, User.Y), new Vector2D(Deviation.X, Deviation.Y),
                      (User.GoalX == Deviation.X && User.GoalY == User.SetY), User.AllowOverride))
                 {
                     Deviation = new Point(User.Coordinate.X, User.Coordinate.Y - 1);
@@ -3952,7 +3965,7 @@ namespace Polar.HabboRoleplay.Misc
             else if (Direction == WalkDirections.Left)
             {
                 Deviation = new Point(User.Coordinate.X, User.Coordinate.Y + 2);
-                if (!User.GetRoom().GetGameMap().IsValidStep(new Vector2D(User.X, User.Y), new Vector2D(Deviation.X, Deviation.Y),
+                if (!User.GetRoom().GetGameMap().IsValidStep(User, new Vector2D(User.X, User.Y), new Vector2D(Deviation.X, Deviation.Y),
                      (User.GoalX == Deviation.X && User.GoalY == User.SetY), User.AllowOverride))
                 {
                     Deviation = new Point(User.Coordinate.X, User.Coordinate.Y + 1);

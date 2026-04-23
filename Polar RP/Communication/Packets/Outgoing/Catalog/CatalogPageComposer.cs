@@ -60,12 +60,40 @@ namespace Polar.Communication.Packets.Outgoing.Catalog
         private bool ShouldWriteItems(CatalogPage page)
         {
             return !page.Template.Equals("frontpage", StringComparison.OrdinalIgnoreCase)
+                && !page.Template.Equals("frontpage4", StringComparison.OrdinalIgnoreCase)
+                && !page.Template.Equals("frontpage_featured", StringComparison.OrdinalIgnoreCase)
                 && !page.Template.Equals("club_buy", StringComparison.OrdinalIgnoreCase);
         }
 
         private void WritePageItems(CatalogPage page)
         {
             var items = page.Items?.Values?.Where(i => i != null && i.Data != null).ToList();
+
+            if (page.Template == "name_color" || page.Template == "name_colors" || page.Template == "name_prefix" || page.Template == "name_prefixes")
+            {
+                WriteInteger(items?.Count ?? 0);
+                foreach (CatalogItem item in items)
+                {
+                    WriteInteger(item.Id);
+                    WriteString(item.Name); // Color code (HEX) or Prefix string
+                    WriteBoolean(false);
+                    WriteInteger(item.CostCredits);
+                    WriteInteger(item.CostPixels);
+                    WriteInteger(0);
+                    WriteBoolean(false);
+                    WriteInteger(1);
+                    WriteString("s");
+                    WriteInteger(0);
+                    WriteString("");
+                    WriteInteger(1);
+                    WriteBoolean(false);
+                    WriteInteger(0);
+                    WriteBoolean(true);
+                    WriteString("");
+                }
+                return;
+            }
+
             WriteInteger(items?.Count ?? 0);
 
             if (items == null) return;

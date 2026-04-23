@@ -66,7 +66,7 @@ namespace Polar.HabboRoleplay.Events.Methods
         /// <param name="Client"></param>
         private void NormalDeath(GameClient Client)
         {
-            RoleplayManager.Shout(Client, "*Sus signos vitales ya ni se sienten y es translatado al hospital*", 32);
+            RoleplayManager.ShoutSay(Client, "*Sus signos vitales ya ni se sienten y es translatado al hospital*", 32, "black", true);
            
             if (Client.GetRoomUser() != null)
                 Client.GetRoomUser().ApplyEffect(0);

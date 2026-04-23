@@ -63,8 +63,8 @@ namespace Polar.HabboRoleplay.Timers.Types
 
                 TimeCount++;
 
-                // Waits 1.5 seconds before chasing the user down
-                if (TimeCount < 150)
+                // Waits 1.5 seconds before chasing the user down (15 ticks * 100ms)
+                if (TimeCount < 15)
                     return;
 
                 #region Chase user through rooms

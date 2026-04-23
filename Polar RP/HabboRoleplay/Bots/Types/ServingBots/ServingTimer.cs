@@ -1,4 +1,4 @@
-﻿using Polar.Communication.Packets.Outgoing.Rooms.Chat;
+using Polar.Communication.Packets.Outgoing.Rooms.Chat;
 using Polar.HabboHotel.GameClients;
 using Polar.HabboHotel.Items;
 using Polar.HabboHotel.Pathfinding;
@@ -23,8 +23,6 @@ namespace Polar.HabboRoleplay.Timers.Types
         private int  _waitTicks  = 0;
         private bool _served     = false;
 
-        // FIX: flag que FoodServerBot.OnTimerTick() lee para procesar la cola
-        // en el siguiente tick, FUERA del Execute() de este timer.
         public bool ServeCompleted { get; private set; } = false;
 
         public ServingTimer(string Type, RoleplayBot CachedBot, int Time, bool Forever, object[] Params)
@@ -37,7 +35,7 @@ namespace Polar.HabboRoleplay.Timers.Types
         {
             try
             {
-                if (_served) return;
+                if (_served || ServeCompleted) return;
 
                 if (base.CachedBot == null || base.CachedBot.DRoomUser == null || base.CachedBot.DRoom == null)
                 { Abort(null); return; }
@@ -55,18 +53,15 @@ namespace Polar.HabboRoleplay.Timers.Types
                 if (!NeedsFilling(Client))
                 { Abort(null); return; }
 
-                // Período de gracia — el bot necesita ticks para empezar a caminar
                 if (_graceTicks < GraceTicks)
                 { _graceTicks++; return; }
 
-                // Usuario se movió de su sitio
                 if (Client.GetRoomUser().Coordinate != UserPoint)
                 {
                     Abort(Client, "¡Te has movido de tu sitio! Pide de nuevo cuando estés sentado.");
                     return;
                 }
 
-                // Bot aún no llegó — reintentar MoveTo cada 4 ticks
                 if (base.CachedBot.DRoomUser.Coordinate != ServePoint)
                 {
                     _waitTicks++;
@@ -77,7 +72,6 @@ namespace Polar.HabboRoleplay.Timers.Types
                     return;
                 }
 
-                // ── Bot llegó → servir ────────────────────────────────────────
                 _served = true;
 
                 int rot = Rotation.Calculate(
@@ -95,16 +89,12 @@ namespace Polar.HabboRoleplay.Timers.Types
 
                 Client.GetRoomUser().OnChat(Client.GetRoomUser().LastBubble, "¡Gracias! ", false, string.Empty);
 
-                GoHome();
-                // Liberar flag ANTES de volver a casa para que el siguiente pedido
-                // pueda empezar limpiamente desde OnTimerTick.
+                // IMPORTANTE: Liberar flag ANTES de GoHome
                 if (base.CachedBot?.DRoomUser != null)
                     base.CachedBot.DRoomUser.GetBotRoleplay().WalkingToItem = false;
 
-                
+                GoHome();
 
-                // FIX: marcar completado y dejar que OnTimerTick procese la cola
-                // en el PRÓXIMO tick, cuando este Execute ya terminó del todo.
                 ServeCompleted = true;
                 base.EndTimer();
             }
@@ -118,8 +108,6 @@ namespace Polar.HabboRoleplay.Timers.Types
                 base.EndTimer();
             }
         }
-
-        // ─── Helpers ──────────────────────────────────────────────────────────
 
         private bool NeedsFilling(GameClient Client)
         {
@@ -156,14 +144,15 @@ namespace Polar.HabboRoleplay.Timers.Types
             try
             {
                 if (base.CachedBot?.DRoomUser == null) return;
-                if (!base.CachedBot.DRoomUser.GetBotRoleplayAI().OnDuty) return;
 
-                var home = new Point(
-                    base.CachedBot.DRoomUser.GetBotRoleplay().oX,
-                    base.CachedBot.DRoomUser.GetBotRoleplay().oY);
+                var botRp = base.CachedBot.DRoomUser.GetBotRoleplay();
+                if (botRp == null) return;
 
-                if (base.CachedBot.DRoomUser.Coordinate != home)
-                    base.CachedBot.DRoomUser.MoveTo(home);
+                if (base.CachedBot.DRoomUser.X != botRp.oX || base.CachedBot.DRoomUser.Y != botRp.oY)
+                {
+                    // FIX: No usar override (false) para que el bot no atraviese mesas ni usuarios al volver
+                    base.CachedBot.DRoomUser.MoveTo(botRp.oX, botRp.oY, false);
+                }
             }
             catch { }
         }
@@ -184,7 +173,6 @@ namespace Polar.HabboRoleplay.Timers.Types
 
             GoHome();
 
-            // FIX: igual que en el path normal — dejar que OnTimerTick procese la cola
             ServeCompleted = true;
             base.EndTimer();
         }

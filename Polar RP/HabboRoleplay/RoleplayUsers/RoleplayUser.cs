@@ -108,7 +108,7 @@ namespace Polar.HabboRoleplay.RoleplayUsers
         #endregion
 
         private int mHuntPoints;
-        private int mHuntSkins;
+        private string mHuntSkins;
         // God
         /*public bool FirstTickBool = false;
         public int GodModeTicks = 0;
@@ -1202,7 +1202,7 @@ namespace Polar.HabboRoleplay.RoleplayUsers
 
             // Caza
             this.mHuntPoints = Convert.ToInt32(user["hunt_points"]);
-            this.mHuntSkins = Convert.ToInt32(user["hunt_skins"]);
+            this.mHuntSkins = Convert.ToString(user["hunt_skins"]);
 
             // Armero
             this.mArmLvl = Convert.ToInt32(user["ArmLvl"]);
@@ -1966,10 +1966,61 @@ namespace Polar.HabboRoleplay.RoleplayUsers
             get { return mHuntPoints; }
             set { mHuntPoints = value; }
         }
-        public int HuntSkins
+        public string HuntSkins
         {
             get { return mHuntSkins; }
             set { mHuntSkins = value; }
+        }
+
+        public void AddHuntSkin(int type, int amount)
+        {
+            string typeName = type switch
+            {
+                4 => "Bear",
+                6 => "Lion",
+                7 => "Rhino",
+                12 => "Dragon",
+                14 => "Monkey",
+                15 => "Horse",
+                17 => "Bunny",
+                21 => "Pigeon",
+                22 => "Pigeon",
+                23 => "DemonMonkey",
+                24 => "BabyBear",
+                26 => "Gnome",
+                28 => "Kitten",
+                30 => "Piglet",
+                31 => "Haloompa",
+                33 => "Pterosaur",
+                34 => "Velociraptor",
+                35 => "Cow",
+                36 => "Penguin",
+                37 => "Elephant",
+                _ => "Wild"
+            } + "Skins";
+
+            Dictionary<string, int> skins = new Dictionary<string, int>();
+
+            if (!string.IsNullOrEmpty(mHuntSkins))
+            {
+                string[] parts = mHuntSkins.Split('|');
+                foreach (string part in parts)
+                {
+                    if (string.IsNullOrEmpty(part)) continue;
+                    string[] kv = part.Split(':');
+                    if (kv.Length == 2 && int.TryParse(kv[1], out int count))
+                    {
+                        skins[kv[0]] = count;
+                    }
+                }
+            }
+
+            if (skins.ContainsKey(typeName))
+                skins[typeName] += amount;
+            else
+                skins[typeName] = amount;
+
+            mHuntSkins = string.Join("|", skins.Select(x => x.Key + ":" + x.Value));
         }
         public int BasuLvl
         {

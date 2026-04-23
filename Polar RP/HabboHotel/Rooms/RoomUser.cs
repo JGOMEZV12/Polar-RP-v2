@@ -306,9 +306,11 @@ namespace Polar.HabboHotel.Rooms
                 ChatSpamCount = 0;
         }
 
-        public bool IncrementAndCheckFlood(out int muteTime)
+        public bool IncrementAndCheckFlood(out int muteTime, bool isSystemMessage = false)
         {
             muteTime = 0;
+            if (isSystemMessage) return false;
+
             ChatSpamCount++;
 
             if (ChatSpamTicks == -1)
@@ -333,12 +335,12 @@ namespace Polar.HabboHotel.Rooms
         // ────────────────────────────────────────────────
         //  OnChat
         // ────────────────────────────────────────────────
-        public void OnChat(int bubble, string message, bool shout, string colour)
+        public void OnChat(int bubble, string message, bool shout, string colour, bool isSystemMessage = false)
         {
             if (GetClient()?.GetHabbo() == null || mRoom == null || message == null)
                 return;
 
-            if (mRoom.GetWired() != null)
+            if (!isSystemMessage && mRoom.GetWired() != null)
             {
                 if (mRoom.GetWired().TriggerEvent(Items.Wired.WiredBoxType.TriggerUserSays, GetClient().GetHabbo(), message))
                 { ChatSpamCount = 0; return; }
@@ -358,23 +360,34 @@ namespace Polar.HabboHotel.Rooms
 
             ServerPacket packet;
             var habbo = GetClient().GetHabbo();
+
+            string finalUsername = habbo.Username;
+            if (!string.IsNullOrEmpty(habbo.NameColor))
+            {
+                finalUsername = habbo.NameColor.ToLower() == "rainbow"
+                    ? CommandManager.GenerateRainbowText(habbo.Username)
+                    : $"<font color='#{habbo.NameColor}'>{habbo.Username}</font>";
+            }
+
+            string finalMessage = message;
+
             if (habbo.Translating)
             {
                 string lg1 = habbo.FromLanguage.ToLower();
                 string lg2 = habbo.ToLanguage.ToLower();
-                string translated = PolarEnvironment.translate(message, lg1, lg2)
+                string translated = PolarEnvironment.translate(finalMessage, lg1, lg2)
                                     + $" [{lg1.ToUpper()} -> {lg2.ToUpper()}]";
-                int emotion = PolarEnvironment.GetGame().GetChatManager().GetEmotions().GetEmotionsForText(message);
+                int emotion = PolarEnvironment.GetGame().GetChatManager().GetEmotions().GetEmotionsForText(finalMessage);
                 packet = shout
                     ? new ShoutComposer(VirtualId, translated, emotion, bubble, colour)
                     : (ServerPacket)new ChatComposer(VirtualId, translated, emotion, bubble, colour);
             }
             else
             {
-                int emotion = PolarEnvironment.GetGame().GetChatManager().GetEmotions().GetEmotionsForText(message);
+                int emotion = PolarEnvironment.GetGame().GetChatManager().GetEmotions().GetEmotionsForText(finalMessage);
                 packet = shout
-                    ? new ShoutComposer(VirtualId, message, emotion, bubble, colour)
-                    : (ServerPacket)new ChatComposer(VirtualId, message, emotion, bubble, colour);
+                    ? new ShoutComposer(VirtualId, finalMessage, emotion, bubble, colour)
+                    : (ServerPacket)new ChatComposer(VirtualId, finalMessage, emotion, bubble, colour);
             }
 
             var roomUserMgr = mRoom.GetRoomUserManager();
@@ -440,38 +453,21 @@ namespace Polar.HabboHotel.Rooms
         {
             if (IsBot || GetClient()?.GetHabbo() == null) return;
             var habbo = GetClient().GetHabbo();
-            if (string.IsNullOrEmpty(habbo.Colour) || habbo.ChatPreference) return;
-            if (!habbo.GetClubManager().HasSubscription("habbo_vip") || habbo.VIPRank <= 0) return;
-
-            string username = habbo.Colour.ToLower() == "rainbow"
-                ? CommandManager.GenerateRainbowText(habbo.Username)
-                : $"<font color='#{habbo.Colour}'>{habbo.Username}</font>";
-
-            GetRoom()?.SendMessage(new UserNameChangeComposer(RoomId, VirtualId, username));
+            GetRoom()?.SendMessage(new UserNameChangeComposer(RoomId, VirtualId, habbo.GetDisplayName()));
         }
 
         public void SendMeCommandPacket()
         {
             if (IsBot || GetClient()?.GetHabbo() == null) return;
             var habbo = GetClient().GetHabbo();
-            if (!habbo.GetClubManager().HasSubscription("habbo_vip") || habbo.VIPRank <= 0) return;
-
-            string username = "*" + habbo.Username;
-            if (!habbo.ChatPreference && !string.IsNullOrEmpty(habbo.Colour))
-            {
-                username = habbo.Colour.ToLower() == "rainbow"
-                    ? "*" + CommandManager.GenerateRainbowText(habbo.Username)
-                    : $"*<font color='#{habbo.Colour}'>{habbo.Username}</font>";
-            }
-            GetRoom()?.SendMessage(new UserNameChangeComposer(RoomId, VirtualId, username));
+            GetRoom()?.SendMessage(new UserNameChangeComposer(RoomId, VirtualId, "*" + habbo.GetDisplayName()));
         }
 
         public void SendNamePacket()
         {
             if (IsBot || GetClient()?.GetHabbo() == null) return;
             var habbo = GetClient().GetHabbo();
-            if (!habbo.GetClubManager().HasSubscription("habbo_vip") || habbo.VIPRank <= 0) return;
-            GetRoom()?.SendMessage(new UserNameChangeComposer(RoomId, VirtualId, habbo.Username));
+            GetRoom()?.SendMessage(new UserNameChangeComposer(RoomId, VirtualId, habbo.GetDisplayName()));
         }
 
         // ────────────────────────────────────────────────
@@ -527,6 +523,7 @@ namespace Polar.HabboHotel.Rooms
                 UnIdle();
                 GoalX = pX;
                 GoalY = pY;
+                this.AllowOverride = pOverride;
                 PathRecalcNeeded = true;
                 FreezeInteracting = false;
 
@@ -536,9 +533,6 @@ namespace Polar.HabboHotel.Rooms
 
                 if (items.Count > 0)
                 {
-                    // ✅ FIX #5: Antes se llamaba a .Where().Count() > 0 para verificar
-                    //   y luego .Where().First() para obtener — doble scan.
-                    //   Reemplazado con FirstOrDefault en una sola pasada.
                     var bed = items.FirstOrDefault(x => x?.GetBaseItem().IsBed() == true);
                     var chair = items.FirstOrDefault(x => x?.GetBaseItem().IsSeat == true);
 
@@ -572,6 +566,7 @@ namespace Polar.HabboHotel.Rooms
             UnIdle();
             GoalX = pX;
             GoalY = pY;
+            this.AllowOverride = pOverride;
             PathRecalcNeeded = true;
             FreezeInteracting = false;
         }

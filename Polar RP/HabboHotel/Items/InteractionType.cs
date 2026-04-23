@@ -33,49 +33,7 @@ namespace Polar.HabboHotel.Items
         CLUB_VIP2,
         ROLLER,
         FOOTBALL_GATE,
-        pet0,
-        pet1,
-        pet2,
-        pet3,
-        pet4,
-        pet5,
-        pet6,
-        pet7,
-        pet8,
-        pet9,
-        pet10,
-        pet11,
-        pet12,
-        pet13,
-        pet14,
-        pet15,
-        pet16,
-        pet17,
-        pet18,
-        pet19,
-        pet20,
-        pet21,
-        pet22,
-        pet23,
-        pet24,
-        pet25,
-        pet26,
-        pet28,
-        pet29,
-        pet30,
-        pet31,
-        pet32,
-        pet33,
-        pet34,
-        pet35,
-        pet36,
-        pet37,
-        pet38,
-        pet39,
-        pet40,
-        pet41,
-        pet42,
-        pet43,
+        PET,
         ICE_SKATES,
         NORMAL_SKATES,
         lowpool,
@@ -206,7 +164,64 @@ namespace Polar.HabboHotel.Items
         FARMING,
         CRAFTING,
         COMODIN,
-        CARNEW
+        CARNEW,
+
+        TELEPORT_TILE,
+        PRESSURE_PLATE,
+        COLOR_PLATE,
+        MULTI_HEIGHT,
+        COLOR_WHEEL,
+        CRACKABLE,
+        NEST,
+        PET_DRINK,
+        PET_FOOD,
+        PET_TOY,
+        PET_TREE,
+        PET_TRAMPOLINE,
+        BREEDING_NEST,
+        OBSTACLE,
+        STACK_HELPER,
+        COSTUME_HOPPER,
+        EFFECT_GATE,
+        CLUB_HOPPER,
+        CLUB_GATE,
+        CLUB_TELEPORT_TILE,
+        LOVE_LOCK,
+        FIREWORKS,
+        TALKING_FURNI,
+        WATER_ITEM,
+        VIKING_COTIE,
+        TILE_FXPROVIDER,
+        MUTE_AREA,
+        BUILD_AREA,
+        YOUTUBE,
+        SWITCH,
+        SWITCH_REMOTE,
+        FX_BOX,
+        BLACKHOLE,
+        EFFECT_TOGGLE,
+        ROOM_O_MATIC,
+        EFFECT_TILE,
+        STICKY_POLE,
+        TRAP,
+        GYM_EQUIPMENT,
+        HANDITEM,
+        HANDITEM_TILE,
+        EFFECT_GIVER,
+        EFFECT_VENDING_MACHINE,
+        EFFECT_VENDING_MACHINE_NOSIDES,
+        CRACKABLE_MONSTER,
+        SNOWBOARD_SLOPE,
+        PRESSURE_PLATE_GROUP,
+        EFFECT_TILE_GROUP,
+        SUBSCRIPTION_BOX,
+        RANDOM_STATE,
+        VENDING_MACHINE_NOSIDES,
+        TILE_WALKMAGIC,
+        GAME_TIMER,
+        GAME_UPCOUNTER,
+        NAME_COLOR,
+        NAME_PREFIX
     }
 
 
@@ -257,94 +272,129 @@ namespace Polar.HabboHotel.Items
                     return InteractionType.ROLLER;
                 case "fbgate":
                     return InteractionType.FOOTBALL_GATE;
-                case "pet0":
-                    return InteractionType.pet0;
-                case "pet1":
-                    return InteractionType.pet1;
-                case "pet2":
-                    return InteractionType.pet2;
-                case "pet3":
-                    return InteractionType.pet3;
-                case "pet4":
-                    return InteractionType.pet4;
-                case "pet5":
-                    return InteractionType.pet5;
-                case "pet6":
-                    return InteractionType.pet6;
-                case "pet7":
-                    return InteractionType.pet7;
-                case "pet8":
-                    return InteractionType.pet8;
-                case "pet9":
-                    return InteractionType.pet9;
-                case "pet10":
-                    return InteractionType.pet10;
-                case "pet11":
-                    return InteractionType.pet11;
-                case "pet12":
-                    return InteractionType.pet12;
-                case "pet13": // Caballo
-                    return InteractionType.pet13;
-                case "pet14":
-                    return InteractionType.pet14;
-                case "pet15":
-                    return InteractionType.pet15;
-                case "pet16": // Mascota agregada
-                    return InteractionType.pet16;
-                case "pet17": // Mascota agregada
-                    return InteractionType.pet17;
-                case "pet18": // Mascota agregada
-                    return InteractionType.pet18;
-                case "pet19": // Mascota agregada
-                    return InteractionType.pet19;
-                case "pet20": // Mascota agregada
-                    return InteractionType.pet20;
-                case "pet21": // Mascota agregada
-                    return InteractionType.pet21;
-                case "pet22": // Mascota agregada
-                    return InteractionType.pet22;
-                case "pet23":
-                    return InteractionType.pet23;
-                case "pet24":
-                    return InteractionType.pet24;
-                case "pet25":
-                    return InteractionType.pet25;
-                case "pet26":
-                    return InteractionType.pet26;
-                case "pet28":
-                    return InteractionType.pet28;
-                case "pet29":
-                    return InteractionType.pet29;
-                case "pet30":
-                    return InteractionType.pet30;
-                case "pet31":
-                    return InteractionType.pet31;
-                case "pet32":
-                    return InteractionType.pet32;
-                case "pet33":
-                    return InteractionType.pet33;
-                case "pet34":
-                    return InteractionType.pet34;
-                case "pet35":
-                    return InteractionType.pet35;
-                case "pet36":
-                    return InteractionType.pet36;
-                case "pet37":
-                    return InteractionType.pet37;
-                case "pet38":
-                    return InteractionType.pet38;
-                case "pet39":
-                    return InteractionType.pet39;
-                case "pet40":
-                    return InteractionType.pet40;
-                case "pet41":
-                    return InteractionType.pet41;
-                case "pet42":
-                    return InteractionType.pet42;
-                case "pet43":
-                    return InteractionType.pet43;
+                case "pet":
+                case "habbo_pet":
+                    return InteractionType.PET;
                 case "iceskates":
                     return InteractionType.ICE_SKATES;
+                case "teleporttile":
+                    return InteractionType.TELEPORT_TILE;
+                case "pressureplate":
+                    return InteractionType.PRESSURE_PLATE;
+                case "colorplate":
+                    return InteractionType.COLOR_PLATE;
+                case "multiheight":
+                    return InteractionType.MULTI_HEIGHT;
+                case "colorwheel":
+                    return InteractionType.COLOR_WHEEL;
+                case "crackable":
+                case "crackable_master":
+                    return InteractionType.CRACKABLE;
+                case "nest":
+                    return InteractionType.NEST;
+                case "pet_drink":
+                    return InteractionType.PET_DRINK;
+                case "pet_food":
+                    return InteractionType.PET_FOOD;
+                case "pet_toy":
+                    return InteractionType.PET_TOY;
+                case "pet_tree":
+                    return InteractionType.PET_TREE;
+                case "pet_trampoline":
+                    return InteractionType.PET_TRAMPOLINE;
+                case "breeding_nest":
+                    return InteractionType.BREEDING_NEST;
+                case "obstacle":
+                    return InteractionType.OBSTACLE;
+                case "stack_helper":
+                case "stackhelper":
+                    return InteractionType.STACK_HELPER;
+                case "costume_hopper":
+                    return InteractionType.COSTUME_HOPPER;
+                case "effect_gate":
+                    return InteractionType.EFFECT_GATE;
+                case "club_hopper":
+                    return InteractionType.CLUB_HOPPER;
+                case "club_gate":
+                    return InteractionType.CLUB_GATE;
+                case "club_teleporttile":
+                    return InteractionType.CLUB_TELEPORT_TILE;
+                case "love_lock":
+                    return InteractionType.LOVE_LOCK;
+                case "fireworks":
+                    return InteractionType.FIREWORKS;
+                case "talking_furni":
+                    return InteractionType.TALKING_FURNI;
+                case "water_item":
+                    return InteractionType.WATER_ITEM;
+                case "viking_cotie":
+                    return InteractionType.VIKING_COTIE;
+                case "tile_fxprovider_nfs":
+                    return InteractionType.TILE_FXPROVIDER;
+                case "mutearea":
+                    return InteractionType.MUTE_AREA;
+                case "buildarea":
+                    return InteractionType.BUILD_AREA;
+                case "youtube":
+                    return InteractionType.YOUTUBE;
+                case "switch":
+                    return InteractionType.SWITCH;
+                case "switch_remote_control":
+                    return InteractionType.SWITCH_REMOTE;
+                case "fx_box":
+                    return InteractionType.FX_BOX;
+                case "blackhole":
+                    return InteractionType.BLACKHOLE;
+                case "effect_toggle":
+                    return InteractionType.EFFECT_TOGGLE;
+                case "room_o_matic":
+                    return InteractionType.ROOM_O_MATIC;
+                case "effect_tile":
+                    return InteractionType.EFFECT_TILE;
+                case "sticky_pole":
+                    return InteractionType.STICKY_POLE;
+                case "trap":
+                    return InteractionType.TRAP;
+                case "gym_equipment":
+                    return InteractionType.GYM_EQUIPMENT;
+                case "handitem":
+                    return InteractionType.HANDITEM;
+                case "handitem_tile":
+                    return InteractionType.HANDITEM_TILE;
+                case "effect_giver":
+                    return InteractionType.EFFECT_GIVER;
+                case "effect_vendingmachine":
+                    return InteractionType.EFFECT_VENDING_MACHINE;
+                case "effect_vendingmachine_no_sides":
+                    return InteractionType.EFFECT_VENDING_MACHINE_NOSIDES;
+                case "crackable_monster":
+                case "crackable_subscription_box":
+                    return InteractionType.CRACKABLE_MONSTER;
+                case "snowboard_slope":
+                    return InteractionType.SNOWBOARD_SLOPE;
+                case "pressureplate_group":
+                    return InteractionType.PRESSURE_PLATE_GROUP;
+                case "effect_tile_group":
+                    return InteractionType.EFFECT_TILE_GROUP;
+                case "crackable_subscription_box_redeem":
+                    return InteractionType.SUBSCRIPTION_BOX;
+                case "random_state":
+                    return InteractionType.RANDOM_STATE;
+                case "vendingmachine_no_sides":
+                    return InteractionType.VENDING_MACHINE_NOSIDES;
+                case "tile_walkmagic":
+                    return InteractionType.TILE_WALKMAGIC;
+                case "game_timer":
+                    return InteractionType.GAME_TIMER;
+                case "game_upcounter":
+                    return InteractionType.GAME_UPCOUNTER;
+                case "namecolor":
+                case "name_color":
+                    return InteractionType.NAME_COLOR;
+                case "nameprefix":
+                case "name_prefix":
+                case "prefix":
+                    return InteractionType.NAME_PREFIX;
                 case "rollerskate":
                     return InteractionType.NORMAL_SKATES;
                 case "lowpool":
@@ -483,6 +533,36 @@ namespace Polar.HabboHotel.Items
                     return InteractionType.WIRED_CONDITION;
                 case "wiredhighscore":
                     return InteractionType.WIRED_HIGHSCORE;
+                case "wf_highscore":
+                    return InteractionType.WIRED_HIGHSCORE;
+                case "wf_blob":
+                case "wf_blob_invis":
+                case "wf_blob2":
+                case "wf_blob2_vis":
+                    return InteractionType.WIRED_EFFECT;
+                case "irinc_xtra_or":
+                case "irinc_hideable_barrier":
+                case "bsstonino_furni1479":
+                    return InteractionType.WIRED_EFFECT;
+                case "clothing":
+                case "habbo_clothing":
+                    return InteractionType.PURCHASABLE_CLOTHING;
+                case "mystery_box":
+                    return InteractionType.MAGICCHEST;
+                case "guild_item":
+                case "guild_furni":
+                    return InteractionType.GUILD_ITEM;
+                case "guild_forum":
+                    return InteractionType.GUILD_FORUM;
+                case "guild_gate":
+                    return InteractionType.GUILD_GATE;
+                case "roomads":
+                case "external_image":
+                    return InteractionType.BACKGROUND;
+                case "totem":
+                    return InteractionType.NONE; // Generic
+                case "monsterplant_seed":
+                    return InteractionType.MONSTERPLANT_SEED;
 
                 case "floor":
                     return InteractionType.FLOOR;
@@ -618,6 +698,18 @@ namespace Polar.HabboHotel.Items
                     return InteractionType.CARNEW;
                 default:
                     {
+                        if (pType.StartsWith("pet") && int.TryParse(pType.Replace("pet", ""), out int _))
+                            return InteractionType.PET;
+
+                        if (pType.StartsWith("wf_act_"))
+                            return InteractionType.WIRED_EFFECT;
+                        if (pType.StartsWith("wf_trg_"))
+                            return InteractionType.WIRED_TRIGGER;
+                        if (pType.StartsWith("wf_cnd_"))
+                            return InteractionType.WIRED_CONDITION;
+                        if (pType.StartsWith("wf_xtra_"))
+                            return InteractionType.WIRED_EFFECT; // Usually addons/effects
+
                         //Logging.WriteLine("Unknown interaction type in parse code: " + pType, ConsoleColor.Yellow);
                         return InteractionType.NONE;
                     }

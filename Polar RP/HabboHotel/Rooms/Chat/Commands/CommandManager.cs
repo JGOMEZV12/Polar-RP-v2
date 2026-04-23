@@ -703,6 +703,10 @@ namespace Polar.HabboHotel.Rooms.Chat.Commands
         /// </summary>
         private void RegisterVIP()
         {
+            this.Register("prefix", new PrefixCommand());
+            this.Register("prefijo", new PrefixCommand(), "", true);
+            this.Register("namecolor", new NameColorCommand());
+            this.Register("colorname", new NameColorCommand(), "", true);
             // Free fire
             //this.Register("poner", new PonerCommand(), "vip");
            

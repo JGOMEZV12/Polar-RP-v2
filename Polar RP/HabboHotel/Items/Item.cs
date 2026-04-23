@@ -304,7 +304,8 @@ namespace Polar.HabboHotel.Items
                 var t = GetBaseItem()?.InteractionType;
                 return t == InteractionType.WIRED_EFFECT
                     || t == InteractionType.WIRED_TRIGGER
-                    || t == InteractionType.WIRED_CONDITION;
+                    || t == InteractionType.WIRED_CONDITION
+                    || t == InteractionType.WIRED_HIGHSCORE;
             }
         }
 
@@ -433,6 +434,31 @@ namespace Polar.HabboHotel.Items
                     case InteractionType.CANNON: return new InteractorCannon();
                     case InteractionType.COUNTER: return new InteractorCounter();
                     case InteractionType.CAMERA_PICTURE: return new InteractorCameraPicture();
+                    case InteractionType.WF_FLOOR_SWITCH_1:
+                    case InteractionType.WF_FLOOR_SWITCH_2:
+                    case InteractionType.SWITCH:
+                    case InteractionType.SWITCH_REMOTE:
+                    case InteractionType.EFFECT_TOGGLE:
+                    case InteractionType.RANDOM_STATE:
+                        return new InteractorSwitch();
+                    case InteractionType.DICE:
+                    case InteractionType.COLOR_WHEEL:
+                        return new InteractorDice();
+                    case InteractionType.CRACKABLE:
+                    case InteractionType.CRACKABLE_MONSTER:
+                        return new InteractorGenericSwitch(); // Fallback for now
+                    case InteractionType.GATE:
+                    case InteractionType.ONE_WAY_GATE:
+                    case InteractionType.GATE_VIP:
+                    case InteractionType.GUILD_GATE:
+                    case InteractionType.CLUB_GATE:
+                    case InteractionType.EFFECT_GATE:
+                        return new InteractorGate();
+                    case InteractionType.TELEPORT:
+                    case InteractionType.HOPPER:
+                    case InteractionType.COSTUME_HOPPER:
+                    case InteractionType.CLUB_HOPPER:
+                        return new InteractorTeleport();
                     case InteractionType.NONE:
                     default: return new InteractorGenericSwitch();
                 }

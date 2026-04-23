@@ -5,14 +5,6 @@ namespace Polar.HabboHotel.Pathfinding
         private T[] _array;
         private int _capacity;
 
-        // ✅ FIX #7: _mheap, _temp, _tempArray eran campos de instancia usados
-        //   sólo como variables locales temporales dentro de métodos.
-        //   Guardarlos como estado del objeto:
-        //     • No tiene sentido semántico (no son parte del "estado" del heap).
-        //     • Introduce riesgo de corrupción si MinHeap se expusiera a threads distintos.
-        //     • Impide que el JIT los mantenga en registros (stack allocation).
-        //   Convertidos a variables locales en cada método donde se usan.
-
         public MinHeap() : this(16) { }
 
         public MinHeap(int capacity)
@@ -23,6 +15,12 @@ namespace Polar.HabboHotel.Pathfinding
         }
 
         public int Count { get; private set; }
+
+        public void Clear()
+        {
+            Array.Clear(_array, 0, Count);
+            Count = 0;
+        }
 
         public void BuildHead()
         {
@@ -41,7 +39,6 @@ namespace Polar.HabboHotel.Pathfinding
 
             while (position > 0 && _array[parentPosition].CompareTo(_array[position]) > 0)
             {
-                // local swap — no campo temporal de instancia
                 T tmp = _array[position];
                 _array[position]       = _array[parentPosition];
                 _array[parentPosition] = tmp;
@@ -54,10 +51,6 @@ namespace Polar.HabboHotel.Pathfinding
         {
             _capacity <<= 1;
             T[] newArray = new T[_capacity];
-
-            // ✅ FIX #8: CopyArray hacía un loop manual índice a índice.
-            //   Array.Copy es una instrucción intrínseca del JIT (memcpy en x64) —
-            //   órdenes de magnitud más rápido para arrays de referencia/struct.
             Array.Copy(_array, newArray, _array.Length);
             _array = newArray;
         }
@@ -68,7 +61,7 @@ namespace Polar.HabboHotel.Pathfinding
 
             T first    = _array[0];
             _array[0]  = _array[Count - 1];
-            _array[Count - 1] = default!; // ✅ FIX #9: liberar referencia para el GC
+            _array[Count - 1] = default!;
             Count--;
             MinHeapify(0);
             return first;

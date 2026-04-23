@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-
+using Polar.Core;
 using Polar.Database.Interfaces;
 
 namespace Polar.HabboHotel.Catalog.Marketplace
@@ -32,10 +32,10 @@ namespace Polar.HabboHotel.Catalog.Marketplace
 
             using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
             {
-                dbClient.SetQuery("SELECT `avgprice` FROM `catalog_marketplace_data` WHERE `sprite` = '" + SpriteID + "' LIMIT 1");
+                dbClient.SetQuery($"SELECT `avgprice` FROM `{DatabaseCompatibility.MarketplaceDataTable}` WHERE `sprite` = '" + SpriteID + "' LIMIT 1");
                 num = dbClient.getInteger();
 
-                dbClient.SetQuery("SELECT `sold` FROM `catalog_marketplace_data` WHERE `sprite` = '" + SpriteID + "' LIMIT 1");
+                dbClient.SetQuery($"SELECT `sold` FROM `{DatabaseCompatibility.MarketplaceDataTable}` WHERE `sprite` = '" + SpriteID + "' LIMIT 1");
                 num2 = dbClient.getInteger();
             }
 

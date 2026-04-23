@@ -226,7 +226,7 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                 using (IQueryAdapter dbClient = PolarEnvironment.GetDatabaseManager().GetQueryReactor())
                 {
                     // Insertar item temporal para el regalo
-                    dbClient.SetQuery("INSERT INTO `items` (`base_item`,`user_id`,`extra_data`) VALUES (@base_item, @user_id, @extra_data)");
+                    dbClient.SetQuery($"INSERT INTO `{Polar.Core.DatabaseCompatibility.ItemsTable}` (`{Polar.Core.DatabaseCompatibility.ItemsBaseItemColumn}`,`user_id`,`extra_data`) VALUES (@base_item, @user_id, @extra_data)");
                     dbClient.AddParameter("base_item", PresentData.Id);
                     dbClient.AddParameter("user_id", Habbo.Id);
                     dbClient.AddParameter("extra_data", ED);
@@ -240,7 +240,7 @@ namespace Polar.Communication.Packets.Incoming.Catalog
                     dbClient.RunQuery();
 
                     // Eliminar el item temporal (se maneja como presente)
-                    dbClient.RunQuery("DELETE FROM `items` WHERE `id` = @id LIMIT 1");
+                    dbClient.RunQuery($"DELETE FROM `{Polar.Core.DatabaseCompatibility.ItemsTable}` WHERE `id` = @id LIMIT 1");
                     dbClient.AddParameter("id", NewItemId);
                 }
 

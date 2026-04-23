@@ -57,7 +57,7 @@ namespace Polar.HabboRoleplay.Wizards
             if (Client.GetRoleplay().Bullets > 0)
             {
                 if (TargetClient != null)
-                    RoleplayManager.Shout(Client, "*Intenta dispararle a " + TargetClient.GetHabbo().Username + " pero falla al ver que su cartucho no tiene balas*", 5);
+                    RoleplayManager.ShoutSay(Client, "*Intenta dispararle a " + TargetClient.GetHabbo().Username + " pero falla al ver que su cartucho no tiene balas*", 5, "black", true);
 
                 this.ReloadMessage(Client, this.ClipSize);
 
@@ -65,7 +65,7 @@ namespace Polar.HabboRoleplay.Wizards
                 Client.GetRoleplay().WLife--;
                 RoleplayManager.UpdateMyWeaponStats(Client, "life", Client.GetRoleplay().WLife, Client.GetRoleplay().EquippedWeapon.Name);
                 if (Client.GetRoleplay().WLife <= 0)
-                    RoleplayManager.Shout(Client, "* Mientras " + Client.GetHabbo().Username + " recargaba su arma, se escucha como cruje y se daña.", 4);
+                    RoleplayManager.ShoutSay(Client, "* Mientras " + Client.GetHabbo().Username + " recargaba su arma, se escucha como cruje y se daña.", 4, "black", true);
 
                 this.WLife = Client.GetRoleplay().WLife;
                 return true;
@@ -73,7 +73,7 @@ namespace Polar.HabboRoleplay.Wizards
             else
             {
                 if (TargetClient != null)
-                    RoleplayManager.Shout(Client, "*Intenta dispararle a " + TargetClient.GetHabbo().Username + " pero falla al ver que su arma se quedó sin balas*", 5);
+                    RoleplayManager.ShoutSay(Client, "*Intenta dispararle a " + TargetClient.GetHabbo().Username + " pero falla al ver que su arma se quedó sin balas*", 5, "black", true);
 
                 // New Balas infinitas
                 Client.SendWhisper("¡No tienes balas para poder recargar tu arma!", 1);
@@ -84,7 +84,7 @@ namespace Polar.HabboRoleplay.Wizards
                 Client.GetRoleplay().WLife--;
                 RoleplayManager.UpdateMyWeaponStats(Client, "life", Client.GetRoleplay().WLife, Client.GetRoleplay().EquippedWeapon.Name);
                 if (Client.GetRoleplay().WLife <= 0)
-                    RoleplayManager.Shout(Client, "* Mientras " + Client.GetHabbo().Username + " recargaba su arma, se escucha como cruje y se daña.", 4);
+                    RoleplayManager.ShoutSay(Client, "* Mientras " + Client.GetHabbo().Username + " recargaba su arma, se escucha como cruje y se daña.", 4, "black", true);
 
                 this.WLife = Client.GetRoleplay().WLife;
                 return false;

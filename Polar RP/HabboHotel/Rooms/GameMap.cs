@@ -126,6 +126,7 @@ namespace Polar.HabboHotel.Rooms
         {
             if (user == null) return;
 
+            bool isEmpty = false;
             lock (_userMapLock)
             {
                 if (!_userMap.TryGetValue(coord, out var list)) return;
@@ -133,10 +134,13 @@ namespace Polar.HabboHotel.Rooms
                 list.RemoveAll(u => u?.VirtualId == user.VirtualId);
 
                 if (list.Count == 0)
+                {
                     _userMap.TryRemove(coord, out _);
+                    isEmpty = true;
+                }
             }
 
-            if (ValidTile(coord.X, coord.Y))
+            if (isEmpty && ValidTile(coord.X, coord.Y))
                 mUserOnMap[coord.X, coord.Y] = 0;
         }
 
@@ -148,17 +152,26 @@ namespace Polar.HabboHotel.Rooms
 
         public bool MapGotUser(Point coord)
         {
-            return GetRoomUsers(coord).Count > 0;
+            return _userMap.TryGetValue(coord, out var users) && users.Count > 0;
         }
 
         public bool MapGotUser(Point coord, bool checkingInvisible, bool isInvisible)
         {
-            // ✅ FIX #17: Antes filtraba bots con .Where().ToList() y luego comprobaba
-            //   users == null (nunca null) y Count > 0 dos veces. Simplificado.
-            List<RoomUser> users = GetRoomUsers(coord);
-            if (users.Count == 0) return false;
+            if (!_userMap.TryGetValue(coord, out var users) || users.Count == 0)
+                return false;
+
             if (!checkingInvisible) return true;
-            return users.Any(u => !u.IsBot && IsUserVisible(u, isInvisible));
+
+            lock (_userMapLock)
+            {
+                for (int i = 0; i < users.Count; i++)
+                {
+                    var u = users[i];
+                    if (u != null && !u.IsBot && IsUserVisible(u, isInvisible))
+                        return true;
+                }
+            }
+            return false;
         }
 
         private static bool IsUserVisible(RoomUser user, bool isInvisible)
@@ -174,9 +187,14 @@ namespace Polar.HabboHotel.Rooms
 
         public List<RoomUser> GetRoomUsers(Point coord)
         {
-            return _userMap.TryGetValue(coord, out var users)
-                ? new List<RoomUser>(users) // snapshot — no exponer la lista interna
-                : new List<RoomUser>();
+            if (_userMap.TryGetValue(coord, out var users))
+            {
+                lock (_userMapLock)
+                {
+                    return new List<RoomUser>(users);
+                }
+            }
+            return new List<RoomUser>();
         }
 
         #endregion
@@ -205,18 +223,11 @@ namespace Polar.HabboHotel.Rooms
 
         private void UpdateUserStateAndPosition(RoomUser user, Point newPoint, double newZ)
         {
-            if (ValidTile(user.X, user.Y))
-                GameMap[user.X, user.Y] = user.SqState;
-
             UpdateUserMovement(user.Coordinate, newPoint, user);
 
             user.X = newPoint.X;
             user.Y = newPoint.Y;
             user.Z = newZ;
-
-            user.SqState = GameMap[newPoint.X, newPoint.Y];
-            if (ValidTile(newPoint.X, newPoint.Y))
-                GameMap[newPoint.X, newPoint.Y] = 1;
         }
 
         private void UpdateUserOrientation(RoomUser user, Point point)
@@ -307,8 +318,6 @@ namespace Polar.HabboHotel.Rooms
 
         private void UpdateUserPositions()
         {
-            if (_room.RoomBlockingEnabled) return;
-
             foreach (RoomUser user in _room.GetRoomUserManager().GetUserList())
             {
                 if (user != null) UpdateUserMapPosition(user);
@@ -319,8 +328,6 @@ namespace Polar.HabboHotel.Rooms
         {
             if (!ValidTile(user.X, user.Y)) return;
 
-            user.SqState = GameMap[user.X, user.Y];
-            GameMap[user.X, user.Y] = 0;
             mUserOnMap[user.X, user.Y] = 1;
         }
 
@@ -544,7 +551,10 @@ namespace Polar.HabboHotel.Rooms
             }
             else
             {
-                if (GameMap[coord.X, coord.Y] != 3)
+                // Un ítem no-caminable solo marca como bloqueado (0) si no hay
+                // una silla (3) o asiento del modelo (2) debajo.
+                byte current = GameMap[coord.X, coord.Y];
+                if (current != 3 && current != 2)
                     GameMap[coord.X, coord.Y] = 0;
             }
         }
@@ -726,48 +736,39 @@ namespace Polar.HabboHotel.Rooms
             return true;
         }
 
-        public bool IsValidStep(Vector2D from, Vector2D to, bool endOfPath, bool @override,
-            bool roller = false, bool isBot = false, bool isInvisible = false, bool diagMove = false)
-            => IsValidStep(new Point(from.X, from.Y), new Point(to.X, to.Y),
-                           endOfPath, @override, roller, isBot, isInvisible, diagMove);
-
-        public bool IsValidStep(Point from, Point to, bool endOfPath, bool @override,
-            bool roller = false, bool isBot = false, bool isInvisible = false, bool diagMove = false)
+        public bool IsValidStep(RoomUser user, Vector2D from, Vector2D to, bool endOfPath, bool @override,
+            bool roller = false, bool isInvisible = false, bool diagMove = false)
         {
             if (!ValidTile(to.X, to.Y)) return false;
             if (@override) return true;
 
-            if (!isBot && !_room.RoomBlockingEnabled &&
-                SquareHasUsers(to.X, to.Y, true, isInvisible))
-                return false;
-
-            List<Item> items = GetAllRoomItemForSquare(to.X, to.Y);
-            if (items.Count > 0 && HasSpecialItemsBlockingMovement(items, to, endOfPath))
-                return false;
-
-            if (!IsTileWalkable(GameMap[to.X, to.Y], endOfPath)) return false;
-            if (!roller && GetHeightDifference(from, to) > 1.5) return false;
-            if (diagMove && !IsValidDiagonalMove(from, to)) return false;
-
-            return true;
-        }
-
-        public bool IsValidStep2(RoomUser user, Vector2D from, Vector2D to, bool endOfPath, bool @override)
-            => IsValidStep2(user, new Point(from.X, from.Y), new Point(to.X, to.Y), endOfPath, @override);
-
-        public bool IsValidStep2(RoomUser user, Point from, Point to, bool endOfPath, bool @override)
-        {
-            if (user == null || !ValidTile(to.X, to.Y)) return false;
-            if (@override) return true;
+            // Bloqueo por usuarios (si RoomBlockingEnabled es true, bloqueamos el paso)
+            if (_room.RoomBlockingEnabled && SquareHasUsers(to.X, to.Y, true, isInvisible))
+            {
+                // Solo permitimos el paso si es el mismo usuario (evita auto-bloqueo al clicar tu sitio)
+                var usersOnTile = GetRoomUsers(new Point(to.X, to.Y));
+                if (!usersOnTile.Any(u => u != null && u.VirtualId == user.VirtualId))
+                {
+                    // Bots respetan usuarios si es el destino final o si el usuario no es él mismo
+                    return false;
+                }
+            }
 
             List<Item> items = GetAllRoomItemForSquare(to.X, to.Y);
 
-            // ✅ FIX #20: Antes: .Any(...) para verificar + .FirstOrDefault(...) para obtener —
-            //   doble scan de la misma lista. Un solo FirstOrDefault es suficiente.
-            Item? gate = items.FirstOrDefault(x =>
-                x?.GetBaseItem().InteractionType == InteractionType.GUILD_GATE);
+            Item? gate = items.FirstOrDefault(x => x?.GetBaseItem().InteractionType == InteractionType.GUILD_GATE);
             if (gate != null)
+            {
+                if (user.IsBot)
+                {
+                    OpenGate(gate);
+                    return true;
+                }
                 return HandleGroupGateAccess(user, gate);
+            }
+
+            if (items.Count > 0 && HasSpecialItemsBlockingMovement(items, new Point(to.X, to.Y), endOfPath))
+                return false;
 
             bool isChair = false;
             double highestZ = -1;
@@ -782,22 +783,47 @@ namespace Polar.HabboHotel.Rooms
             }
 
             byte tileState = GameMap[to.X, to.Y];
-            if ((tileState == 3 && !endOfPath && !isChair) ||
-                tileState == 0 ||
-                (tileState == 2 && !endOfPath))
+            // 0 = BLOQUEADO, 1 = ABIERTO, 2 = ASIENTO MODELO, 3 = ASIENTO ÍTEM / CAMA
+            if (tileState == 0) return false;
+
+            // Siempre permitir el destino final si hay un asiento o cama
+            if (endOfPath && (tileState == 2 || tileState == 3)) return true;
+
+            // Bloquear paso si es un asiento del modelo (estado 2)
+            if (tileState == 2) return false;
+
+            // Bloquear paso si es asiento de ítem (estado 3) PERO el ítem más alto no es el asiento (ej: mesa encima)
+            if (tileState == 3 && !isChair) return false;
+
+            if (!roller && GetHeightDifference(from, to) > 1.5) return false;
+            if (diagMove && !IsValidDiagonalMove(from, to)) return false;
+
+            // Colisión final con otros usuarios (no con uno mismo)
+            if (endOfPath)
             {
-                user.Path?.Clear();
-                user.PathRecalcNeeded = true;
-                return false;
+                var other = _room.GetRoomUserManager().GetUserForSquare(to.X, to.Y);
+                if (other != null && other.VirtualId != user.VirtualId && !other.IsWalking) return false;
             }
 
-            double heightDiff = SqAbsoluteHeight(to.X, to.Y) - SqAbsoluteHeight(from.X, from.Y);
-            if (heightDiff > 1.5 && !user.RidingHorse) return false;
-
-            RoomUser? other = _room.GetRoomUserManager().GetUserForSquare(to.X, to.Y);
-            if (other != null && !other.IsWalking && endOfPath) return false;
-
             return true;
+        }
+
+        public double GetHeightDifference(Vector2D from, Vector2D to) =>
+            SqAbsoluteHeight(to.X, to.Y) - SqAbsoluteHeight(from.X, from.Y);
+
+        private bool IsValidDiagonalMove(Vector2D from, Vector2D to)
+        {
+            int dx = to.X - from.X;
+            int dy = to.Y - from.Y;
+
+            return (dx, dy) switch
+            {
+                (-1, -1) => GameMap[to.X + 1, to.Y] == 1 || GameMap[to.X, to.Y + 1] == 1,
+                (1, -1) => GameMap[to.X - 1, to.Y] == 1 || GameMap[to.X, to.Y + 1] == 1,
+                (1, 1) => GameMap[to.X - 1, to.Y] == 1 || GameMap[to.X, to.Y - 1] == 1,
+                (-1, 1) => GameMap[to.X + 1, to.Y] == 1 || GameMap[to.X, to.Y - 1] == 1,
+                _ => true
+            };
         }
 
         private bool HandleGroupGateAccess(RoomUser user, Item gate)
