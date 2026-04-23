@@ -578,6 +578,7 @@ namespace Polar.HabboHotel.Items.Wired
                 case WiredBoxType.AddonRandom:
                 case WiredBoxType.AddonTextOutputFurniName:
                 case WiredBoxType.AddonTextOutputUsername:
+                case WiredBoxType.SpecialHighscore:
                 case WiredBoxType.AddonUnseen:
                     return 48;
             }

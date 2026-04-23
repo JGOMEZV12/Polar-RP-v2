@@ -301,11 +301,9 @@ namespace Polar.HabboHotel.Items
         {
             get
             {
-                var t = GetBaseItem()?.InteractionType;
-                return t == InteractionType.WIRED_EFFECT
-                    || t == InteractionType.WIRED_TRIGGER
-                    || t == InteractionType.WIRED_CONDITION
-                    || t == InteractionType.WIRED_HIGHSCORE;
+                var baseItem = GetBaseItem();
+                if (baseItem == null) return false;
+                return baseItem.WiredType != WiredBoxType.None;
             }
         }
 
@@ -1108,10 +1106,11 @@ namespace Polar.HabboHotel.Items
                         UpdateState();
                         break;
 
-                    case InteractionType.WIRED_EFFECT:
-                    case InteractionType.WIRED_TRIGGER:
-                    case InteractionType.WIRED_CONDITION:
-                        if (ExtraData == "1") { ExtraData = "0"; UpdateState(false, true); }
+                    default:
+                        if (IsWired)
+                        {
+                            if (ExtraData == "1") { ExtraData = "0"; UpdateState(false, true); }
+                        }
                         break;
 
                     case InteractionType.CANNON:

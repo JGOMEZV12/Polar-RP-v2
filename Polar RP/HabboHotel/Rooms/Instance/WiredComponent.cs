@@ -217,9 +217,10 @@ public class WiredComponent
         _                                          => null
     };
 
-    public bool IsTrigger(Item item)   => item.GetBaseItem().InteractionType == InteractionType.WIRED_TRIGGER;
-    public bool IsEffect(Item item)    => item.GetBaseItem().InteractionType == InteractionType.WIRED_EFFECT;
-    public bool IsCondition(Item item) => item.GetBaseItem().InteractionType == InteractionType.WIRED_CONDITION;
+    public bool IsTrigger(Item item)   => item.GetBaseItem().WiredType.ToString().StartsWith("Trigger");
+    public bool IsEffect(Item item)    => item.GetBaseItem().WiredType.ToString().StartsWith("Effect");
+    public bool IsCondition(Item item) => item.GetBaseItem().WiredType.ToString().StartsWith("Condition");
+    public bool IsAddon(Item item)     => item.GetBaseItem().WiredType.ToString().StartsWith("Addon");
 
     public bool OtherBoxHasItem(IWiredItem box, int itemId)
     {

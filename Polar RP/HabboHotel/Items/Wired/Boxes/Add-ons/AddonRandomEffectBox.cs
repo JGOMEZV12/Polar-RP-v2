@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Polar.Communication.Packets.Outgoing;
+using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -35,6 +36,23 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Add_ons
 
         }
 
+
+        public void Serialize(ServerPacket Packet)
+        {
+            Packet.WriteBoolean(false);
+            Packet.WriteInteger(100);
+            Packet.WriteInteger(SetItems.Count);
+            foreach (Item Item in SetItems.Values.ToList())
+            {
+                Packet.WriteInteger(Item.Id);
+            }
+            Packet.WriteInteger(Item.GetBaseItem().SpriteId);
+            Packet.WriteInteger(Item.Id);
+            Packet.WriteString(StringData);
+            Packet.WriteInteger(0);
+            Packet.WriteInteger(WiredBoxTypeUtility.GetWiredId(Type));
+            Packet.WriteInteger(0);
+        }
         public bool Execute(params object[] @params) => true;
     }
 }

@@ -1,3 +1,4 @@
+using Polar.Communication.Packets.Outgoing;
 using System;
 using System.Linq;
 using System.Text;
@@ -31,6 +32,29 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Triggers
         {
         }
 
+
+        public void Serialize(ServerPacket Packet)
+        {
+            Packet.WriteBoolean(false);
+            Packet.WriteInteger(100);
+            Packet.WriteInteger(SetItems.Count);
+            foreach (Item Item in SetItems.Values.ToList())
+            {
+                Packet.WriteInteger(Item.Id);
+            }
+            Packet.WriteInteger(Item.GetBaseItem().SpriteId);
+            Packet.WriteInteger(Item.Id);
+            Packet.WriteString(StringData);
+
+            Packet.WriteInteger(this is IWiredCycle ? 1 : 0);
+            if (this is IWiredCycle)
+            {
+                IWiredCycle Cycle = (IWiredCycle)this;
+                Packet.WriteInteger(Cycle.Delay);
+            }
+            Packet.WriteInteger(0);
+            Packet.WriteInteger(WiredBoxTypeUtility.GetWiredId(Type));
+        }
         public bool Execute(params object[] Params)
         {
             ICollection<IWiredItem> Effects = Instance.GetWired().GetEffects(this);
@@ -51,13 +75,13 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Triggers
             bool hasOrEval = addons.Any(x => x.Type == WiredBoxType.AddonOrEval);
             if (hasOrEval)
             {
-                if (Conditions.Count > 0 && !Conditions.Any(c => c.Execute(Player))) return false;
+                if (Conditions.Count > 0 && !Conditions.Any(c => c.Execute())) return false;
             }
             else
             {
                 foreach (IWiredItem Condition in Conditions.ToList())
                 {
-                    if (!Condition.Execute(Player))
+                    if (!Condition.Execute())
                         return false;
 
                     Instance.GetWired().OnEvent(Condition.Item);
@@ -76,7 +100,7 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Triggers
                     return false;
 
                 IWiredItem SelectedBox = Instance.GetWired().GetRandomEffect(Effects.ToList());
-                if (SelectedBox != null && SelectedBox.Execute(Player))
+                if (SelectedBox != null && SelectedBox.Execute())
                     Instance.GetWired().OnEvent(SelectedBox.Item);
 
                 Instance.GetWired().OnEvent(RandomBox.Item);
@@ -84,14 +108,14 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Triggers
             else if (hasUnseenAddon)
             {
                 IWiredItem unseenBox = addons.FirstOrDefault(x => x.Type == WiredBoxType.AddonUnseen);
-                if (unseenBox != null && unseenBox.Execute(Effects.ToList(), Player))
+                if (unseenBox != null && unseenBox.Execute(Effects.ToList()))
                     Instance.GetWired().OnEvent(unseenBox.Item);
             }
             else if (hasExecuteInOrder)
             {
                 foreach (IWiredItem Effect in Effects.OrderBy(x => x.Item.GetZ).ToList())
                 {
-                    if (!Effect.Execute(Player)) break;
+                    if (!Effect.Execute()) break;
                     Instance.GetWired().OnEvent(Effect.Item);
                 }
             }
@@ -99,12 +123,11 @@ namespace Polar.HabboHotel.Items.Wired.Boxes.Triggers
             {
                 foreach (IWiredItem Effect in Effects.ToList())
                 {
-                    if (!Effect.Execute(Player))
+                    if (!Effect.Execute())
                         continue;
 
                     Instance.GetWired().OnEvent(Effect.Item);
                 }
-            }
             }
 
             return true;

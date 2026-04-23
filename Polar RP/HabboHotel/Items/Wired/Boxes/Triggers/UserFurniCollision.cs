@@ -1,3 +1,4 @@
+using Polar.Communication.Packets.Outgoing;
 using System.Collections.Concurrent;
 using System.Linq;
 using Polar.HabboHotel.GameClients;
@@ -35,7 +36,30 @@ internal class UserFurniCollision : IWiredItem
         var unknown2 = packet.PopString();
     }
 
-    public bool Execute(params object[] @params)
+
+        public void Serialize(ServerPacket Packet)
+        {
+            Packet.WriteBoolean(false);
+            Packet.WriteInteger(100);
+            Packet.WriteInteger(SetItems.Count);
+            foreach (Item Item in SetItems.Values.ToList())
+            {
+                Packet.WriteInteger(Item.Id);
+            }
+            Packet.WriteInteger(Item.GetBaseItem().SpriteId);
+            Packet.WriteInteger(Item.Id);
+            Packet.WriteString(StringData);
+
+            Packet.WriteInteger(this is IWiredCycle ? 1 : 0);
+            if (this is IWiredCycle)
+            {
+                IWiredCycle Cycle = (IWiredCycle)this;
+                Packet.WriteInteger(Cycle.Delay);
+            }
+            Packet.WriteInteger(0);
+            Packet.WriteInteger(WiredBoxTypeUtility.GetWiredId(Type));
+        }
+        public bool Execute(params object[] @params)
     {
         // FIX: Validar player e item ANTES de llamar OnEvent
         var player = (Habbo)@params[0];

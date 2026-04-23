@@ -85,7 +85,7 @@ namespace Polar.HabboHotel.Rooms
             var messages = new List<ServerPacket>();
             foreach (Item scoreitem in _floorItems.Values)
             {
-                if (scoreitem.GetBaseItem().InteractionType == InteractionType.WIRED_HIGHSCORE)
+                if (scoreitem.GetBaseItem().WiredType == WiredBoxType.SpecialHighscore)
                     messages.Add(new ObjectUpdateComposer(scoreitem, _room.OwnerId));
             }
             _room.SendMessage(messages);
@@ -980,7 +980,7 @@ namespace Polar.HabboHotel.Rooms
         public Item GetFirstHighscore()
         {
             foreach (var item in _floorItems.Values)
-                if (item.GetBaseItem().InteractionType == InteractionType.WIRED_HIGHSCORE)
+                if (item.GetBaseItem().WiredType == WiredBoxType.SpecialHighscore)
                     return item;
             return null;
         }

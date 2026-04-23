@@ -40,8 +40,6 @@ namespace Polar.HabboHotel.Items.Interactor
             Item.UpdateState(false, true);
             Item.RequestUpdate(2, true);
 
-            if (Item.GetBaseItem().WiredType == WiredBoxType.AddonRandomEffect)
-                return;
             if (Item.GetRoom().GetWired().IsTrigger(Item))
             {
                 List<int> BlockedItems = WiredBoxTypeUtility.ContainsBlockedEffect(Box, Item.GetRoom().GetWired().GetEffects(Box));
@@ -54,6 +52,8 @@ namespace Polar.HabboHotel.Items.Interactor
             }
             else if (Item.GetRoom().GetWired().IsCondition(Item))
                 Session.SendMessage(new WiredConditionConfigComposer(Box));
+            else if (Item.GetRoom().GetWired().IsAddon(Item))
+                Session.SendMessage(new WiredExtraConfigComposer(Box));
         }
 
 
